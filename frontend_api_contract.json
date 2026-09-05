@@ -1,0 +1,40 @@
+{
+  "contract_version": "4.0.0",
+  "api_version": "v1",
+  "base_url": "https://api.barraq.xn--mgbaab0cxheq.tech/api/v1",
+  "authentication": {
+    "type": "Bearer JWT",
+    "login": "/auth/login/",
+    "refresh": "/auth/refresh/",
+    "verify": "/auth/verify/",
+    "logout": "/auth/logout/"
+  },
+  "response_envelope": {
+    "success": "boolean",
+    "message": "string",
+    "data": "object|array|null",
+    "meta": "object|null",
+    "request_id": "string|null"
+  },
+  "route_groups": {
+    "system": ["/", "/health/", "/health/live/", "/health/ready/", "/meta/"],
+    "auth": ["/auth/register/", "/auth/login/", "/auth/refresh/", "/auth/verify/", "/auth/logout/", "/auth/change-password/", "/auth/password-reset/", "/auth/password-reset/confirm/"],
+    "users": ["/users/me/"],
+    "students": ["/students/setup-profile/", "/students/profile/"],
+    "subjects": ["/education-stages/", "/subjects/", "/users/subjects/", "/users/subjects/{id}/"],
+    "study_plans": ["/study-plans/", "/study-plans/{id}/", "/study-plans/{id}/tasks/", "/study-plans/today/", "/study-plans/week/", "/study-tasks/", "/study-tasks/{id}/complete/", "/study-tasks/{id}/skip/", "/study-tasks/{id}/reopen/"],
+    "quizzes": ["/quizzes/", "/quizzes/{id}/", "/quizzes/{id}/publish/", "/quizzes/{id}/start/", "/quizzes/{id}/archive/", "/quiz-questions/", "/quiz-attempts/", "/quiz-attempts/{id}/answer/", "/quiz-attempts/{id}/submit/", "/quiz-attempts/{id}/result/", "/quiz-attempts/{id}/abandon/", "/question-bank/"],
+    "sources": ["/student-sources/", "/student-sources/{id}/", "/student-sources/{id}/process/", "/student-sources/{id}/capabilities/", "/student-sources/{id}/use-with-character/", "/student-source-collections/"],
+    "ai": ["/ai/", "/ai/capabilities/", "/ai/jobs/", "/ai/jobs/{public_id}/", "/ai/jobs/{public_id}/refresh/", "/ai/jobs/{public_id}/cancel/", "/ai/jobs/{public_id}/feedback/"],
+    "results": ["/recommendations/", "/summaries/", "/transcriptions/"],
+    "subscriptions": ["/subscriptions/", "/subscriptions/me/", "/subscriptions/plans/"],
+    "notifications": ["/notifications/", "/notifications/unread-count/", "/notifications/{id}/mark-read/", "/notifications/mark-all-read/"],
+    "support": ["/support/tickets/", "/support/tickets/{id}/", "/support/tickets/{id}/messages/", "/support/tickets/{id}/close/"],
+    "dashboard": ["/admin/", "/admin/me/", "/admin/overview/", "/admin/system/health/", "/admin/ai-jobs/", "/admin/ai-jobs/metrics/", "/admin/support-tickets/", "/admin/audit-logs/"]
+  },
+  "source_of_truth": {
+    "schema": "https://api.barraq.xn--mgbaab0cxheq.tech/api/schema/",
+    "swagger": "https://api.barraq.xn--mgbaab0cxheq.tech/api/docs/",
+    "note": "The generated OpenAPI schema is the authoritative field-level contract."
+  }
+}

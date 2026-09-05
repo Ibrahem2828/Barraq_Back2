@@ -1,0 +1,16 @@
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+class Migration(migrations.Migration):
+    initial=True
+    dependencies=[migrations.swappable_dependency(settings.AUTH_USER_MODEL),('ai_integration','0001_initial'),('sources','0002_alter_studentsourceinteraction_source_and_more')]
+    operations=[migrations.CreateModel(name='Summary',fields=[
+        ('id',models.BigAutoField(auto_created=True,primary_key=True,serialize=False,verbose_name='ID')),('created_at',models.DateTimeField(auto_now_add=True)),('updated_at',models.DateTimeField(auto_now=True)),
+        ('title',models.CharField(max_length=255)),('short_summary',models.TextField(blank=True)),('detailed_summary',models.TextField(blank=True)),
+        ('key_points',models.JSONField(blank=True,default=list)),('important_terms',models.JSONField(blank=True,default=list)),('covered_topics',models.JSONField(blank=True,default=list)),('review_questions',models.JSONField(blank=True,default=list)),('source_references',models.JSONField(blank=True,default=list)),
+        ('quality_score',models.DecimalField(blank=True,decimal_places=2,max_digits=5,null=True)),
+        ('ai_job',models.OneToOneField(blank=True,null=True,on_delete=django.db.models.deletion.SET_NULL,related_name='summary',to='ai_integration.aijob')),
+        ('collection',models.ForeignKey(blank=True,null=True,on_delete=django.db.models.deletion.SET_NULL,related_name='summaries',to='sources.studentsourcecollection')),
+        ('source',models.ForeignKey(blank=True,null=True,on_delete=django.db.models.deletion.SET_NULL,related_name='summaries',to='sources.studentsource')),
+        ('user',models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,related_name='summaries',to=settings.AUTH_USER_MODEL)),
+    ],options={'ordering':('-created_at',)}),migrations.AddIndex(model_name='summary',index=models.Index(fields=['user','-created_at'],name='summary_user_date_idx'))]

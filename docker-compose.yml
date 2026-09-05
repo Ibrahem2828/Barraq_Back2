@@ -1,0 +1,191 @@
+name: baraq-backend
+
+x-backend-environment: &backend-environment
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  DEBUG: ${DEBUG:-False}
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:?ALLOWED_HOSTS is required}
+  PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:?PUBLIC_API_BASE_URL is required}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+  CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-False}
+  TIME_ZONE: ${TIME_ZONE:-Asia/Damascus}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-baraq_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-baraq_db}
+  DATABASE_CONN_MAX_AGE: ${DATABASE_CONN_MAX_AGE:-60}
+  DATABASE_CONN_HEALTH_CHECKS: ${DATABASE_CONN_HEALTH_CHECKS:-True}
+  DATABASE_CONNECT_TIMEOUT: ${DATABASE_CONNECT_TIMEOUT:-10}
+  DATABASE_STATEMENT_TIMEOUT_MS: ${DATABASE_STATEMENT_TIMEOUT_MS:-30000}
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  AI_SERVICE_ENABLED: ${AI_SERVICE_ENABLED:-True}
+  AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:?AI_SERVICE_BASE_URL is required}
+  AI_SERVICE_JOBS_PATH: ${AI_SERVICE_JOBS_PATH:-/api/ai/v1/jobs}
+  AI_SERVICE_FEEDBACK_PATH: ${AI_SERVICE_FEEDBACK_PATH:-/api/ai/v1/feedback}
+  AI_SERVICE_HEALTH_PATH: ${AI_SERVICE_HEALTH_PATH:-/api/ai/v1/health/ready}
+  AI_SERVICE_VERIFY_SSL: ${AI_SERVICE_VERIFY_SSL:-True}
+  AI_SERVICE_ALLOW_INSECURE_HTTP: ${AI_SERVICE_ALLOW_INSECURE_HTTP:-False}
+  AI_SERVICE_TIMEOUT_SECONDS: ${AI_SERVICE_TIMEOUT_SECONDS:-30}
+  AI_DATASET_CONSENT_VERSION: ${AI_DATASET_CONSENT_VERSION:-2026-07-01}
+  BARAQ_SERVICE_ID: ${BARAQ_SERVICE_ID:-baraq-django}
+  BARAQ_HMAC_CURRENT_KEY_ID: ${BARAQ_HMAC_CURRENT_KEY_ID:?BARAQ_HMAC_CURRENT_KEY_ID is required}
+  BARAQ_HMAC_KEYS_JSON: ${BARAQ_HMAC_KEYS_JSON:?BARAQ_HMAC_KEYS_JSON is required}
+  BARAQ_HMAC_ALLOWED_SERVICES: ${BARAQ_HMAC_ALLOWED_SERVICES:-baraq-ai-service}
+  BARAQ_HMAC_MAX_CLOCK_SKEW_SECONDS: ${BARAQ_HMAC_MAX_CLOCK_SKEW_SECONDS:-300}
+  BARAQ_HMAC_NONCE_TTL_SECONDS: ${BARAQ_HMAC_NONCE_TTL_SECONDS:-600}
+  SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
+  SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-31536000}
+  SECURE_HSTS_INCLUDE_SUBDOMAINS: ${SECURE_HSTS_INCLUDE_SUBDOMAINS:-True}
+  SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-False}
+  ACCESS_TOKEN_LIFETIME_MINUTES: ${ACCESS_TOKEN_LIFETIME_MINUTES:-30}
+  REFRESH_TOKEN_LIFETIME_DAYS: ${REFRESH_TOKEN_LIFETIME_DAYS:-14}
+  API_DOCS_PUBLIC: ${API_DOCS_PUBLIC:-False}
+  STUDENT_SOURCE_MAX_UPLOAD_MB: ${STUDENT_SOURCE_MAX_UPLOAD_MB:-25}
+  MEDIA_ROOT: /app/media
+  MEDIA_URL: ${MEDIA_URL:-/media/}
+  USE_S3_STORAGE: ${USE_S3_STORAGE:-False}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+  AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-}
+  AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-}
+  AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-}
+  EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+  EMAIL_HOST: ${EMAIL_HOST:-}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Baraq <no-reply@baraq.app>}
+  FRONTEND_PASSWORD_RESET_URL: ${FRONTEND_PASSWORD_RESET_URL:-baraq://reset-password}
+  PASSWORD_RESET_TIMEOUT: ${PASSWORD_RESET_TIMEOUT:-3600}
+  THROTTLE_ANON: ${THROTTLE_ANON:-60/hour}
+  THROTTLE_USER: ${THROTTLE_USER:-2000/day}
+  THROTTLE_REGISTER: ${THROTTLE_REGISTER:-10/hour}
+  THROTTLE_LOGIN: ${THROTTLE_LOGIN:-10/minute}
+  THROTTLE_PASSWORD_RESET: ${THROTTLE_PASSWORD_RESET:-5/hour}
+  THROTTLE_UPLOADS: ${THROTTLE_UPLOADS:-30/hour}
+  THROTTLE_AI: ${THROTTLE_AI:-100/day}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.05}
+
+x-backend-service: &backend-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: ${BACKEND_IMAGE:-baraq-backend:latest}
+  environment: *backend-environment
+  stop_grace_period: 45s
+  networks: [baraq]
+
+services:
+  migrate:
+    <<: *backend-service
+    restart: "no"
+    environment:
+      <<: *backend-environment
+      DJANGO_RUN_MIGRATIONS: "1"
+      DJANGO_COLLECTSTATIC: "1"
+    command: ["python", "manage.py", "check", "--deploy"]
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    <<: *backend-service
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      DJANGO_RUN_MIGRATIONS: "0"
+      DJANGO_COLLECTSTATIC: "0"
+      PORT: "8000"
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-60}
+    expose: ["8000"]
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8000/api/v1/health/live/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  worker:
+    <<: *backend-service
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      DJANGO_RUN_MIGRATIONS: "0"
+      DJANGO_COLLECTSTATIC: "0"
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - --loglevel=INFO
+      - --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+      - --max-tasks-per-child=500
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong"]
+      interval: 60s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-baraq_db}
+      POSTGRES_USER: ${POSTGRES_USER:-baraq_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [baraq]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-baraq_user} -d ${POSTGRES_DB:-baraq_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    networks: [baraq]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  baraq:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_data:
+  media_data:

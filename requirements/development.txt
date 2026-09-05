@@ -1,0 +1,6 @@
+-r base.txt
+coverage>=7.6,<8
+ruff>=0.12,<1
+mypy>=1.11,<2
+django-stubs>=5.0,<6
+djangorestframework-stubs>=3.15,<4

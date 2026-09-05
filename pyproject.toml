@@ -1,0 +1,30 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "C4", "SIM", "BLE", "PIE"]
+ignore = [
+    # Django/DRF viewsets and serializers rely on shared, intentionally mutable
+    # class-level config (permission_classes = [...], filter_backends = [...],
+    # limits = {...} on model fields with server-side defaults). That is the
+    # idiomatic pattern this whole codebase and the Django/DRF docs use --
+    # annotating every one as ClassVar would be pure churn, not a bug fix.
+    "RUF012",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files intentionally construct AI-service failure responses inline
+# (mocked upstream error payloads), not real credentials.
+"**/tests.py" = ["S105", "S106"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+exclude = ["migrations/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"

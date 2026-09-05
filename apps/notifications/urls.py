@@ -1,0 +1,7 @@
+from rest_framework.routers import SimpleRouter
+
+from .views import NotificationViewSet
+
+router = SimpleRouter(use_regex_path=False)
+router.register("notifications", NotificationViewSet, basename="notification")
+urlpatterns = router.urls
