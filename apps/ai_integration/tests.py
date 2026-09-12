@@ -183,6 +183,10 @@ class AIIntegrationApiTests(APITestCase):
         self.assertEqual(allowed.status_code, status.HTTP_200_OK)
         self.assertEqual(allowed.data['source_id'], str(self.source.id))
         self.assertEqual(allowed.data['owner_user_id'], str(self.user.id))
+        # Baraq_MD_Blueprint 02_AI_PLATFORM.md §3.2: the AI service verifies
+        # a source's project against the job's own project_id, so the
+        # manifest must carry it.
+        self.assertEqual(allowed.data['project_id'], str(self.project.id))
         self.assertEqual(allowed.data['size_bytes'], self.source.file_size)
         self.assertEqual(len(allowed.data['content_sha256']), 64)
 

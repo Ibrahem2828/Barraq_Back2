@@ -333,6 +333,7 @@ class InternalSourceManifestView(APIView):
         return Response({
             'source_id': str(source.id),
             'owner_user_id': str(source.user_id),
+            'project_id': str(source.project_id) if source.project_id else None,
             'title': source.title,
             'mime_type': source.mime_type,
             'size_bytes': source.file_size,
@@ -382,6 +383,7 @@ class InternalCollectionManifestView(APIView):
         return Response({
             'collection_id': str(collection.id),
             'owner_user_id': str(collection.user_id),
+            'project_id': str(collection.project_id) if collection.project_id else None,
             'title': collection.name,
             'source_ids': [
                 str(source.id)
