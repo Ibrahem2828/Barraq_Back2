@@ -191,9 +191,13 @@ class QuizCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         project = attrs.get('project')
         user = self.context['request'].user
-        if project and project.owner_id != user.id:
+        if not project:
+            # Blueprint 01_BACKEND.md §3.1: no quiz -- manual or AI-generated
+            # -- may be created outside a project.
+            raise serializers.ValidationError({'project': 'A project is required to create a quiz.'})
+        if project.owner_id != user.id:
             raise serializers.ValidationError({'project': 'Project not found or not owned by the current user.'})
-        if project and project.subject_id and attrs['subject'].id != project.subject_id:
+        if project.subject_id and attrs['subject'].id != project.subject_id:
             raise serializers.ValidationError({'subject': 'Subject must match the selected project.'})
         return attrs
 

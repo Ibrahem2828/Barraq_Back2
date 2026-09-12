@@ -28,7 +28,7 @@ from .error_codes import ErrorCode
 from .models import AIFeedback, AIJob, AIWebhookEvent
 from .security import HasInternalServiceKey, verify_webhook
 from .serializers import AIFeedbackSerializer, AIJobCreateSerializer, AIJobListSerializer, AIJobSerializer
-from .services import cancel_job, complete_job, create_ai_job, fail_job, update_job_progress
+from .services import cancel_job, complete_job, content_sha256, create_ai_job, fail_job, update_job_progress
 from .tasks import forward_ai_feedback
 
 
@@ -46,22 +46,6 @@ def _assert_requested_owner(request, resource):
         raise ValidationError({"user_id": "A positive integer is required."})
     if resource.user_id != requested_user_id:
         raise Http404
-
-
-def _content_sha256(source):
-    checksum = str((source.metadata or {}).get("sha256") or "").lower()
-    if len(checksum) == 64 and all(character in "0123456789abcdef" for character in checksum):
-        return checksum
-    if not source.file:
-        raise Http404
-    digest = hashlib.sha256()
-    with source.file.open("rb") as source_file:
-        for chunk in iter(lambda: source_file.read(1024 * 1024), b""):
-            digest.update(chunk)
-    checksum = digest.hexdigest()
-    source.metadata = {**(source.metadata or {}), "sha256": checksum}
-    source.save(update_fields=["metadata", "updated_at"])
-    return checksum
 
 
 def _remote_failure_error(payload):
@@ -352,7 +336,7 @@ class InternalSourceManifestView(APIView):
             'title': source.title,
             'mime_type': source.mime_type,
             'size_bytes': source.file_size,
-            'content_sha256': _content_sha256(source),
+            'content_sha256': content_sha256(source),
             'subject_id': str(source.subject_id) if source.subject_id else None,
             'metadata': {
                 'source_type': source.source_type,

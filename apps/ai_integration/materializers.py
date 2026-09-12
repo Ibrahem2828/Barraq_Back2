@@ -202,6 +202,7 @@ def materialize_khota(job, data):
 def materialize_rasheed(job, data):
     recommendation = StudentRecommendation.objects.create(
         user=job.user,
+        project=job.project,
         subject=_subject(job),
         ai_job=job,
         title=str(data.get("title") or "توصيات رشيد")[:255],
@@ -220,6 +221,7 @@ def materialize_rasheed(job, data):
 def materialize_kholasa(job, data):
     summary = Summary.objects.create(
         user=job.user,
+        project=job.project,
         source=job.source,
         collection=job.collection,
         ai_job=job,
@@ -246,6 +248,7 @@ def materialize_sada(job, data):
     cleaned_transcript = str(data.get("cleaned_transcript") or "")
     transcription = Transcription.objects.create(
         user=job.user,
+        project=job.project,
         source=job.source,
         ai_job=job,
         title=str(data.get("title") or (job.source.title if job.source else "تفريغ صوتي"))[:255],

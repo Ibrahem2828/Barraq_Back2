@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.projects.models import Project
 from apps.subjects.models import EducationStage, Subject
 
 from .models import (
@@ -42,6 +43,9 @@ class QuizProductionFlowTests(APITestCase):
             education_stage=self.stage,
             grade_level='12',
         )
+        # Blueprint 01_BACKEND.md §3.1: manual quiz creation now requires a
+        # project (create_draft() below uses the raw ORM and is unaffected).
+        self.project = Project.objects.create(owner=self.user, title='Physics Project')
 
     def authenticate(self, user=None):
         self.client.force_authenticate(user=user or self.user)
@@ -100,6 +104,7 @@ class QuizProductionFlowTests(APITestCase):
         response = self.client.post(
             reverse('quiz-list'),
             {
+                'project': self.project.id,
                 'subject': self.subject.id,
                 'title': 'Manual Draft',
                 'topic': 'Motion',

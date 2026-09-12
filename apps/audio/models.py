@@ -6,6 +6,9 @@ from apps.common.models import BaseModel
 
 class Transcription(BaseModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="transcriptions")
+    project = models.ForeignKey(
+        "projects.Project", on_delete=models.SET_NULL, null=True, blank=True, related_name="transcriptions"
+    )
     source = models.ForeignKey("sources.StudentSource", on_delete=models.SET_NULL, null=True, blank=True, related_name="transcriptions")
     ai_job = models.OneToOneField("ai_integration.AIJob", on_delete=models.SET_NULL, null=True, blank=True, related_name="transcription")
     title = models.CharField(max_length=255)
@@ -19,4 +22,7 @@ class Transcription(BaseModel):
 
     class Meta:
         ordering = ("-created_at",)
-        indexes = [models.Index(fields=("user", "-created_at"), name="transcript_user_date_idx")]
+        indexes = [
+            models.Index(fields=("user", "-created_at"), name="transcript_user_date_idx"),
+            models.Index(fields=("project", "-created_at"), name="transcript_project_date_idx"),
+        ]

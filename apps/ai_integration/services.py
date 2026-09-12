@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import Avg, Count
+from django.http import Http404
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -114,21 +115,45 @@ def _boolean(value, field_name, *, default):
     return value
 
 
-def _source_ids(*, source=None, collection=None):
+def _resolve_sources(*, source=None, collection=None):
+    """The exact source set a job actually operates on -- shared by the
+    per-task input builders (input.source_ids) and build_service_payload()
+    (top-level source_ids/source_versions), so both always agree."""
     if source is not None:
-        return [str(source.id)]
+        return [source]
     if collection is None:
         return []
-    ids = list(
+    sources = list(
         collection.sources.filter(
             status__in=[StudentSource.Status.UPLOADED, StudentSource.Status.READY]
-        )
-        .order_by("id")
-        .values_list("id", flat=True)[:10]
+        ).order_by("id")[:10]
     )
-    if not ids:
+    if not sources:
         raise ValidationError({"source": "At least one usable source is required."})
-    return [str(source_id) for source_id in ids]
+    return sources
+
+
+def _source_ids(*, source=None, collection=None):
+    return [str(item.id) for item in _resolve_sources(source=source, collection=collection)]
+
+
+def content_sha256(source):
+    """Moved from views.py so build_service_payload() (below) can reuse it
+    without a services -> views layering inversion. Caches the digest on
+    source.metadata so it is computed from the file at most once."""
+    checksum = str((source.metadata or {}).get("sha256") or "").lower()
+    if len(checksum) == 64 and all(character in "0123456789abcdef" for character in checksum):
+        return checksum
+    if not source.file:
+        raise Http404
+    digest = hashlib.sha256()
+    with source.file.open("rb") as source_file:
+        for chunk in iter(lambda: source_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    checksum = digest.hexdigest()
+    source.metadata = {**(source.metadata or {}), "sha256": checksum}
+    source.save(update_fields=["metadata", "updated_at"])
+    return checksum
 
 
 def build_fahes_job_input(*, source=None, collection=None, subject=None, input_payload=None, parameters=None):
@@ -427,7 +452,13 @@ def build_idempotency_key(user_id, task_type, project_id, source_id, collection_
 
 
 def validate_job_ownership(user, source=None, collection=None, subject=None, project=None):
-    if project and project.owner_id != user.id:
+    if project is None:
+        # Blueprint 01_BACKEND.md §3.1/§3.3: no AI job may be created without
+        # a project. This is server-side defense-in-depth -- create_ai_job()
+        # already inherits `project` from source/collection before calling
+        # this, but any other caller must not be able to skip it.
+        raise ValidationError({"project": "A project is required for this request."})
+    if project.owner_id != user.id:
         raise ValidationError({"project": "You do not own this project."})
     if source and source.user_id != user.id:
         raise ValidationError({"source": "You do not own this source."})
@@ -508,12 +539,22 @@ def create_ai_job(*, user, task_type, project=None, source=None, collection=None
 
 
 def build_service_payload(job):
+    # Blueprint 01_BACKEND.md §5.2: the internal contract requires source_ids
+    # and source_versions (a source_id -> content sha256 map) alongside the
+    # rest of the payload, so the AI service pins exactly which source
+    # content it is operating on at dispatch time -- not a separate,
+    # later, out-of-band pull that could race a source being changed.
+    sources = _resolve_sources(source=job.source, collection=job.collection)
+    source_ids = [str(item.id) for item in sources]
+    source_versions = {str(item.id): content_sha256(item) for item in sources}
     return {
         "contract_version": job.contract_version,
         "client_job_id": str(job.public_id),
         "user_id": str(job.user_id),
         "project_id": str(job.project_id) if job.project_id else None,
         "task_type": job.task_type,
+        "source_ids": source_ids,
+        "source_versions": source_versions,
         "input": build_task_input(
             user=job.user,
             task_type=job.task_type,

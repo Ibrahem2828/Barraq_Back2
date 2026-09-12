@@ -62,6 +62,11 @@ class AIJobCreateSerializer(serializers.Serializer):
             if project and project.id != inherited_project.id:
                 raise serializers.ValidationError({'project': 'Project must match the selected source or collection.'})
             attrs['project'] = inherited_project
+        elif not project:
+            # Blueprint 01_BACKEND.md §3.1: no study experience may run
+            # without a project -- an explicit project is required whenever
+            # one can't be inherited from the chosen source/collection.
+            raise serializers.ValidationError({'project': 'A project is required for this request.'})
         task_type = attrs['task_type']
         if task_type in {
             AIJob.TaskType.FAHES_GENERATE_QUIZ,

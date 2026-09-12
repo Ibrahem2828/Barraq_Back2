@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.projects.models import Project
 from apps.subjects.models import EducationStage, Subject
 
 from .models import StudyPlan, StudyTask
@@ -45,6 +46,9 @@ class StudyPlanAPITestCase(APITestCase):
             grade_level='Grade 12',
             description='Science subject',
         )
+        # Blueprint 01_BACKEND.md §3.1: manual study plan creation now
+        # requires a project.
+        self.project = Project.objects.create(owner=self.user, title='Math Project')
 
     def authenticate(self, user=None):
         self.client.force_authenticate(user or self.user)
@@ -53,6 +57,7 @@ class StudyPlanAPITestCase(APITestCase):
         self.authenticate()
         today = timezone.localdate()
         payload = {
+            'project': self.project.id,
             'title': 'Math Review Plan',
             'description': 'Plan before the final test',
             'subject': self.subject.id,

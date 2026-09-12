@@ -6,6 +6,9 @@ from apps.common.models import BaseModel
 
 class StudentRecommendation(BaseModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="recommendations")
+    project = models.ForeignKey(
+        "projects.Project", on_delete=models.SET_NULL, null=True, blank=True, related_name="recommendations"
+    )
     subject = models.ForeignKey("subjects.Subject", on_delete=models.SET_NULL, null=True, blank=True, related_name="recommendations")
     ai_job = models.OneToOneField("ai_integration.AIJob", on_delete=models.SET_NULL, null=True, blank=True, related_name="recommendation")
     title = models.CharField(max_length=255)
@@ -20,4 +23,7 @@ class StudentRecommendation(BaseModel):
 
     class Meta:
         ordering = ("-created_at",)
-        indexes = [models.Index(fields=("user", "-created_at"), name="recommend_user_date_idx")]
+        indexes = [
+            models.Index(fields=("user", "-created_at"), name="recommend_user_date_idx"),
+            models.Index(fields=("project", "-created_at"), name="recommend_project_date_idx"),
+        ]

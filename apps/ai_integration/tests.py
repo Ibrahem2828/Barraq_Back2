@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
+from apps.projects.models import Project
 from apps.quizzes.models import Quiz
 from apps.sources.models import StudentSource
 from apps.subjects.models import EducationStage, Subject
@@ -96,8 +97,12 @@ class AIIntegrationApiTests(APITestCase):
         self.other = User.objects.create_user(email='other-ai@example.com', password='StrongPass123!', full_name='Other AI')
         stage = EducationStage.objects.create(name='Secondary', order=1)
         self.subject = Subject.objects.create(name='Physics', education_stage=stage, grade_level='12')
+        # Blueprint 01_BACKEND.md §3.1: every source-based AI job now requires
+        # a project (inherited from its source/collection when not explicit).
+        self.project = Project.objects.create(owner=self.user, title='Physics Project')
         self.source = StudentSource.objects.create(
             user=self.user,
+            project=self.project,
             subject=self.subject,
             title='Physics notes',
             source_type=StudentSource.SourceType.TEXT,
@@ -243,11 +248,13 @@ class AIIntegrationApiTests(APITestCase):
         self.assertEqual(payload['task_type'], AIJob.TaskType.FAHES_GENERATE_QUIZ)
         self.assertEqual(payload['input']['source_ids'], [str(self.source.id)])
         self.assertEqual(payload['model_policy'], {'tier': 'balanced', 'allow_fallback': True})
+        self.assertEqual(payload['source_ids'], [str(self.source.id)])
+        self.assertEqual(len(payload['source_versions'][str(self.source.id)]), 64)
         self.assertEqual(
             set(payload),
             {
                 'contract_version', 'client_job_id', 'user_id', 'project_id',
-                'task_type', 'input', 'model_policy', 'trace_context',
+                'task_type', 'source_ids', 'source_versions', 'input', 'model_policy', 'trace_context',
             },
         )
 
@@ -322,9 +329,12 @@ class AIIntegrationApiTests(APITestCase):
     def test_sada_rejects_collection_even_when_it_contains_audio(self):
         from apps.sources.models import StudentSourceCollection
 
-        collection = StudentSourceCollection.objects.create(user=self.user, name='Audio folder')
+        collection = StudentSourceCollection.objects.create(
+            user=self.user, project=self.project, name='Audio folder'
+        )
         audio = StudentSource.objects.create(
             user=self.user,
+            project=self.project,
             title='Lecture recording',
             source_type=StudentSource.SourceType.AUDIO,
             file=SimpleUploadedFile('lecture.mp3', b'ID3audio', content_type='audio/mpeg'),

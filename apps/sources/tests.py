@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.ai_integration.models import AIJob
+from apps.projects.models import Project
 from apps.subjects.models import EducationStage, Subject
 
 from .models import StudentSource, StudentSourceCollection, StudentSourceInteraction
@@ -48,6 +49,9 @@ class StudentSourceAPITestCase(APITestCase):
             grade_level='Grade 12',
             description='Core subject',
         )
+        # Blueprint 01_BACKEND.md §3.1: every source/collection now requires
+        # a project.
+        self.project = Project.objects.create(owner=self.user, title='Math Project')
 
     def tearDown(self):
         self.override.disable()
@@ -64,6 +68,7 @@ class StudentSourceAPITestCase(APITestCase):
         subject=True,
         collection=None,
         title='Math Summary',
+        project=True,
     ):
         self.authenticate()
         file_content = content if content is not None else b'Derivatives help measure change.\nLimits describe behavior near a value.'
@@ -76,11 +81,14 @@ class StudentSourceAPITestCase(APITestCase):
             payload['subject'] = self.subject.id
         if collection:
             payload['collection'] = collection.id
+        if project:
+            payload['project'] = self.project.id
         return self.client.post(reverse('student-source-list'), payload, format='multipart')
 
-    def create_collection(self, user=None, subject=True, name='Mathematics'):
+    def create_collection(self, user=None, subject=True, name='Mathematics', project=True):
         return StudentSourceCollection.objects.create(
             user=user or self.user,
+            project=self.project if project else None,
             subject=self.subject if subject else None,
             name=name,
             description='Student folder',
@@ -301,7 +309,12 @@ class StudentSourceAPITestCase(APITestCase):
         self.authenticate()
         response = self.client.post(
             reverse('student-source-collection-list'),
-            {'name': 'الرياضيات', 'subject': self.subject.id, 'description': 'مصادر الرياضيات'},
+            {
+                'name': 'الرياضيات',
+                'subject': self.subject.id,
+                'description': 'مصادر الرياضيات',
+                'project': self.project.id,
+            },
             format='json',
         )
 

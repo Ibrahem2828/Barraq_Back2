@@ -148,6 +148,15 @@ class StudentSourceCollectionCreateUpdateSerializer(serializers.ModelSerializer)
             raise serializers.ValidationError('Project not found or not owned by the current user.')
         return value
 
+    def validate(self, attrs):
+        # Blueprint 01_BACKEND.md §3.1: no collection may be created outside
+        # a project. Only enforced on create -- partial_update reuses this
+        # serializer (with partial=True) and must not force every PATCH to
+        # resend a project the collection already has.
+        if self.instance is None and not attrs.get('project'):
+            raise serializers.ValidationError({'project': 'A project is required to create a folder.'})
+        return attrs
+
     def create(self, validated_data):
         return StudentSourceCollection.objects.create(
             user=self.context['request'].user,
@@ -298,6 +307,10 @@ class StudentSourceCreateSerializer(serializers.ModelSerializer):
             if project and project.id != collection.project_id:
                 raise serializers.ValidationError({'project': 'Project must match the selected collection project.'})
             attrs['project'] = collection.project
+        elif not project:
+            # Blueprint 01_BACKEND.md §3.1: no source may be uploaded outside
+            # a project.
+            raise serializers.ValidationError({'project': 'A project is required to upload a source.'})
         return attrs
 
     def create(self, validated_data):

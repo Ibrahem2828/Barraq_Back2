@@ -11,6 +11,7 @@ from rest_framework.test import APITestCase
 from apps.admin_dashboard.models import AuditLog
 from apps.admin_dashboard.services import assign_roles_to_user, seed_default_rbac
 from apps.ai_integration.models import AIJob
+from apps.projects.models import Project
 from apps.sources.models import StudentSource, StudentSourceCollection, StudentSourceInteraction
 from apps.subjects.models import EducationStage, Subject
 
@@ -73,6 +74,9 @@ class SubscriptionsTestCase(APITestCase):
             education_stage=self.stage,
             grade_level='12',
         )
+        # Blueprint 01_BACKEND.md §3.1: sources/collections/AI jobs now
+        # require a project.
+        self.project = Project.objects.create(owner=self.student, title='Math Project')
 
     def tearDown(self):
         self.override.disable()
@@ -84,6 +88,7 @@ class SubscriptionsTestCase(APITestCase):
     def create_source(self, user=None, size=100, title='Source'):
         return StudentSource.objects.create(
             user=user or self.student,
+            project=self.project,
             subject=self.subject,
             title=title,
             source_type=StudentSource.SourceType.TEXT,
@@ -204,7 +209,7 @@ class SubscriptionsTestCase(APITestCase):
         self.authenticate(self.student)
         response = self.client.post(
             reverse('student-source-collection-list'),
-            {'name': 'Blocked Folder'},
+            {'name': 'Blocked Folder', 'project': self.project.id},
             format='json',
         )
 
@@ -317,7 +322,7 @@ class SubscriptionsTestCase(APITestCase):
         self.authenticate(self.student)
         collection = self.client.post(
             reverse('student-source-collection-list'),
-            {'name': 'Old Flow Folder'},
+            {'name': 'Old Flow Folder', 'project': self.project.id},
             format='json',
         )
 
