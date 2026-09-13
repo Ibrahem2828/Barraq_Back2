@@ -100,16 +100,13 @@ jobs:
           exit_code=${PIPESTATUS[0]}
           if [ "$exit_code" -ne 0 ]; then
             {
-              echo "### Test suite failed (exit $exit_code) -- tail of output"
+              echo "### Test suite failed (exit $exit_code) -- full output below"
               echo '```'
-              tail -c 3000 /tmp/test_output.log
+              cat /tmp/test_output.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            # The real traceback blocks (====== / FAIL: name / Traceback / ...)
-            # always sit right before the final "Ran N tests" summary, not at
-            # the first inline "... FAIL" status line seen during the run.
-            details=$(tail -c 3500 /tmp/test_output.log | tr '\n' '|')
-            echo "::error::Test suite failed, exit $exit_code. Detail: $details"
+            names=$(grep -oE "^(FAIL|ERROR): .*" /tmp/test_output.log | paste -sd ";" -)
+            echo "::error::Test suite failed, exit $exit_code. Failing/erroring tests: $names"
           fi
           exit $exit_code
 
