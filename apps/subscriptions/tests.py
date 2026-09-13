@@ -322,7 +322,7 @@ class SubscriptionsTestCase(APITestCase):
         self.authenticate(self.student)
         collection = self.client.post(
             reverse('student-source-collection-list'),
-            {'name': 'Old Flow Folder', 'project': self.project.id},
+            {'name': 'Old Flow Folder', 'project': str(self.project.public_id)},
             format='json',
         )
 

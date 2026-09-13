@@ -3,6 +3,9 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from .services import issue_email_otp
+from .tasks import send_email_otp
+
 User = get_user_model()
 
 
@@ -67,12 +70,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(
             password=password,
             role=User.Roles.STUDENT,
+            is_verified=False,
             **validated_data,
         )
 
         from apps.students.models import StudentProfile
 
         StudentProfile.objects.get_or_create(user=user)
+
+        code = issue_email_otp(user)
+        send_email_otp.delay(user.email, code)
         return user
 
 
@@ -86,6 +93,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
+        # `error_code` (not `code`) deliberately -- the shared error envelope
+        # (apps/common/exceptions.py) already sets its own top-level `code`
+        # from the HTTP status for every validation error, and a same-named
+        # key here would silently overwrite it.
+        if not self.user.is_verified:
+            raise serializers.ValidationError({'error_code': 'email_not_verified'})
         data['user'] = UserSerializer(self.user).data
         return data
 
@@ -120,3 +133,12 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True, min_length=10)
+
+
+class VerifyEmailOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(min_length=6, max_length=6)
+
+
+class ResendEmailOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()

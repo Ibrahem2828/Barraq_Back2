@@ -708,7 +708,9 @@ def cancel_job(job):
             job.save(update_fields=["credits_reserved", "updated_at"])
     if external_job_id:
         from .tasks import cancel_external_ai_job
-        transaction.on_commit(lambda: cancel_external_ai_job.delay(external_job_id))
+        transaction.on_commit(
+            lambda: cancel_external_ai_job.delay(external_job_id, str(job.user_id))
+        )
     return job
 
 

@@ -16,5 +16,6 @@ urlpatterns = [
     path('', include('apps.audio.urls')),
     path('', include('apps.notifications.urls')),
     path('', include('apps.support.urls')),
+    path('', include('apps.waitlist.urls')),
     path('admin/', include('apps.admin_dashboard.urls')),
 ]

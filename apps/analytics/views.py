@@ -16,10 +16,15 @@ class StudentRecommendationViewSet(
     ordering = ('-created_at',)
 
     def get_queryset(self):
-        queryset = StudentRecommendation.objects.filter(user=self.request.user).select_related('subject')
+        queryset = StudentRecommendation.objects.filter(user=self.request.user).select_related(
+            'subject', 'project',
+        )
         subject = self.request.query_params.get('subject')
         if subject:
             queryset = queryset.filter(subject_id=subject)
+        project = self.request.query_params.get('project')
+        if project:
+            queryset = queryset.filter(project__public_id=project)
         return queryset
 
     @action(detail=True, methods=['post'], url_path='mark-read')

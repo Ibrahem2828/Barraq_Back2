@@ -3,6 +3,7 @@ from pathlib import Path
 from django.conf import settings
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 
 from apps.projects.models import Project
 from apps.quizzes.serializers import QuizListSerializer
@@ -40,6 +41,10 @@ class StudentSourceBriefSerializer(serializers.ModelSerializer):
     subject_name = serializers.CharField(source='subject.name', read_only=True)
     collection_name = serializers.CharField(source='collection.name', read_only=True)
     collection_id = serializers.IntegerField(source='collection.id', read_only=True)
+    # Exposed as the Project's public_id (not its internal numeric pk) so a client
+    # can round-trip this value straight into /projects/{public_id}/... routes,
+    # matching the ?project=<public_id> filter this same list already accepts.
+    project: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field='public_id', read_only=True)
 
     class Meta:
         model = StudentSource
@@ -67,6 +72,8 @@ class StudentSourceCollectionListSerializer(serializers.ModelSerializer):
     source_count = serializers.IntegerField(read_only=True)
     total_file_size = serializers.IntegerField(read_only=True)
     last_source_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    # See StudentSourceBriefSerializer.project — exposed as public_id, not the pk.
+    project: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field='public_id', read_only=True)
 
     class Meta:
         model = StudentSourceCollection
@@ -120,7 +127,10 @@ class StudentSourceCollectionDetailSerializer(StudentSourceCollectionListSeriali
 
 
 class StudentSourceCollectionCreateUpdateSerializer(serializers.ModelSerializer):
-    project = serializers.PrimaryKeyRelatedField(
+    # Accepts the Project's public_id (not its internal numeric pk) — see
+    # StudentSourceBriefSerializer.project for why the read side matches.
+    project = serializers.SlugRelatedField(
+        slug_field='public_id',
         queryset=Project.objects.filter(is_deleted=False, status=Project.Status.ACTIVE),
         required=False,
         allow_null=True,
@@ -170,6 +180,8 @@ class StudentSourceListSerializer(serializers.ModelSerializer):
     collection_name = serializers.CharField(source='collection.name', read_only=True)
     collection_id = serializers.IntegerField(source='collection.id', read_only=True)
     capabilities = serializers.SerializerMethodField()
+    # See StudentSourceBriefSerializer.project — exposed as public_id, not the pk.
+    project: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field='public_id', read_only=True)
 
     class Meta:
         model = StudentSource
@@ -228,8 +240,7 @@ class StudentSourceDetailSerializer(StudentSourceListSerializer):
         if not obj.file:
             return None
         request = self.context.get('request')
-        url = obj.file.url
-        return request.build_absolute_uri(url) if request else url
+        return reverse('student-source-download', kwargs={'pk': obj.pk}, request=request)
 
     @extend_schema_field(serializers.CharField())
     def get_extracted_text_preview(self, obj):
@@ -247,7 +258,10 @@ class StudentSourceDetailSerializer(StudentSourceListSerializer):
 
 
 class StudentSourceCreateSerializer(serializers.ModelSerializer):
-    project = serializers.PrimaryKeyRelatedField(
+    # Accepts the Project's public_id (not its internal numeric pk) — see
+    # StudentSourceBriefSerializer.project for why the read side matches.
+    project = serializers.SlugRelatedField(
+        slug_field='public_id',
         queryset=Project.objects.filter(is_deleted=False, status=Project.Status.ACTIVE),
         required=False,
         allow_null=True,
@@ -328,7 +342,10 @@ class StudentSourceCreateSerializer(serializers.ModelSerializer):
 
 
 class StudentSourceUpdateSerializer(serializers.ModelSerializer):
-    project = serializers.PrimaryKeyRelatedField(
+    # Accepts the Project's public_id (not its internal numeric pk) — see
+    # StudentSourceBriefSerializer.project for why the read side matches.
+    project = serializers.SlugRelatedField(
+        slug_field='public_id',
         queryset=Project.objects.filter(is_deleted=False, status=Project.Status.ACTIVE),
         required=False,
         allow_null=True,

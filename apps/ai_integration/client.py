@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from urllib.parse import urljoin
+from urllib.parse import quote, urlencode, urljoin
 
 import requests
 from django.conf import settings
@@ -122,11 +122,19 @@ class AIServiceClient:
     def create_job(self, payload):
         return self._request("POST", settings.AI_SERVICE_JOBS_PATH, payload=payload)
 
-    def get_job(self, external_job_id):
-        return self._request("GET", f"{settings.AI_SERVICE_JOBS_PATH.rstrip('/')}/{external_job_id}")
+    @staticmethod
+    def _job_target(external_job_id, user_id, *, cancel=False):
+        suffix = "/cancel" if cancel else ""
+        query = urlencode({"user_id": str(user_id)}, quote_via=quote, safe="-._~")
+        return f"{settings.AI_SERVICE_JOBS_PATH.rstrip('/')}/{external_job_id}{suffix}?{query}"
 
-    def cancel_job(self, external_job_id):
-        return self._request("POST", f"{settings.AI_SERVICE_JOBS_PATH.rstrip('/')}/{external_job_id}/cancel", payload={})
+    def get_job(self, external_job_id, *, user_id):
+        return self._request("GET", self._job_target(external_job_id, user_id))
+
+    def cancel_job(self, external_job_id, *, user_id):
+        return self._request(
+            "POST", self._job_target(external_job_id, user_id, cancel=True), payload={}
+        )
 
     def send_feedback(self, payload, idempotency_key):
         return self._request("POST", settings.AI_SERVICE_FEEDBACK_PATH, payload=payload, idempotency_key=idempotency_key)

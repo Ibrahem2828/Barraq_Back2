@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-03T13:29:50+00:00",
-    "generated_from_backend_commit": "35713a15a4ddae5005eef49c574d20b9b34a829a",
+    "generated_at": "2026-09-05T21:39:45+00:00",
+    "generated_from_backend_commit": "996b5d798faec15b1bc97637b215d1a6da23f3ba",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -14264,6 +14264,219 @@
         "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
         "scope": null
       }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": null,
+        "permissions": [
+          "AllowAny"
+        ],
+        "required": false,
+        "roles": [],
+        "type": "none"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.AllowAny"
+        ],
+        "serializer": null,
+        "url_file": "config/urls.py; config/api_urls.py; apps/waitlist/urls.py",
+        "view": "apps.waitlist.views.WaitlistJoinView"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "Public, unauthenticated endpoint the marketing site's waitlist form\nposts to. Joining twice with the same email is not an error -- it's\ntreated as an idempotent \"you're already on the list\".",
+      "domain": "waitlist",
+      "headers": [
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_waitlist_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_waitlist_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/waitlist/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": true,
+        "schema": {
+          "$ref": "#/resources/WaitlistJoinRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/WaitlistJoinResponse/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": null,
+        "permissions": [
+          "AllowAny"
+        ],
+        "required": false,
+        "roles": [],
+        "type": "none"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.AllowAny"
+        ],
+        "serializer": null,
+        "url_file": "config/urls.py; config/api_urls.py; apps/waitlist/urls.py",
+        "view": "apps.waitlist.views.WaitlistCountView"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "Public read-only counter the site displays as social proof.",
+      "domain": "waitlist",
+      "headers": [
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_waitlist_count_retrieve",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_waitlist_count_retrieve",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/waitlist/count/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/WaitlistCount/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
     }
   ],
   "enums": {
@@ -14352,6 +14565,14 @@
         "too_long",
         "too_short",
         "other"
+      ]
+    },
+    "LocaleEnum": {
+      "nullable": false,
+      "type": "string",
+      "values": [
+        "ar",
+        "en"
       ]
     },
     "NotificationCategoryEnum": {
@@ -17809,6 +18030,17 @@
           "too_long",
           "too_short",
           "other"
+        ],
+        "type": "string"
+      }
+    },
+    "LocaleEnum": {
+      "fields": [],
+      "schema": {
+        "description": "* `ar` - Arabic\n* `en` - English",
+        "enum": [
+          "ar",
+          "en"
         ],
         "type": "string"
       }
@@ -36247,6 +36479,208 @@
           "paused"
         ],
         "type": "string"
+      }
+    },
+    "WaitlistCount": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      }
+    },
+    "WaitlistJoinRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": 254,
+          "maximum": null,
+          "min_length": 1,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 150,
+          "maximum": null,
+          "min_length": 1,
+          "minimum": null,
+          "name": "full_name",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": "ar",
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "locale",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": "",
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "company",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "company": {
+            "default": "",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "minLength": 1,
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "locale": {
+            "allOf": [
+              {
+                "$ref": "#/resources/LocaleEnum/schema"
+              }
+            ],
+            "default": "ar"
+          }
+        },
+        "required": [
+          "email",
+          "full_name"
+        ],
+        "type": "object"
+      }
+    },
+    "WaitlistJoinResponse": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "created",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "boolean",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "message",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "created",
+          "message"
+        ],
+        "type": "object"
       }
     },
     "WeekDayTasks": {

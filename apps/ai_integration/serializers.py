@@ -26,7 +26,11 @@ class CanonicalTaskTypeField(serializers.ChoiceField):
 
 class AIJobCreateSerializer(serializers.Serializer):
     task_type = CanonicalTaskTypeField(choices=AIJob.TaskType.choices)
-    project = serializers.PrimaryKeyRelatedField(
+    # Accepts the Project's public_id (not its internal numeric pk) — matches
+    # the read side (AIJobListSerializer/AIJobSerializer.project below) and the
+    # ?project=<public_id> filters already used on sources/quizzes/study-plans.
+    project = serializers.SlugRelatedField(
+        slug_field='public_id',
         queryset=Project.objects.filter(is_deleted=False, status=Project.Status.ACTIVE),
         required=False,
         allow_null=True,
@@ -90,6 +94,9 @@ class AIJobCreateSerializer(serializers.Serializer):
 
 
 class AIJobListSerializer(serializers.ModelSerializer):
+    # See AIJobCreateSerializer.project — exposed as public_id, not the pk.
+    project: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field='public_id', read_only=True)
+
     class Meta:
         model = AIJob
         fields = (
@@ -102,6 +109,9 @@ class AIJobListSerializer(serializers.ModelSerializer):
 
 
 class AIJobSerializer(serializers.ModelSerializer):
+    # See AIJobCreateSerializer.project — exposed as public_id, not the pk.
+    project: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field='public_id', read_only=True)
+
     class Meta:
         model = AIJob
         fields = (

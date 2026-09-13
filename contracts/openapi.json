@@ -2391,6 +2391,14 @@
         ],
         "type": "object"
       },
+      "LocaleEnum": {
+        "description": "* `ar` - Arabic\n* `en` - English",
+        "enum": [
+          "ar",
+          "en"
+        ],
+        "type": "string"
+      },
       "LogoutRequest": {
         "properties": {
           "refresh": {
@@ -8581,6 +8589,68 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "WaitlistCount": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
+      "WaitlistJoinRequest": {
+        "properties": {
+          "company": {
+            "default": "",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "minLength": 1,
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "locale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocaleEnum"
+              }
+            ],
+            "default": "ar"
+          }
+        },
+        "required": [
+          "email",
+          "full_name"
+        ],
+        "type": "object"
+      },
+      "WaitlistJoinResponse": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "created",
+          "message"
+        ],
         "type": "object"
       },
       "WeekDayTasks": {
@@ -17869,6 +17939,74 @@
         ],
         "tags": [
           "Subjects"
+        ]
+      }
+    },
+    "/api/v1/waitlist/": {
+      "post": {
+        "description": "Public, unauthenticated endpoint the marketing site's waitlist form\nposts to. Joining twice with the same email is not an error -- it's\ntreated as an idempotent \"you're already on the list\".",
+        "operationId": "v1_waitlist_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitlistJoinRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitlistJoinRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitlistJoinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistJoinResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "Waitlist"
+        ]
+      }
+    },
+    "/api/v1/waitlist/count/": {
+      "get": {
+        "description": "Public read-only counter the site displays as social proof.",
+        "operationId": "v1_waitlist_count_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistCount"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "Waitlist"
         ]
       }
     }

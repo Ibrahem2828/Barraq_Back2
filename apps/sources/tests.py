@@ -2,6 +2,7 @@ import shutil
 import tempfile
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
@@ -21,6 +22,7 @@ User = get_user_model()
 @override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
 class StudentSourceAPITestCase(APITestCase):
     def setUp(self):
+        cache.clear()
         self.media_root = tempfile.mkdtemp()
         self.override = override_settings(
             MEDIA_ROOT=self.media_root,
@@ -82,7 +84,7 @@ class StudentSourceAPITestCase(APITestCase):
         if collection:
             payload['collection'] = collection.id
         if project:
-            payload['project'] = self.project.id
+            payload['project'] = str(self.project.public_id)
         return self.client.post(reverse('student-source-list'), payload, format='multipart')
 
     def create_collection(self, user=None, subject=True, name='Mathematics', project=True):
@@ -96,7 +98,6 @@ class StudentSourceAPITestCase(APITestCase):
 
     def test_upload_allowed_file(self):
         response = self.upload_source()
-
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['source_type'], StudentSource.SourceType.TEXT)
         self.assertEqual(StudentSource.objects.filter(user=self.user).count(), 1)
@@ -175,6 +176,30 @@ class StudentSourceAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(StudentSource.objects.count(), 0)
+
+    def test_source_file_url_uses_authenticated_download_endpoint(self):
+        response = self.upload_source(content=b'private lesson text')
+        download_url = response.data['file_url']
+        self.assertIn(
+            reverse('student-source-download', args=[response.data['id']]),
+            download_url,
+        )
+        self.assertNotIn('/media/', download_url)
+
+        download = self.client.get(download_url)
+        self.assertEqual(download.status_code, status.HTTP_200_OK)
+        self.assertEqual(download['Cache-Control'], 'private, no-store')
+        self.assertEqual(b''.join(download.streaming_content), b'private lesson text')
+
+    def test_source_download_enforces_owner_and_authentication(self):
+        response = self.upload_source(content=b'private lesson text')
+        url = reverse('student-source-download', args=[response.data['id']])
+
+        self.client.force_authenticate(user=self.other_user)
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_404_NOT_FOUND)
+
+        self.client.force_authenticate(user=None)
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_upload_without_subject_succeeds(self):
         response = self.upload_source(subject=False)
@@ -313,7 +338,7 @@ class StudentSourceAPITestCase(APITestCase):
                 'name': 'الرياضيات',
                 'subject': self.subject.id,
                 'description': 'مصادر الرياضيات',
-                'project': self.project.id,
+                'project': str(self.project.public_id),
             },
             format='json',
         )

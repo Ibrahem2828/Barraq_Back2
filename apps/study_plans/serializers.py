@@ -49,6 +49,9 @@ class StudyPlanListSerializer(serializers.ModelSerializer):
     subject = SubjectSummarySerializer(read_only=True)
     total_tasks = serializers.SerializerMethodField()
     completed_tasks = serializers.SerializerMethodField()
+    # Exposed as the Project's public_id (not its internal numeric pk) — matches
+    # the ?project=<public_id> filter this list already accepts.
+    project: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field='public_id', read_only=True)
 
     class Meta:
         model = StudyPlan
@@ -98,7 +101,10 @@ class StudyPlanDetailSerializer(StudyPlanListSerializer):
 
 
 class StudyPlanCreateSerializer(serializers.ModelSerializer):
-    project = serializers.PrimaryKeyRelatedField(
+    # Accepts the Project's public_id (not its internal numeric pk) — see
+    # StudyPlanListSerializer.project for why the read side matches.
+    project = serializers.SlugRelatedField(
+        slug_field='public_id',
         queryset=Project.objects.filter(is_deleted=False, status=Project.Status.ACTIVE),
         required=False,
         allow_null=True,

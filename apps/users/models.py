@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
-from apps.common.models import SoftDeleteModel
+from apps.common.models import BaseModel, SoftDeleteModel
 
 from .managers import UserManager
 
@@ -36,6 +36,12 @@ class User(SoftDeleteModel, AbstractBaseUser, PermissionsMixin):
     )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    # Default True so the migration backfills every existing account as
+    # already verified -- only `RegisterSerializer.create()` explicitly
+    # passes `is_verified=False` for brand-new registrations, which then must
+    # complete email-OTP verification (see EmailOTP below) before login
+    # succeeds (see CustomTokenObtainPairSerializer.validate()).
+    is_verified = models.BooleanField(default=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name']
@@ -71,3 +77,26 @@ class User(SoftDeleteModel, AbstractBaseUser, PermissionsMixin):
             or self.is_superuser
         )
         super().save(*args, **kwargs)
+
+
+class EmailOTP(BaseModel):
+    """A one-time email-verification code issued at registration. The plain
+    code is never stored -- only its SHA-256 hash -- and is emailed once via
+    `apps.users.tasks.send_email_otp`. See `apps/users/services.py` for the
+    issue/verify logic this table backs."""
+
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='email_otps',
+    )
+    code_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['user', 'consumed_at', '-created_at'], name='email_otp_lookup_idx')]
+
+    def __str__(self):
+        return f"EmailOTP for {self.user_id} (consumed={bool(self.consumed_at)})"

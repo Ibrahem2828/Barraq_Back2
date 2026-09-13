@@ -104,7 +104,7 @@ class QuizProductionFlowTests(APITestCase):
         response = self.client.post(
             reverse('quiz-list'),
             {
-                'project': self.project.id,
+                'project': str(self.project.public_id),
                 'subject': self.subject.id,
                 'title': 'Manual Draft',
                 'topic': 'Motion',

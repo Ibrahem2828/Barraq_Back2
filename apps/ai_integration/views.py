@@ -88,6 +88,9 @@ class AIJobViewSet(viewsets.GenericViewSet):
             value = request.query_params.get(field)
             if value:
                 queryset = queryset.filter(**{field: value})
+        project = request.query_params.get('project')
+        if project:
+            queryset = queryset.filter(project__public_id=project)
         page = self.paginate_queryset(queryset)
         serializer = AIJobListSerializer(page or queryset, many=True)
         return self.get_paginated_response(serializer.data) if page is not None else Response(serializer.data)
@@ -122,7 +125,9 @@ class AIJobViewSet(viewsets.GenericViewSet):
         if not job.external_job_id or job.status in {AIJob.Status.COMPLETED, AIJob.Status.FAILED, AIJob.Status.CANCELED}:
             return Response(AIJobSerializer(job).data)
         try:
-            data = AIServiceClient().get_job(job.external_job_id).data
+            data = AIServiceClient().get_job(
+                job.external_job_id, user_id=job.user_id
+            ).data
         except AIServiceError as exc:
             return Response({'success': False, 'message': str(exc), 'code': exc.code}, status=exc.status_code or 503)
         remote_status = str(data.get('status') or '').lower()

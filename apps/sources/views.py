@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.http import FileResponse, Http404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -161,6 +162,26 @@ class StudentSourceViewSet(viewsets.ModelViewSet):
             file_field.delete(save=False)
 
     @extend_schema(
+        methods=['GET'],
+        responses={(200, 'application/octet-stream'): bytes},
+        description='Download this source through the authenticated ownership boundary.',
+    )
+    @action(detail=True, methods=['get'], url_path='download')
+    def download(self, request, pk=None):
+        source = self.get_object()
+        if not source.file:
+            raise Http404
+        response = FileResponse(
+            source.file.open('rb'),
+            as_attachment=True,
+            filename=source.original_filename or f'source-{source.pk}',
+            content_type=source.mime_type or 'application/octet-stream',
+        )
+        response['Cache-Control'] = 'private, no-store'
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
+
+    @extend_schema(
         methods=['POST'],
         responses=StudentSourceDetailSerializer,
         description='Queue source processing and return immediately.',
@@ -281,6 +302,7 @@ class StudentSourceCollectionViewSet(viewsets.ModelViewSet):
             'user',
             'subject',
             'subject__education_stage',
+            'project',
         ).prefetch_related('sources').filter(user=self.request.user)
 
         status_value = self.request.query_params.get('status')
@@ -290,6 +312,10 @@ class StudentSourceCollectionViewSet(viewsets.ModelViewSet):
         subject = self.request.query_params.get('subject')
         if subject:
             queryset = queryset.filter(subject_id=subject)
+
+        project = self.request.query_params.get('project')
+        if project:
+            queryset = queryset.filter(project__public_id=project)
 
         return queryset
 
@@ -306,6 +332,7 @@ class StudentSourceCollectionViewSet(viewsets.ModelViewSet):
         parameters=[
             OpenApiParameter(name='status', type=str),
             OpenApiParameter(name='subject', type=int),
+            OpenApiParameter(name='project', type=str),
         ],
         responses=StudentSourceCollectionListSerializer(many=True),
     )

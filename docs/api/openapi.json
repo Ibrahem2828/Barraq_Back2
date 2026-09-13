@@ -74,8 +74,21 @@
             "readOnly": true,
             "type": "integer"
           },
+          "model_snapshot": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "prompt_version_snapshot": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "provider_snapshot": {
+            "readOnly": true,
+            "type": "string"
+          },
           "rating": {
-            "maximum": 32767,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -94,6 +107,9 @@
           "forwarded_to_ai_service",
           "id",
           "job",
+          "model_snapshot",
+          "prompt_version_snapshot",
+          "provider_snapshot",
           "rating",
           "updated_at"
         ],
@@ -121,6 +137,12 @@
             "type": "string"
           },
           "contract_version": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "cost_usd": {
+            "format": "decimal",
+            "pattern": "^-?\\d{0,4}(?:\\.\\d{0,6})?$",
             "readOnly": true,
             "type": "string"
           },
@@ -152,9 +174,21 @@
           "input_payload": {
             "readOnly": true
           },
+          "input_tokens": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "model_name": {
+            "readOnly": true,
+            "type": "string"
+          },
           "output_schema_version": {
             "readOnly": true,
             "type": "string"
+          },
+          "output_tokens": {
+            "readOnly": true,
+            "type": "integer"
           },
           "parameters": {
             "readOnly": true
@@ -163,6 +197,14 @@
             "nullable": true,
             "readOnly": true,
             "type": "integer"
+          },
+          "prompt_version": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "provider_account": {
+            "readOnly": true,
+            "type": "string"
           },
           "public_id": {
             "format": "uuid",
@@ -233,6 +275,7 @@
           "collection",
           "completed_at",
           "contract_version",
+          "cost_usd",
           "created_at",
           "credits_committed",
           "credits_reserved",
@@ -240,9 +283,14 @@
           "error_message",
           "external_job_id",
           "input_payload",
+          "input_tokens",
+          "model_name",
           "output_schema_version",
+          "output_tokens",
           "parameters",
           "project",
+          "prompt_version",
+          "provider_account",
           "public_id",
           "quality_metrics",
           "request_id",
@@ -462,6 +510,111 @@
         ],
         "type": "string"
       },
+      "AIUsageByCharacter": {
+        "properties": {
+          "character": {
+            "type": "string"
+          },
+          "cost_usd": {
+            "format": "decimal",
+            "pattern": "^-?\\d{0,6}(?:\\.\\d{0,6})?$",
+            "type": "string"
+          },
+          "job_count": {
+            "type": "integer"
+          },
+          "total_tokens": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "character",
+          "cost_usd",
+          "job_count",
+          "total_tokens"
+        ],
+        "type": "object"
+      },
+      "AIUsageDailyPoint": {
+        "properties": {
+          "cost_usd": {
+            "format": "decimal",
+            "pattern": "^-?\\d{0,6}(?:\\.\\d{0,6})?$",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "type": "string"
+          },
+          "job_count": {
+            "type": "integer"
+          },
+          "total_tokens": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cost_usd",
+          "date",
+          "job_count",
+          "total_tokens"
+        ],
+        "type": "object"
+      },
+      "AIUsageMonthToDate": {
+        "properties": {
+          "cost_usd": {
+            "format": "decimal",
+            "pattern": "^-?\\d{0,6}(?:\\.\\d{0,6})?$",
+            "type": "string"
+          },
+          "job_count": {
+            "type": "integer"
+          },
+          "year_month": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cost_usd",
+          "job_count",
+          "year_month"
+        ],
+        "type": "object"
+      },
+      "AIUsageTotals": {
+        "properties": {
+          "completed_count": {
+            "type": "integer"
+          },
+          "cost_usd": {
+            "format": "decimal",
+            "pattern": "^-?\\d{0,6}(?:\\.\\d{0,6})?$",
+            "type": "string"
+          },
+          "input_tokens": {
+            "type": "integer"
+          },
+          "job_count": {
+            "type": "integer"
+          },
+          "output_tokens": {
+            "type": "integer"
+          },
+          "total_tokens": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "completed_count",
+          "cost_usd",
+          "input_tokens",
+          "job_count",
+          "output_tokens",
+          "total_tokens"
+        ],
+        "type": "object"
+      },
       "AIWebhookEvent": {
         "properties": {
           "error_message": {
@@ -546,6 +699,39 @@
         ],
         "type": "string"
       },
+      "AdminAIUsage": {
+        "properties": {
+          "by_character": {
+            "items": {
+              "$ref": "#/components/schemas/AIUsageByCharacter"
+            },
+            "type": "array"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/AIUsageDailyPoint"
+            },
+            "type": "array"
+          },
+          "month_to_date": {
+            "$ref": "#/components/schemas/AIUsageMonthToDate"
+          },
+          "range_days": {
+            "type": "integer"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/AIUsageTotals"
+          }
+        },
+        "required": [
+          "by_character",
+          "daily",
+          "month_to_date",
+          "range_days",
+          "totals"
+        ],
+        "type": "object"
+      },
       "AdminCharacterInteraction": {
         "properties": {
           "action": {
@@ -576,7 +762,8 @@
           },
           "metadata": {},
           "result_id": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -908,7 +1095,8 @@
             "type": "integer"
           },
           "questions_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -926,7 +1114,8 @@
             "type": "string"
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -967,7 +1156,8 @@
       "AdminQuizAttempt": {
         "properties": {
           "correct_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -977,7 +1167,8 @@
             "type": "string"
           },
           "duration_seconds": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -1021,7 +1212,8 @@
             "type": "string"
           },
           "unanswered_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -1039,7 +1231,8 @@
             "readOnly": true
           },
           "wrong_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -1323,7 +1516,8 @@
             "type": "string"
           },
           "daily_study_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -1404,7 +1598,8 @@
       "AdminStudyTask": {
         "properties": {
           "estimated_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -1413,7 +1608,8 @@
             "type": "integer"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -1931,7 +2127,8 @@
             "type": "integer"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -1955,7 +2152,8 @@
             "type": "boolean"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -1975,7 +2173,8 @@
             "type": "boolean"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -1992,7 +2191,8 @@
       "ChoiceRequest": {
         "properties": {
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -2016,7 +2216,8 @@
             "type": "boolean"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -2071,7 +2272,8 @@
             "type": "string"
           },
           "order": {
-            "maximum": 32767,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -2103,7 +2305,8 @@
             "type": "string"
           },
           "order": {
-            "maximum": 32767,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -2144,6 +2347,14 @@
           "success"
         ],
         "type": "object"
+      },
+      "LocaleEnum": {
+        "description": "* `ar` - Arabic\n* `en` - English",
+        "enum": [
+          "ar",
+          "en"
+        ],
+        "type": "string"
       },
       "LogoutRequest": {
         "properties": {
@@ -3714,7 +3925,8 @@
             "type": "string"
           },
           "order": {
-            "maximum": 32767,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -3783,12 +3995,14 @@
             "type": "string"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -3820,7 +4034,8 @@
             "$ref": "#/components/schemas/QuizStatusEnum"
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -3921,7 +4136,8 @@
       "PatchedStudyPlanUpdateRequest": {
         "properties": {
           "daily_study_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -3951,12 +4167,14 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -4038,7 +4256,8 @@
             "type": "string"
           },
           "sort_order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -4341,7 +4560,8 @@
             "type": "string"
           },
           "sort_order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -4370,12 +4590,14 @@
             "type": "integer"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -4449,12 +4671,14 @@
             "$ref": "#/components/schemas/StudyPlanDifficultyLevelEnum"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -4558,12 +4782,14 @@
       "QuizAttempt": {
         "properties": {
           "correct_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -4608,12 +4834,14 @@
             "type": "string"
           },
           "unanswered_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -4634,12 +4862,14 @@
             "type": "array"
           },
           "correct_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -4684,12 +4914,14 @@
             "type": "string"
           },
           "unanswered_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -4724,7 +4956,8 @@
             "type": "array"
           },
           "questions_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -4743,7 +4976,8 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -4806,12 +5040,14 @@
       "QuizAttemptRequest": {
         "properties": {
           "correct_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -4844,12 +5080,14 @@
             "type": "string"
           },
           "unanswered_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -4920,7 +5158,8 @@
             "type": "integer"
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -4989,7 +5228,8 @@
             "type": "array"
           },
           "questions_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -5008,7 +5248,8 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5058,7 +5299,8 @@
             "type": "integer"
           },
           "questions_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -5069,7 +5311,8 @@
             "$ref": "#/components/schemas/QuizStatusEnum"
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5110,7 +5353,8 @@
             "type": "integer"
           },
           "questions_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -5129,7 +5373,8 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5163,7 +5408,8 @@
             "type": "integer"
           },
           "questions_count": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -5174,7 +5420,8 @@
             "$ref": "#/components/schemas/QuizStatusEnum"
           },
           "time_limit_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5212,12 +5459,14 @@
             "type": "integer"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -5254,12 +5503,14 @@
             "type": "string"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -6443,7 +6694,8 @@
           },
           "metadata": {},
           "result_id": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -6597,7 +6849,8 @@
       "StudyPlanCreateRequest": {
         "properties": {
           "daily_study_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -6664,7 +6917,8 @@
             "type": "string"
           },
           "daily_study_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -6874,7 +7128,8 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -6883,7 +7138,8 @@
             "type": "integer"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -6916,12 +7172,14 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
           "order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -7151,7 +7409,8 @@
             "type": "string"
           },
           "sort_order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -7207,7 +7466,8 @@
             "type": "string"
           },
           "sort_order": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           }
@@ -7811,7 +8071,8 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -7821,7 +8082,8 @@
           },
           "order": {
             "default": 1,
-            "maximum": 2147483647,
+            "format": "int64",
+            "maximum": 9223372036854775807,
             "minimum": 0,
             "type": "integer"
           },
@@ -8265,6 +8527,68 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "WaitlistCount": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
+      "WaitlistJoinRequest": {
+        "properties": {
+          "company": {
+            "default": "",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "minLength": 1,
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "locale": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocaleEnum"
+              }
+            ],
+            "default": "ar"
+          }
+        },
+        "required": [
+          "email",
+          "full_name"
+        ],
+        "type": "object"
+      },
+      "WaitlistJoinResponse": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "created",
+          "message"
+        ],
         "type": "object"
       },
       "WeekDayTasks": {
@@ -9407,6 +9731,32 @@
         ],
         "tags": [
           "v1"
+        ]
+      }
+    },
+    "/api/v1/admin/ai-usage/": {
+      "get": {
+        "description": "AI token/cost consumption, denormalized onto AIJob from the AI\nservice's completion webhook (metadata.usage/.provider) -- see\napps/ai_integration/services.py:complete_job. Numbers reflect what\nDjango has received, not a live query against the AI service's own\ndatabase.",
+        "operationId": "v1_admin_ai_usage_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAIUsage"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Admin Dashboard"
         ]
       }
     },
@@ -17697,6 +18047,74 @@
         ],
         "tags": [
           "Subjects"
+        ]
+      }
+    },
+    "/api/v1/waitlist/": {
+      "post": {
+        "description": "Public, unauthenticated endpoint the marketing site's waitlist form\nposts to. Joining twice with the same email is not an error -- it's\ntreated as an idempotent \"you're already on the list\".",
+        "operationId": "v1_waitlist_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitlistJoinRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitlistJoinRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitlistJoinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistJoinResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "Waitlist"
+        ]
+      }
+    },
+    "/api/v1/waitlist/count/": {
+      "get": {
+        "description": "Public read-only counter the site displays as social proof.",
+        "operationId": "v1_waitlist_count_retrieve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistCount"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "Waitlist"
         ]
       }
     }

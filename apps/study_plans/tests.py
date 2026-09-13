@@ -57,7 +57,7 @@ class StudyPlanAPITestCase(APITestCase):
         self.authenticate()
         today = timezone.localdate()
         payload = {
-            'project': self.project.id,
+            'project': str(self.project.public_id),
             'title': 'Math Review Plan',
             'description': 'Plan before the final test',
             'subject': self.subject.id,

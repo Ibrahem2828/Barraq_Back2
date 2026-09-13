@@ -15,3 +15,17 @@ def send_password_reset_email(self, email: str, reset_url: str):
         )
     except Exception as exc:  # noqa: BLE001 -- any send failure should retry, not crash the worker
         raise self.retry(exc=exc) from exc
+
+
+@shared_task(bind=True, max_retries=3, retry_backoff=True, retry_jitter=True, name="users.send_email_otp")
+def send_email_otp(self, email: str, code: str):
+    try:
+        return send_mail(
+            "رمز تحقق برّاق",
+            f"رمز التحقق الخاص بك هو: {code}\nصالح لمدة 10 دقائق ولا تشاركه مع أحد.",
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+            fail_silently=False,
+        )
+    except Exception as exc:  # noqa: BLE001 -- any send failure should retry, not crash the worker
+        raise self.retry(exc=exc) from exc

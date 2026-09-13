@@ -125,9 +125,9 @@ def forward_ai_feedback(self, feedback_id):
 
 
 @shared_task(bind=True, max_retries=3, retry_backoff=True, retry_jitter=True, name="ai_integration.cancel_external_job")
-def cancel_external_ai_job(self, external_job_id):
+def cancel_external_ai_job(self, external_job_id, user_id):
     try:
-        AIServiceClient().cancel_job(external_job_id)
+        AIServiceClient().cancel_job(external_job_id, user_id=user_id)
     except AIServiceError as exc:
         if exc.retryable:
             raise self.retry(exc=exc) from exc
