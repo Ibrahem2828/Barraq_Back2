@@ -639,7 +639,14 @@ def fail_job(job, error):
 
 @transaction.atomic
 def complete_job(job, result_payload, metadata=None):
-    job = AIJob.objects.select_for_update().select_related("user", "project", "source", "collection", "subject").get(pk=job.pk)
+    # select_for_update() cannot be combined with select_related() on a
+    # nullable relation -- Postgres rejects it outright ("FOR UPDATE cannot
+    # be applied to the nullable side of an outer join"), because it can't
+    # lock a row that might not exist on the NULL side of the join. Only
+    # `user` is a non-nullable FK here; project/source/collection/subject
+    # are all null=True, so they stay off the locked queryset and are
+    # fetched normally (lazily, on first access) instead.
+    job = AIJob.objects.select_for_update().select_related("user").get(pk=job.pk)
     if job.status == AIJob.Status.COMPLETED:
         return job
     if job.status in {AIJob.Status.CANCELED, AIJob.Status.FAILED}:
