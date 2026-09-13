@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: baraq_backend_ci
+          POSTGRES_USER: baraq_backend_ci
+          POSTGRES_PASSWORD: baraq_backend_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U baraq_backend_ci -d baraq_backend_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings
+      ENVIRONMENT: production
+      DEBUG: 'False'
+      # A real, CI-only secret -- never the placeholder default, so this run
+      # also exercises the same SECRET_KEY strength check production boots
+      # under (validate_secret_key in apps/common/env_config.py).
+      SECRET_KEY: 'ci-only-secret-key-never-used-anywhere-else-0123456789abcdefghijklmno'
+      ALLOWED_HOSTS: 'testserver,localhost,127.0.0.1'
+      PUBLIC_API_BASE_URL: 'https://api.baraqapp.com'
+      CORS_ALLOWED_ORIGINS: 'https://baraqapp.com'
+      CSRF_TRUSTED_ORIGINS: 'https://baraqapp.com'
+      DATABASE_URL: 'postgresql://baraq_backend_ci:baraq_backend_ci_password@localhost:5432/baraq_backend_ci'
+      REDIS_URL: 'redis://localhost:6379/0'
+      CELERY_BROKER_URL: 'redis://localhost:6379/0'
+      CELERY_RESULT_BACKEND: 'redis://localhost:6379/1'
+      AI_SERVICE_ENABLED: 'False'
+      BARAQ_HMAC_CURRENT_KEY_ID: ci-key-1
+      BARAQ_HMAC_KEYS_JSON: '{"ci-key-1":"ci-only-hmac-secret-not-for-production-0123456789ab"}'
+      EMAIL_HOST_PASSWORD: 'unused-in-ci'
+      API_DOCS_PUBLIC: 'True'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements/production.txt
+            requirements/development.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/production.txt -r requirements/development.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Type check (mypy)
+        run: mypy apps config
+
+      - name: Migration consistency check
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Django deploy checks
+        run: python manage.py check --deploy
+
+      - name: OpenAPI schema generation (drf-spectacular, --fail-on-warn)
+        run: python manage.py spectacular --validate --fail-on-warn --file /tmp/schema.yml
+
+      - name: Test suite
+        run: python manage.py test --noinput
+
+      - name: Package and secret hygiene scan
+        run: python scripts/validate_release.py
