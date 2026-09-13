@@ -96,7 +96,20 @@ jobs:
         run: python manage.py spectacular --validate --fail-on-warn --file /tmp/schema.yml
 
       - name: Test suite
-        run: python manage.py test --noinput
+        run: |
+          set +e
+          python manage.py test --noinput -v 2 2>&1 | tee /tmp/test_output.log
+          exit_code=${PIPESTATUS[0]}
+          if [ "$exit_code" -ne 0 ]; then
+            {
+              echo "### Test suite failed (exit $exit_code) -- tail of output"
+              echo '```'
+              tail -c 3000 /tmp/test_output.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Test suite failed, exit $exit_code. Tail: $(tail -c 500 /tmp/test_output.log | tr '\n' ' ')"
+          fi
+          exit $exit_code
 
       - name: Package and secret hygiene scan
         run: python scripts/validate_release.py
