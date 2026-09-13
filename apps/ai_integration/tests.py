@@ -4,11 +4,12 @@ import time
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
-from django.test import SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -28,7 +29,7 @@ from apps.subscriptions.services import (
 from .client import AIServiceClient, AIServiceError
 from .error_codes import ErrorCode
 from .models import AIJob, AIWebhookEvent
-from .security import make_service_signature
+from .security import InternalAuthenticationError, make_service_signature, verify_internal_request
 from .services import build_khota_job_input, build_service_payload, complete_job, update_job_progress
 
 User = get_user_model()
@@ -36,6 +37,17 @@ User = get_user_model()
 
 @override_settings(AI_SERVICE_ENABLED=True, AI_SERVICE_BASE_URL='https://ai.example.test')
 class AIServiceClientSafetyTests(SimpleTestCase):
+    def test_job_status_and_cancel_targets_include_signed_user_scope(self):
+        client = AIServiceClient()
+        self.assertEqual(
+            client._job_target('job-1', 'user 1'),
+            f"{settings.AI_SERVICE_JOBS_PATH}/job-1?user_id=user%201",
+        )
+        self.assertEqual(
+            client._job_target('job-1', 'user 1', cancel=True),
+            f"{settings.AI_SERVICE_JOBS_PATH}/job-1/cancel?user_id=user%201",
+        )
+
     @patch('apps.ai_integration.client.requests.Session.request')
     def test_upstream_error_does_not_expose_upstream_message(self, request):
         response = Mock(status_code=500)
@@ -615,3 +627,69 @@ class AIIntegrationApiTests(APITestCase):
             parameters={},
         )
         self.assertEqual(built_input['weak_topics'], ["Newton's laws", 'Thermodynamics'])
+
+
+@override_settings(
+    BARAQ_HMAC_CURRENT_KEY_ID='django-current',
+    BARAQ_HMAC_KEYS_JSON='{"django-current":"test-hmac-secret-at-least-32-chars-long"}',
+    BARAQ_HMAC_ALLOWED_SERVICES=['baraq-ai-service'],
+    BARAQ_HMAC_MAX_CLOCK_SKEW_SECONDS=300,
+    BARAQ_HMAC_NONCE_TTL_SECONDS=600,
+)
+class HMACV2InboundVerificationTests(SimpleTestCase):
+    """Direct, low-level tests of ``verify_internal_request`` -- the same
+    function that gates every AI -> Django call (webhooks, source manifests).
+    Complements the higher-level view tests above (which already cover
+    missing signatures, tampering, and basic replay) with two properties
+    those don't exercise: clock-skew rejection and fail-closed behavior when
+    the nonce/replay store (Redis, in production) is unavailable."""
+
+    def _signed_request(self, *, timestamp, nonce, path='/internal/v1/ai/ping/', body=b'{}'):
+        headers = make_service_signature(
+            method='POST', target=path, body=body, timestamp=timestamp, nonce=nonce,
+            service='baraq-ai-service', key_id='django-current',
+        )
+        return RequestFactory().generic(
+            'POST', path, data=body, content_type='application/json',
+            **{f"HTTP_{name.upper().replace('-', '_')}": value for name, value in headers.items()},
+        )
+
+    def test_within_clock_skew_window_is_accepted(self):
+        request = self._signed_request(timestamp=int(time.time()), nonce='skew-ok-nonce-0001')
+        authenticated = verify_internal_request(request)
+        self.assertEqual(authenticated.service, 'baraq-ai-service')
+
+    def test_timestamp_too_old_is_rejected_as_expired(self):
+        stale_timestamp = int(time.time()) - 301  # 1 second past the 300s max skew
+        request = self._signed_request(timestamp=stale_timestamp, nonce='skew-old-nonce-0001')
+        with self.assertRaises(InternalAuthenticationError) as ctx:
+            verify_internal_request(request)
+        self.assertEqual(ctx.exception.code, 'expired_signature')
+
+    def test_timestamp_too_far_in_the_future_is_rejected_as_expired(self):
+        future_timestamp = int(time.time()) + 301
+        request = self._signed_request(timestamp=future_timestamp, nonce='skew-future-nonce-0001')
+        with self.assertRaises(InternalAuthenticationError) as ctx:
+            verify_internal_request(request)
+        self.assertEqual(ctx.exception.code, 'expired_signature')
+
+    def test_fails_closed_when_the_replay_store_is_unavailable(self):
+        """If the nonce cache (Redis in production) is down, the request must
+        be REJECTED, not silently allowed through as if replay-protection
+        were optional."""
+
+        request = self._signed_request(timestamp=int(time.time()), nonce='redis-down-nonce-0001')
+        with (
+            patch('apps.ai_integration.security.cache.add', side_effect=ConnectionError('redis unreachable')),
+            self.assertRaises(InternalAuthenticationError) as ctx,
+        ):
+            verify_internal_request(request)
+        self.assertEqual(ctx.exception.code, 'replay_store_unavailable')
+
+    def test_reusing_the_same_nonce_twice_is_rejected(self):
+        request_one = self._signed_request(timestamp=int(time.time()), nonce='reused-nonce-000001')
+        request_two = self._signed_request(timestamp=int(time.time()), nonce='reused-nonce-000001')
+        verify_internal_request(request_one)
+        with self.assertRaises(InternalAuthenticationError) as ctx:
+            verify_internal_request(request_two)
+        self.assertEqual(ctx.exception.code, 'replay_detected')

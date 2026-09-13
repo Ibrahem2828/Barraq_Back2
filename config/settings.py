@@ -135,6 +135,7 @@ INSTALLED_APPS = [
     "apps.audio.apps.AudioConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.support.apps.SupportConfig",
+    "apps.waitlist.apps.WaitlistConfig",
     "apps.admin_dashboard",
 ]
 
@@ -254,8 +255,11 @@ REST_FRAMEWORK = {
         "register": env("THROTTLE_REGISTER", default="10/hour"),
         "login": env("THROTTLE_LOGIN", default="10/minute"),
         "password_reset": env("THROTTLE_PASSWORD_RESET", default="5/hour"),
+        "email_otp_verify": env("THROTTLE_EMAIL_OTP_VERIFY", default="20/hour"),
+        "email_otp_resend": env("THROTTLE_EMAIL_OTP_RESEND", default="5/hour"),
         "uploads": env("THROTTLE_UPLOADS", default="30/hour"),
         "ai_requests": env("THROTTLE_AI", default="100/day"),
+        "waitlist": env("THROTTLE_WAITLIST", default="5/hour"),
     },
 }
 
@@ -339,6 +343,16 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
+# Queue separation: latency-sensitive user-facing email (OTP, password reset)
+# must never sit behind a burst of AI-dispatch or source-processing work on a
+# shared queue. `critical` gets its own dedicated worker (see
+# `backend-worker-critical` in compose.yaml); everything else -- including
+# any future task with no explicit route -- lands on `default`.
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_ROUTES = {
+    "users.send_email_otp": {"queue": "critical"},
+    "users.send_password_reset_email": {"queue": "critical"},
+}
 # Durable-dispatch safety net (spec: "Accepted job loss: 0"). Requires a
 # `celery beat` process running alongside the worker(s) in every deployment.
 CELERY_BEAT_SCHEDULE = {
