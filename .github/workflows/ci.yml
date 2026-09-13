@@ -106,7 +106,8 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
             names=$(grep -oE "^(FAIL|ERROR): .*" /tmp/test_output.log | paste -sd ";" -)
-            echo "::error::Test suite failed, exit $exit_code. Failing/erroring tests: $names"
+            excs=$(grep -oE "^[A-Za-z_.]+(Error|Exception|Warning|Denied): .*" /tmp/test_output.log | sort -u | paste -sd ";" -)
+            echo "::error::Test suite failed, exit $exit_code. Tests: $names || Exceptions: $excs"
           fi
           exit $exit_code
 
