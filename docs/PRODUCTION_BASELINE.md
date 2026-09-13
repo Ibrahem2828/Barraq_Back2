@@ -1,3 +1,5 @@
+> **Superseded** — see [`PRODUCTION_RELEASE_STATUS.md`](../PRODUCTION_RELEASE_STATUS.md) at the repo root for the current, verified production status (2026-09-13). Kept below for historical record only.
+
 # خط الأساس للإنتاج — Baraq Django Backend
 
 **التاريخ:** 2026-07-26  
