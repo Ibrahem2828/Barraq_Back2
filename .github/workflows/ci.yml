@@ -38,15 +38,7 @@ jobs:
       DJANGO_SETTINGS_MODULE: config.settings
       ENVIRONMENT: production
       DEBUG: 'False'
-      # A real, CI-only secret -- never the placeholder default, so this run
-      # also exercises the same SECRET_KEY strength check production boots
-      # under (validate_secret_key in apps/common/env_config.py). Must have
-      # >=50 chars and a wide character alphabet: a plain lowercase/digit
-      # phrase (even a long one) fails the >=0.5 unique-character-ratio
-      # check, so this is generator output, not a readable phrase.
       SECRET_KEY: '%ag2o_t=f)52-fmy6j0xokmkcrmgw3xrb=q28up*sdcft+z(09'
-      # Must include PUBLIC_API_BASE_URL's own hostname -- validate_allowed_hosts()
-      # (apps/common/env_config.py) rejects production config otherwise.
       ALLOWED_HOSTS: 'testserver,localhost,127.0.0.1,api.baraqapp.com'
       PUBLIC_API_BASE_URL: 'https://api.baraqapp.com'
       CORS_ALLOWED_ORIGINS: 'https://baraqapp.com'
@@ -107,7 +99,13 @@ jobs:
               tail -c 3000 /tmp/test_output.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error::Test suite failed, exit $exit_code. Tail: $(tail -c 500 /tmp/test_output.log | tr '\n' ' ')"
+            failure_line=$(grep -n -m1 -E "^(FAIL|ERROR|Traceback)" /tmp/test_output.log | head -1 | cut -d: -f1)
+            if [ -n "$failure_line" ]; then
+              details=$(tail -n +"$failure_line" /tmp/test_output.log | head -c 1800 | tr '\n' '|')
+            else
+              details=$(tail -c 1800 /tmp/test_output.log | tr '\n' '|')
+            fi
+            echo "::error::Test suite failed, exit $exit_code. Detail: $details"
           fi
           exit $exit_code
 
