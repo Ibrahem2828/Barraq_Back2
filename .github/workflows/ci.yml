@@ -38,6 +38,12 @@ jobs:
       DJANGO_SETTINGS_MODULE: config.settings
       ENVIRONMENT: production
       DEBUG: 'False'
+      # Django's SecurityMiddleware 301-redirects any plain-HTTP request when
+      # this is left at its production default (True) -- which breaks every
+      # status-code assertion in the test suite, since Django's test client
+      # never simulates HTTPS. Production's real deployment still sets this
+      # True (see root compose.yaml); this override is test-runtime only.
+      SECURE_SSL_REDIRECT: 'False'
       SECRET_KEY: '%ag2o_t=f)52-fmy6j0xokmkcrmgw3xrb=q28up*sdcft+z(09'
       ALLOWED_HOSTS: 'testserver,localhost,127.0.0.1,api.baraqapp.com'
       PUBLIC_API_BASE_URL: 'https://api.baraqapp.com'
