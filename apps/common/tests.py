@@ -3,7 +3,9 @@ from datetime import timedelta
 import environ
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import SimpleTestCase, override_settings
+from django.http import HttpResponse
+from django.middleware.security import SecurityMiddleware
+from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -235,3 +237,39 @@ class SystemAPITestCase(APITestCase):
         response = self.client.get(reverse('api-docs'))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class SecureProxyForwardedProtoTests(SimpleTestCase):
+    """Regression guard for the internal-service SSL-redirect bug: the web
+    BFF and admin dashboard call Django directly over the private Docker
+    network (bypassing the Caddy gateway, which normally sets this header
+    for public traffic), so with SECURE_SSL_REDIRECT=True (the production
+    default), Django's SecurityMiddleware 301-redirects any request that
+    doesn't carry X-Forwarded-Proto: https to an HTTPS URL nothing
+    internally serves. web/src/lib/api/backend.ts and
+    Baraq_Dashboard_Professional/lib/api/{backend-http,auth/edge-session}.ts
+    now set this header on every internal call; this test pins the Django
+    side of that contract (SECURE_PROXY_SSL_HEADER, config/settings.py) so a
+    future change can't silently break it again. Uses SecurityMiddleware
+    directly (matching Django's own test suite for this middleware) rather
+    than the full test client, since SECURE_SSL_REDIRECT is cached on the
+    middleware instance at construction time and a mid-test
+    override_settings() isn't guaranteed to reach an already-built chain.
+    """
+
+    def _run(self, **extra):
+        middleware = SecurityMiddleware(lambda request: HttpResponse())
+        request = RequestFactory().get('/api/v1/health/live/', **extra)
+        return middleware(request)
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_plain_http_without_forwarded_proto_header_is_redirected(self):
+        response = self._run()
+
+        self.assertEqual(response.status_code, 301)
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_plain_http_with_forwarded_proto_https_header_is_not_redirected(self):
+        response = self._run(HTTP_X_FORWARDED_PROTO='https')
+
+        self.assertEqual(response.status_code, 200)
