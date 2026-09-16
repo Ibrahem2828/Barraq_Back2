@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-05T21:39:46+00:00",
-    "generated_from_backend_commit": "996b5d798faec15b1bc97637b215d1a6da23f3ba",
+    "generated_at": "2026-09-16T06:00:05+00:00",
+    "generated_from_backend_commit": "cad377d041aee8e50d9b8d1554869426455314ec",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -12619,16 +12619,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
+          "nullable": false,
           "read_only": true,
           "required": true,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -13111,9 +13111,9 @@
             "readOnly": true
           },
           "project": {
-            "nullable": true,
+            "format": "uuid",
             "readOnly": true,
-            "type": "integer"
+            "type": "string"
           },
           "prompt_version": {
             "readOnly": true,
@@ -23939,6 +23939,22 @@
           "default": null,
           "description": null,
           "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
           "format": null,
           "max_length": null,
           "maximum": null,
@@ -24153,6 +24169,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "recommendations": {
             "readOnly": true
           },
@@ -24190,6 +24211,7 @@
           "is_read",
           "next_best_action",
           "overall_score",
+          "project",
           "recommendations",
           "source_metrics",
           "strengths",
@@ -25508,6 +25530,22 @@
           "default": null,
           "description": null,
           "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
           "format": null,
           "max_length": null,
           "maximum": null,
@@ -25742,6 +25780,11 @@
           "key_points": {
             "readOnly": true
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "quality_score": {
             "format": "decimal",
             "nullable": true,
@@ -25782,6 +25825,7 @@
           "id",
           "important_terms",
           "key_points",
+          "project",
           "quality_score",
           "review_questions",
           "short_summary",
@@ -26259,6 +26303,22 @@
           "default": null,
           "description": null,
           "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
           "format": null,
           "max_length": null,
           "maximum": null,
@@ -26469,6 +26529,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "segments": {
             "readOnly": true
           },
@@ -26496,6 +26561,7 @@
           "full_transcript",
           "id",
           "language",
+          "project",
           "segments",
           "source",
           "title",

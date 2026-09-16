@@ -237,9 +237,9 @@
             "readOnly": true
           },
           "project": {
-            "nullable": true,
+            "format": "uuid",
             "readOnly": true,
-            "type": "integer"
+            "type": "string"
           },
           "prompt_version": {
             "readOnly": true,
@@ -374,8 +374,9 @@
           "input": {},
           "parameters": {},
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "source": {
             "nullable": true,
@@ -407,8 +408,9 @@
           "input": {},
           "parameters": {},
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "source": {
             "nullable": true,
@@ -462,9 +464,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
+            "format": "uuid",
             "readOnly": true,
-            "type": "integer"
+            "type": "string"
           },
           "public_id": {
             "format": "uuid",
@@ -4138,8 +4140,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "status": {
             "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
@@ -4161,8 +4164,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "subject": {
             "nullable": true,
@@ -5185,8 +5189,9 @@
             "$ref": "#/components/schemas/StudyPlanGenerationTypeEnum"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "question_types": {
             "items": {
@@ -5260,8 +5265,9 @@
             "readOnly": true
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "questions": {
             "items": {
@@ -5315,6 +5321,7 @@
           "created_at",
           "id",
           "last_attempt",
+          "project",
           "questions",
           "subject",
           "title",
@@ -5336,10 +5343,6 @@
           },
           "generation_type": {
             "$ref": "#/components/schemas/StudyPlanGenerationTypeEnum"
-          },
-          "project": {
-            "nullable": true,
-            "type": "integer"
           },
           "questions_count": {
             "format": "int64",
@@ -5392,8 +5395,9 @@
             "type": "integer"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "questions_count": {
             "format": "int64",
@@ -5433,6 +5437,7 @@
         "required": [
           "created_at",
           "id",
+          "project",
           "subject",
           "title"
         ],
@@ -5445,10 +5450,6 @@
           },
           "generation_type": {
             "$ref": "#/components/schemas/StudyPlanGenerationTypeEnum"
-          },
-          "project": {
-            "nullable": true,
-            "type": "integer"
           },
           "questions_count": {
             "format": "int64",
@@ -5767,6 +5768,19 @@
           "full_name",
           "password",
           "password_confirm"
+        ],
+        "type": "object"
+      },
+      "ResendEmailOTPRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
         ],
         "type": "object"
       },
@@ -6112,6 +6126,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "recommendations": {
             "readOnly": true
           },
@@ -6149,6 +6168,7 @@
           "is_read",
           "next_best_action",
           "overall_score",
+          "project",
           "recommendations",
           "source_metrics",
           "strengths",
@@ -6198,8 +6218,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_type": {
             "$ref": "#/components/schemas/SourceTypeEnum"
@@ -6226,6 +6247,7 @@
           "created_at",
           "id",
           "original_filename",
+          "project",
           "subject_name",
           "title"
         ],
@@ -6251,10 +6273,6 @@
             "maxLength": 255,
             "minLength": 1,
             "type": "string"
-          },
-          "project": {
-            "nullable": true,
-            "type": "integer"
           },
           "source_type": {
             "$ref": "#/components/schemas/SourceTypeEnum"
@@ -6296,8 +6314,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "status": {
             "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
@@ -6355,8 +6374,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_count": {
             "readOnly": true,
@@ -6401,6 +6421,7 @@
           "id",
           "last_source_at",
           "name",
+          "project",
           "source_count",
           "sources",
           "subject",
@@ -6427,10 +6448,6 @@
             "maxLength": 255,
             "minLength": 1,
             "type": "string"
-          },
-          "project": {
-            "nullable": true,
-            "type": "integer"
           },
           "status": {
             "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
@@ -6474,8 +6491,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_count": {
             "readOnly": true,
@@ -6511,6 +6529,7 @@
           "id",
           "last_source_at",
           "name",
+          "project",
           "source_count",
           "subject",
           "subject_name",
@@ -6541,8 +6560,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "subject": {
             "nullable": true,
@@ -6627,8 +6647,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_type": {
             "$ref": "#/components/schemas/SourceTypeEnum"
@@ -6668,6 +6689,7 @@
           "has_extracted_text",
           "id",
           "original_filename",
+          "project",
           "subject",
           "subject_name",
           "title",
@@ -6707,10 +6729,6 @@
           "processing_error": {
             "nullable": true,
             "type": "string"
-          },
-          "project": {
-            "nullable": true,
-            "type": "integer"
           },
           "source_type": {
             "$ref": "#/components/schemas/SourceTypeEnum"
@@ -6853,8 +6871,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_type": {
             "$ref": "#/components/schemas/SourceTypeEnum"
@@ -6891,6 +6910,7 @@
           "created_at",
           "id",
           "original_filename",
+          "project",
           "subject",
           "subject_name",
           "title",
@@ -6933,8 +6953,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "start_date": {
             "format": "date",
@@ -7005,8 +7026,9 @@
             "type": "integer"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "start_date": {
             "format": "date",
@@ -7050,6 +7072,7 @@
           "daily_study_minutes",
           "end_date",
           "id",
+          "project",
           "start_date",
           "subject",
           "tasks",
@@ -7102,8 +7125,9 @@
             "type": "integer"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "start_date": {
             "format": "date",
@@ -7133,6 +7157,7 @@
           "completed_tasks",
           "end_date",
           "id",
+          "project",
           "start_date",
           "subject",
           "title",
@@ -7654,6 +7679,11 @@
           "key_points": {
             "readOnly": true
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "quality_score": {
             "format": "decimal",
             "nullable": true,
@@ -7694,6 +7724,7 @@
           "id",
           "important_terms",
           "key_points",
+          "project",
           "quality_score",
           "review_questions",
           "short_summary",
@@ -8259,6 +8290,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "segments": {
             "readOnly": true
           },
@@ -8286,6 +8322,7 @@
           "full_transcript",
           "id",
           "language",
+          "project",
           "segments",
           "source",
           "title",
@@ -8589,6 +8626,25 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "VerifyEmailOTPRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "email"
+        ],
         "type": "object"
       },
       "WaitlistCount": {
@@ -13310,6 +13366,116 @@
         ]
       }
     },
+    "/api/v1/auth/resend-otp/": {
+      "post": {
+        "operationId": "v1_auth_resend_otp_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendEmailOTPRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendEmailOTPRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendEmailOTPRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify-email/": {
+      "post": {
+        "description": "Verifies a registration email-OTP code and, on success, logs the user in (same response shape as /auth/login/): {access, refresh, user}.",
+        "operationId": "v1_auth_verify_email_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailOTPRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailOTPRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailOTPRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {}
+        ],
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/auth/verify/": {
       "post": {
         "description": "Takes a token and indicates if it is valid.  This view provides no\ninformation about a token's fitness for a particular use.",
@@ -15213,6 +15379,13 @@
             }
           },
           {
+            "in": "query",
+            "name": "project",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "description": "مصطلح البحث.",
             "in": "query",
             "name": "search",
@@ -16027,6 +16200,43 @@
                 "schema": {
                   "additionalProperties": {},
                   "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Student Sources"
+        ]
+      }
+    },
+    "/api/v1/student-sources/{id}/download/": {
+      "get": {
+        "description": "Download this source through the authenticated ownership boundary.",
+        "operationId": "v1_student_sources_download_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
                 }
               }
             },
@@ -17760,6 +17970,30 @@
       }
     },
     "/api/v1/users/me/": {
+      "delete": {
+        "description": "Permanently deletes the caller's own account (self-service, GDPR/app-store style account deletion). Soft-deletes and anonymizes the account (email/name/phone are cleared, the row is kept only for legal/audit purposes tied to unrelated records), revokes every outstanding refresh token, and immediately prevents any further authentication as this user -- including with an access token issued before the call that has not yet expired. Idempotent: calling it again (were that ever possible -- it isn't, once the account can no longer authenticate) is a safe no-op.",
+        "operationId": "v1_users_me_destroy",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ]
+      },
       "get": {
         "operationId": "v1_users_me_retrieve",
         "responses": {

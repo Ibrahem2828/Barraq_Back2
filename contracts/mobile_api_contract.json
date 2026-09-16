@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-05T21:39:45+00:00",
-    "generated_from_backend_commit": "996b5d798faec15b1bc97637b215d1a6da23f3ba",
+    "generated_at": "2026-09-16T06:00:05+00:00",
+    "generated_from_backend_commit": "cad377d041aee8e50d9b8d1554869426455314ec",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -1733,6 +1733,263 @@
         "known": true,
         "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
         "scope": "register"
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": null,
+        "permissions": [
+          "AllowAny"
+        ],
+        "required": false,
+        "roles": [],
+        "type": "none"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.AllowAny"
+        ],
+        "serializer": null,
+        "url_file": "config/urls.py; config/api_urls.py; apps/users/urls.py",
+        "view": "apps.users.views.ResendEmailOTPView"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "",
+      "domain": "auth",
+      "headers": [
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_auth_resend_otp_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_auth_resend_otp_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "Public endpoint; no ownership constraint in the view."
+      },
+      "pagination": null,
+      "path": "/api/v1/auth/resend-otp/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": true,
+        "schema": {
+          "$ref": "#/resources/ResendEmailOTPRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/MessageResponse/schema"
+          }
+        },
+        "400": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": null,
+        "permissions": [
+          "AllowAny"
+        ],
+        "required": false,
+        "roles": [],
+        "type": "none"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.AllowAny"
+        ],
+        "serializer": null,
+        "url_file": "config/urls.py; config/api_urls.py; apps/users/urls.py",
+        "view": "apps.users.views.VerifyEmailOTPView"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "Verifies a registration email-OTP code and, on success, logs the user in (same response shape as /auth/login/): {access, refresh, user}.",
+      "domain": "auth",
+      "headers": [
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_auth_verify_email_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_auth_verify_email_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "Public endpoint; no ownership constraint in the view."
+      },
+      "pagination": null,
+      "path": "/api/v1/auth/verify-email/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": true,
+        "schema": {
+          "$ref": "#/resources/VerifyEmailOTPRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        },
+        "400": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
       }
     },
     {
@@ -6705,6 +6962,14 @@
           }
         },
         {
+          "description": null,
+          "name": "project",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
           "description": "مصطلح البحث.",
           "name": "search",
           "required": false,
@@ -8949,6 +9214,118 @@
           "schema": {
             "additionalProperties": {},
             "type": "object"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "download",
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": "apps.sources.serializers.StudentSourceDetailSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/sources/urls.py",
+        "view": "apps.sources.views.StudentSourceViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "Download this source through the authenticated ownership boundary.",
+      "domain": "student_sources",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_student_sources_download_retrieve",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_student_sources_download_retrieve",
+      "notes": [],
+      "ownership": {
+        "required": true,
+        "rule": "Queryset/object access is scoped to request.user in the view or selector."
+      },
+      "pagination": null,
+      "path": "/api/v1/student-sources/{id}/download/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/octet-stream"
+          ],
+          "description": "",
+          "schema": {
+            "format": "binary",
+            "type": "string"
           }
         }
       },
@@ -13700,6 +14077,108 @@
       },
       "content_type": null,
       "content_types": [],
+      "description": "Permanently deletes the caller's own account (self-service, GDPR/app-store style account deletion). Soft-deletes and anonymizes the account (email/name/phone are cleared, the row is kept only for legal/audit purposes tied to unrelated records), revokes every outstanding refresh token, and immediately prevents any further authentication as this user -- including with an access token issued before the call that has not yet expired. Idempotent: calling it again (were that ever possible -- it isn't, once the account can no longer authenticate) is a safe no-op.",
+      "domain": "users",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_users_me_destroy",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "DELETE",
+      "name": "v1_users_me_destroy",
+      "notes": [],
+      "ownership": {
+        "required": true,
+        "rule": "The endpoint is bound to request.user."
+      },
+      "pagination": null,
+      "path": "/api/v1/users/me/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/MessageResponse/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": "apps.users.serializers.UserSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/users/urls.py",
+        "view": "apps.users.views.UserMeView"
+      },
+      "content_type": null,
+      "content_types": [],
       "description": "",
       "domain": "users",
       "headers": [
@@ -16014,16 +16493,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
+          "nullable": false,
           "read_only": true,
           "required": true,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -16506,9 +16985,9 @@
             "readOnly": true
           },
           "project": {
-            "nullable": true,
+            "format": "uuid",
             "readOnly": true,
-            "type": "integer"
+            "type": "string"
           },
           "prompt_version": {
             "readOnly": true,
@@ -16663,7 +17142,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -16672,7 +17151,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -16785,8 +17264,9 @@
           "input": {},
           "parameters": {},
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "source": {
             "nullable": true,
@@ -16835,7 +17315,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -16844,7 +17324,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -16957,8 +17437,9 @@
           "input": {},
           "parameters": {},
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "source": {
             "nullable": true,
@@ -17096,16 +17577,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
+          "nullable": false,
           "read_only": true,
           "required": true,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -17272,9 +17753,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
+            "format": "uuid",
             "readOnly": true,
-            "type": "integer"
+            "type": "string"
           },
           "public_id": {
             "format": "uuid",
@@ -21113,7 +21594,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -21122,7 +21603,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -21196,8 +21677,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "status": {
             "$ref": "#/resources/StudentSourceCollectionStatusEnum/schema"
@@ -21248,7 +21730,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -21257,7 +21739,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -21303,8 +21785,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "subject": {
             "nullable": true,
@@ -24783,7 +25266,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -24792,7 +25275,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -24966,8 +25449,9 @@
             "$ref": "#/resources/StudyPlanGenerationTypeEnum/schema"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "question_types": {
             "items": {
@@ -25042,16 +25526,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -25352,8 +25836,9 @@
             "readOnly": true
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "questions": {
             "items": {
@@ -25407,6 +25892,7 @@
           "created_at",
           "id",
           "last_attempt",
+          "project",
           "questions",
           "subject",
           "title",
@@ -25431,22 +25917,6 @@
           "read_only": false,
           "required": true,
           "type": "string",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
           "write_only": false
         },
         {
@@ -25628,10 +26098,6 @@
           "generation_type": {
             "$ref": "#/resources/StudyPlanGenerationTypeEnum/schema"
           },
-          "project": {
-            "nullable": true,
-            "type": "integer"
-          },
           "questions_count": {
             "format": "int64",
             "maximum": 9223372036854775807,
@@ -25704,16 +26170,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -25898,8 +26364,9 @@
             "type": "integer"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "questions_count": {
             "format": "int64",
@@ -25939,6 +26406,7 @@
         "required": [
           "created_at",
           "id",
+          "project",
           "subject",
           "title"
         ],
@@ -26912,6 +27380,39 @@
         "type": "object"
       }
     },
+    "ResendEmailOTPRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": 1,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      }
+    },
     "RoleEnum": {
       "fields": [],
       "schema": {
@@ -27877,6 +28378,22 @@
           "default": null,
           "description": null,
           "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
           "format": null,
           "max_length": null,
           "maximum": null,
@@ -28091,6 +28608,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "recommendations": {
             "readOnly": true
           },
@@ -28128,6 +28650,7 @@
           "is_read",
           "next_best_action",
           "overall_score",
+          "project",
           "recommendations",
           "source_metrics",
           "strengths",
@@ -28204,16 +28727,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -28421,8 +28944,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_type": {
             "$ref": "#/resources/SourceTypeEnum/schema"
@@ -28449,6 +28973,7 @@
           "created_at",
           "id",
           "original_filename",
+          "project",
           "subject_name",
           "title"
         ],
@@ -28509,7 +29034,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -28518,7 +29043,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -28592,8 +29117,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "status": {
             "$ref": "#/resources/StudentSourceCollectionStatusEnum/schema"
@@ -28647,16 +29173,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -28931,8 +29457,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_count": {
             "readOnly": true,
@@ -28977,6 +29504,7 @@
           "id",
           "last_source_at",
           "name",
+          "project",
           "source_count",
           "sources",
           "subject",
@@ -29025,16 +29553,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -29251,8 +29779,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_count": {
             "readOnly": true,
@@ -29288,6 +29817,7 @@
           "id",
           "last_source_at",
           "name",
+          "project",
           "source_count",
           "subject",
           "subject_name",
@@ -29346,7 +29876,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -29355,7 +29885,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -29421,8 +29951,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "subject": {
             "nullable": true,
@@ -29520,16 +30051,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -29895,8 +30426,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_type": {
             "$ref": "#/resources/SourceTypeEnum/schema"
@@ -29936,6 +30468,7 @@
           "has_extracted_text",
           "id",
           "original_filename",
+          "project",
           "subject",
           "subject_name",
           "title",
@@ -30002,22 +30535,6 @@
           "required": false,
           "schema_ref": "#/resources/SourceTypeEnum/schema",
           "type": "string",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
           "write_only": false
         },
         {
@@ -30187,10 +30704,6 @@
           "processing_error": {
             "nullable": true,
             "type": "string"
-          },
-          "project": {
-            "nullable": true,
-            "type": "integer"
           },
           "source_type": {
             "$ref": "#/resources/SourceTypeEnum/schema"
@@ -30571,16 +31084,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -30848,8 +31361,9 @@
             "type": "string"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "source_type": {
             "$ref": "#/resources/SourceTypeEnum/schema"
@@ -30886,6 +31400,7 @@
           "created_at",
           "id",
           "original_filename",
+          "project",
           "subject",
           "subject_name",
           "title",
@@ -30913,7 +31428,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
@@ -30922,7 +31437,7 @@
           "nullable": true,
           "read_only": false,
           "required": false,
-          "type": "integer",
+          "type": "string",
           "write_only": false
         },
         {
@@ -31104,8 +31619,9 @@
             "type": "string"
           },
           "project": {
+            "format": "uuid",
             "nullable": true,
-            "type": "integer"
+            "type": "string"
           },
           "start_date": {
             "format": "date",
@@ -31168,16 +31684,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -31499,8 +32015,9 @@
             "type": "integer"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "start_date": {
             "format": "date",
@@ -31544,6 +32061,7 @@
           "daily_study_minutes",
           "end_date",
           "id",
+          "project",
           "start_date",
           "subject",
           "tasks",
@@ -31615,16 +32133,16 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": null,
+          "format": "uuid",
           "max_length": null,
           "maximum": null,
           "min_length": null,
           "minimum": null,
           "name": "project",
-          "nullable": true,
-          "read_only": false,
-          "required": false,
-          "type": "integer",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
           "write_only": false
         },
         {
@@ -31813,8 +32331,9 @@
             "type": "integer"
           },
           "project": {
-            "nullable": true,
-            "type": "integer"
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
           },
           "start_date": {
             "format": "date",
@@ -31844,6 +32363,7 @@
           "completed_tasks",
           "end_date",
           "id",
+          "project",
           "start_date",
           "subject",
           "title",
@@ -33444,6 +33964,22 @@
           "default": null,
           "description": null,
           "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
           "format": null,
           "max_length": null,
           "maximum": null,
@@ -33678,6 +34214,11 @@
           "key_points": {
             "readOnly": true
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "quality_score": {
             "format": "decimal",
             "nullable": true,
@@ -33718,6 +34259,7 @@
           "id",
           "important_terms",
           "key_points",
+          "project",
           "quality_score",
           "review_questions",
           "short_summary",
@@ -35388,6 +35930,22 @@
           "default": null,
           "description": null,
           "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
           "format": null,
           "max_length": null,
           "maximum": null,
@@ -35598,6 +36156,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "project": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
           "segments": {
             "readOnly": true
           },
@@ -35625,6 +36188,7 @@
           "full_transcript",
           "id",
           "language",
+          "project",
           "segments",
           "source",
           "title",
@@ -36479,6 +37043,61 @@
           "paused"
         ],
         "type": "string"
+      }
+    },
+    "VerifyEmailOTPRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": 1,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 6,
+          "maximum": null,
+          "min_length": 6,
+          "minimum": null,
+          "name": "code",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "email"
+        ],
+        "type": "object"
       }
     },
     "WaitlistCount": {
