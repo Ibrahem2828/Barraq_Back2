@@ -17,6 +17,11 @@ from apps.common.env_config import (
     validate_origin_url,
     validate_secret_key,
 )
+
+# The project test runner discovers each installed app through its historical
+# ``tests.py`` module. Import the generated-contract surface sweep here so it
+# is part of every unlabeled CI/test run as well as direct targeted runs.
+from apps.common.test_api_surface import OpenAPISurfaceTests  # noqa: F401
 from apps.quizzes.models import Quiz
 from apps.study_plans.models import StudyPlan
 from apps.subjects.models import EducationStage, Subject
