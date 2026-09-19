@@ -503,6 +503,33 @@ class AIIntegrationApiTests(APITestCase):
         self.assertTrue(replay.data.get('duplicate'))
         self.assertEqual(Quiz.objects.filter(ai_job=job).count(), 1)
 
+    def test_webhook_invalid_completed_result_becomes_terminal_safe_failure(self):
+        job = self._quiz_ready_job('webhook-invalid-materialization')
+        payload = {
+            'event_id': 'evt-invalid-materialization-1',
+            'job_id': job.external_job_id,
+            'status': 'completed',
+            'result': {'questions': []},
+        }
+
+        response = self._post_signed_webhook(
+            payload, nonce='webhook-nonce-invalid-materialization-1'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        job.refresh_from_db()
+        self.assertEqual(job.status, AIJob.Status.FAILED)
+        self.assertEqual(job.error_code, ErrorCode.RESULT_VALIDATION_FAILED)
+        self.assertEqual(Quiz.objects.filter(ai_job=job).count(), 0)
+        event = AIWebhookEvent.objects.get(event_id='evt-invalid-materialization-1')
+        self.assertTrue(event.processed)
+
+        replay = self._post_signed_webhook(
+            payload, nonce='webhook-nonce-invalid-materialization-2'
+        )
+        self.assertEqual(replay.status_code, status.HTTP_200_OK)
+        self.assertTrue(replay.data.get('duplicate'))
+
     def test_webhook_rejects_a_reused_event_id_with_a_different_payload(self):
         job = self._quiz_ready_job('webhook-idempotency-conflict')
         first_payload = {
@@ -1735,3 +1762,22 @@ class JobProgressContractTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], AIJob.Status.FAILED)
         get_job.assert_not_called()
+
+    @patch('apps.ai_integration.views.AIServiceClient.get_job')
+    def test_refresh_rejects_invalid_completed_output_without_retry_loop(self, get_job):
+        get_job.return_value = Mock(data={
+            'status': 'completed',
+            'output': {'result': {'questions': []}},
+        })
+        self.client.force_authenticate(self.user)
+        endpoint = reverse('ai-job-refresh', args=[str(self.job.public_id)])
+
+        first = self.client.post(endpoint, format='json')
+        second = self.client.post(endpoint, format='json')
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(first.data['status'], AIJob.Status.FAILED)
+        self.assertEqual(first.data['error_code'], ErrorCode.RESULT_VALIDATION_FAILED)
+        self.assertEqual(second.data['status'], AIJob.Status.FAILED)
+        self.assertEqual(get_job.call_count, 1)
+        self.assertFalse(Quiz.objects.filter(ai_job=self.job).exists())

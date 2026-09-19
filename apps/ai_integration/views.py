@@ -70,6 +70,29 @@ def _remote_failure_error(payload):
     )
 
 
+def _complete_or_fail_validation(job, result, metadata=None):
+    """Materialize a completed AI result or terminally reject invalid output.
+
+    ``complete_job`` owns its transaction, so a materializer ``ValidationError``
+    has fully rolled back before this helper records the permanent failure in a
+    new transaction. Unexpected storage/database failures are deliberately not
+    caught: the webhook must be retried instead of converting transient
+    infrastructure trouble into a permanent product failure.
+    """
+
+    try:
+        return complete_job(job, result, metadata)
+    except ValidationError:
+        return fail_job(
+            job,
+            AIServiceError(
+                public_error_message(ErrorCode.RESULT_VALIDATION_FAILED),
+                code=ErrorCode.RESULT_VALIDATION_FAILED,
+                retryable=False,
+            ),
+        )
+
+
 @extend_schema(tags=['AI Jobs'])
 class AIJobViewSet(viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -148,7 +171,7 @@ class AIJobViewSet(viewsets.GenericViewSet):
         # "quality_metrics" key on this response, unlike the webhook payload.
         output = data.get('output') or {}
         if remote_status == AIJob.Status.COMPLETED and output.get('result'):
-            job = complete_job(job, output['result'], {
+            job = _complete_or_fail_validation(job, output['result'], {
                 'refresh_response': data,
                 'quality_metrics': {
                     'quality_score': output.get('quality_score'),
@@ -314,7 +337,7 @@ class AIWebhookView(APIView):
                 # Baraq_AI/app/services/webhook_delivery.py:build_result_webhook_payload.
                 # There is no top-level "telemetry"/"quality_metrics" key.
                 webhook_metadata = payload.get('metadata') or {}
-                complete_job(job, payload.get('result') or {}, {
+                _complete_or_fail_validation(job, payload.get('result') or {}, {
                     'webhook': webhook_metadata,
                     'quality_metrics': webhook_metadata.get('quality') or {},
                     'security_flags': webhook_metadata.get('security_flags') or [],
