@@ -625,6 +625,33 @@ class AIIntegrationApiTests(APITestCase):
         self.assertEqual(job.error_code, ErrorCode.PROVIDER_UNAVAILABLE)
         self.assertNotIn('do-not-leak', job.error_message)
 
+    def test_character_domain_failures_survive_to_the_public_job(self):
+        cases = (
+            ErrorCode.INSUFFICIENT_SOURCE_CONTEXT,
+            ErrorCode.MISSING_AUTHORITATIVE_DATA,
+            ErrorCode.KHOTA_CONSTRAINT_VIOLATION,
+            ErrorCode.EMPTY_TRANSCRIPTION,
+        )
+        for index, expected_code in enumerate(cases, start=1):
+            with self.subTest(code=expected_code):
+                job = self._quiz_ready_job(f'character-domain-failure-{index}')
+                payload = {
+                    'event_id': f'evt-character-domain-failure-{index}',
+                    'job_id': job.external_job_id,
+                    'status': 'failed',
+                    'error_code': expected_code,
+                    'error_message': 'private diagnostic that must not cross the boundary',
+                }
+
+                response = self._post_signed_webhook(
+                    payload, nonce=f'webhook-nonce-character-domain-failure-{index}'
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                job.refresh_from_db()
+                self.assertEqual(job.error_code, expected_code)
+                self.assertNotIn('private diagnostic', job.error_message)
+
     def test_late_failure_cannot_overwrite_completed_job(self):
         job = self._quiz_ready_job('late-failure-after-completion')
         complete_job(job, {'questions': [{
