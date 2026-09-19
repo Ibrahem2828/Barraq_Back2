@@ -312,7 +312,7 @@ class JoinRequestViewSet(ScopedAdminViewSet):
         permission = self.get_required_permission()
         queryset = JoinRequest.objects.select_related("user", "organization", "classroom").order_by("-created_at")
         organization_ids = scope_policy.accessible_organization_ids(self.request.user, permission)
-        if organization_ids is None:
+        if scope_policy.is_unrestricted(organization_ids):
             return self._apply_status_filter(queryset)
         classroom_ids = scope_policy.accessible_classroom_ids(self.request.user, permission)
         if not organization_ids and not classroom_ids:

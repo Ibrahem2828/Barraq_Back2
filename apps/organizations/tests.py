@@ -23,7 +23,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.admin_dashboard.models import AdminPermission, AdminRole, AuditLog
+from apps.admin_dashboard.models import AdminPermission, AdminRole, AdminUserRole, AuditLog
 from apps.admin_dashboard.services import assign_roles_to_user, seed_default_rbac
 from apps.subscriptions.models import UserSubscription
 from apps.support.models import SupportTicket
@@ -40,7 +40,15 @@ from .models import (
     Organization,
     OrganizationMembership,
 )
-from .scope import TenantScopedQuerysetMixin
+from .scope import (
+    UNRESTRICTED,
+    TenantScopedQuerysetMixin,
+    _normalize,
+    accessible_classroom_ids,
+    accessible_organization_ids,
+    is_unrestricted,
+    scoped_user_ids,
+)
 from .services import (
     OrganizationError,
     approve_join_request,
@@ -1275,3 +1283,243 @@ class ScopeGrantTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(User.objects.filter(email="new-admin@example.com").exists())
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+class ScopeSemanticsTestCase(APITestCase):
+    """What a scope result means, and what it must never mean by accident.
+
+    Two questions this suite exists to keep answered:
+
+    1. Is "everything" distinguishable from "nothing"? They are the two
+       opposite answers and the cheapest possible bug is to confuse them.
+    2. Does a permission stay attached to the grant that supplied it? An
+       account with several roles holds a set of permissions and a set of
+       scopes, and combining them independently invents authority nobody
+       issued.
+    """
+
+    def setUp(self):
+        cache.clear()
+        _, self.roles = seed_default_rbac()
+        self.super_admin = User.objects.create_user(
+            email="root5@example.com",
+            password="StrongPass123",
+            full_name="Root",
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        self.org_a = Organization.objects.create(name="School A")
+        self.org_b = Organization.objects.create(name="School B")
+        self.class_a = Classroom.objects.create(organization=self.org_a, name="10-A")
+        self.class_b = Classroom.objects.create(organization=self.org_b, name="10-B")
+
+    def _role(self, code, permissions):
+        role = AdminRole.objects.create(code=code, name=code)
+        role.permissions.set(AdminPermission.objects.filter(code__in=permissions))
+        return role
+
+    def _admin(self, email):
+        return User.objects.create_user(email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN)
+
+    def _grant(self, user, role, scope):
+        """One grant at a time, so several can coexist on one account.
+
+        `assign_roles_to_user` replaces the whole set, which is right for the
+        API and useless here: these tests are about what happens when an
+        account legitimately holds two different roles at two different
+        scopes.
+        """
+        assignment, _ = AdminUserRole.objects.update_or_create(user=user, role=role, defaults={"is_active": True})
+        AdminRoleScope.objects.create(admin_user_role=assignment, **scope)
+        return assignment
+
+    # -- PART N: three states, never two -----------------------------------
+    def test_platform_admin_is_unrestricted(self):
+        self.assertTrue(is_unrestricted(accessible_organization_ids(self.super_admin)))
+        self.assertTrue(is_unrestricted(accessible_classroom_ids(self.super_admin)))
+
+    def test_a_scoped_manager_gets_exactly_their_own_ids(self):
+        manager = self._admin("sem-mgr@example.com")
+        self._grant(
+            manager,
+            self.roles["organization_manager"],
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+        ids = accessible_organization_ids(manager, "organizations.view")
+
+        self.assertFalse(is_unrestricted(ids))
+        self.assertEqual(ids, {self.org_a.id})
+
+    def test_no_access_is_not_unrestricted(self):
+        """The two opposite answers must never be the same value.
+
+        An account with a role but no scope row, and an account with no role
+        at all, both mean "nothing". If either were ever read as
+        "everything", every list on the platform would open at once.
+        """
+        unscoped = self._admin("sem-unscoped@example.com")
+        AdminUserRole.objects.create(user=unscoped, role=self.roles["organization_manager"])
+        nobody = self._admin("sem-nobody@example.com")
+
+        for account in (unscoped, nobody):
+            with self.subTest(account=account.email):
+                for ids in (
+                    accessible_organization_ids(account, "organizations.view"),
+                    accessible_classroom_ids(account, "classes.view"),
+                    scoped_user_ids(account, "users.view"),
+                ):
+                    self.assertFalse(is_unrestricted(ids))
+                    self.assertEqual(set(ids), set())
+
+    def test_an_inactive_account_is_not_unrestricted(self):
+        disabled = self._admin("sem-disabled@example.com")
+        self._grant(
+            disabled,
+            self.roles["organization_manager"],
+            {"scope_type": AdminRoleScope.ScopeType.GLOBAL},
+        )
+        disabled.is_active = False
+        disabled.save(update_fields=["is_active"])
+
+        ids = accessible_organization_ids(disabled, "organizations.view")
+        self.assertFalse(is_unrestricted(ids))
+        self.assertEqual(set(ids), set())
+
+    def test_an_unknown_scope_result_is_read_as_no_access(self):
+        """A resolver that falls off the end returns None.
+
+        Before the sentinel, `None` meant "everything", so a missing
+        `return` was a platform-wide grant. It now normalizes to nothing --
+        a bug that denies is recoverable; one that leaks is not.
+        """
+        self.assertEqual(_normalize(None), set())
+        self.assertFalse(is_unrestricted(_normalize(None)))
+        self.assertTrue(is_unrestricted(_normalize(UNRESTRICTED)))
+
+    def test_an_inactive_grant_grants_nothing(self):
+        manager = self._admin("sem-inactive-grant@example.com")
+        assignment = self._grant(
+            manager,
+            self.roles["organization_manager"],
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+        assignment.is_active = False
+        assignment.save(update_fields=["is_active"])
+
+        ids = accessible_organization_ids(manager, "organizations.view")
+        self.assertFalse(is_unrestricted(ids))
+        self.assertEqual(set(ids), set())
+
+    def test_a_deactivated_role_grants_nothing(self):
+        role = self._role("temporarily_off", ["organizations.view"])
+        manager = self._admin("sem-dead-role@example.com")
+        self._grant(
+            manager,
+            role,
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+        role.is_active = False
+        role.save(update_fields=["is_active"])
+
+        self.assertEqual(set(accessible_organization_ids(manager, "organizations.view")), set())
+
+    # -- PART P/Q: a permission stays with the grant that supplied it ------
+    def test_two_grants_do_not_combine_into_a_third(self):
+        """The cross-product defect, stated as a test.
+
+            Role 1: organizations.view  on Organization A
+            Role 2: classes.update      on Organization B
+
+        Resolved independently, the union of permissions crossed with the
+        union of scopes says this account may read Organization B -- on the
+        strength of a grant that only ever allowed renaming B's classes.
+        Nobody issued that.
+        """
+        reader = self._role("sem_reader", ["organizations.view"])
+        editor = self._role("sem_editor", ["classes.update"])
+        account = self._admin("sem-two-grants@example.com")
+        self._grant(
+            account,
+            reader,
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+        self._grant(
+            account,
+            editor,
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_b},
+        )
+
+        self.assertEqual(set(accessible_organization_ids(account, "organizations.view")), {self.org_a.id})
+        self.assertEqual(set(accessible_organization_ids(account, "classes.update")), {self.org_b.id})
+
+    def test_a_global_grant_does_not_globalize_another_grants_permission(self):
+        """The same defect, at its worst.
+
+            Role 1: support.view          platform-wide
+            Role 2: organizations.archive on Organization A
+
+        A support role that legitimately spans the platform must not turn an
+        organization-scoped archive permission into a platform-wide one.
+        """
+        support = self._role("sem_support", ["support.view"])
+        archiver = self._role("sem_archiver", ["organizations.archive"])
+        account = self._admin("sem-global-mix@example.com")
+        self._grant(account, support, {"scope_type": AdminRoleScope.ScopeType.GLOBAL})
+        self._grant(
+            account,
+            archiver,
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+
+        archive_scope = accessible_organization_ids(account, "organizations.archive")
+        self.assertFalse(
+            is_unrestricted(archive_scope),
+            "an unrelated global grant made organizations.archive platform-wide",
+        )
+        self.assertEqual(set(archive_scope), {self.org_a.id})
+        # The globally-granted permission keeps its own global reach.
+        self.assertTrue(is_unrestricted(accessible_organization_ids(account, "support.view")))
+
+    def test_the_api_refuses_the_cross_product_too(self):
+        """Not just the resolver: the endpoint a real attacker would call."""
+        support = self._role("sem_api_support", ["support.view"])
+        archiver = self._role("sem_api_archiver", ["organizations.archive", "organizations.view"])
+        account = self._admin("sem-api-mix@example.com")
+        self._grant(account, support, {"scope_type": AdminRoleScope.ScopeType.GLOBAL})
+        self._grant(
+            account,
+            archiver,
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+
+        self.client.force_authenticate(account)
+        response = self.client.post(reverse("organization-archive", args=[str(self.org_b.public_id)]))
+
+        self.assertIn(
+            response.status_code,
+            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
+        self.org_b.refresh_from_db()
+        self.assertEqual(self.org_b.status, Organization.Status.ACTIVE)
+
+    def test_a_class_grant_does_not_lend_its_permission_to_the_organization(self):
+        supervisor_role = self._role("sem_class_only", ["classes.view", "class_members.manage"])
+        org_role = self._role("sem_org_reader", ["organizations.view"])
+        account = self._admin("sem-class-mix@example.com")
+        self._grant(
+            account,
+            supervisor_role,
+            {"scope_type": AdminRoleScope.ScopeType.CLASS, "classroom": self.class_a},
+        )
+        self._grant(
+            account,
+            org_role,
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_b},
+        )
+
+        # Managing members is granted for class A only -- never for every
+        # class of organization B, which the other grant merely lets it read.
+        manageable = accessible_classroom_ids(account, "class_members.manage")
+        self.assertEqual(set(manageable), {self.class_a.id})
+        self.assertNotIn(self.class_b.id, set(manageable))

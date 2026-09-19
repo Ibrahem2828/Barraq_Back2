@@ -39,6 +39,48 @@ class ScopeDenied(NotFound):
         super().__init__(detail)
 
 
+class _Unrestricted:
+    """Platform-wide reach: every row, with no `IN (...)` over the table.
+
+    A distinct object rather than `None`, because `None` is what Python
+    returns from any code path that falls off the end of a function. With
+    `None` meaning "everything", a forgotten `return` inside a scope
+    resolver silently granted the whole platform -- the one failure mode
+    this module cannot afford. An unknown value now means *no* access.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self):  # pragma: no cover - diagnostics only
+        return "UNRESTRICTED"
+
+
+#: Sentinel for "every tenant". Compare with `is`, never truthiness.
+UNRESTRICTED = _Unrestricted()
+
+#: Nothing at all. Spelled out so a reader never has to ask whether an empty
+#: result means "no rows matched" or "not allowed" -- here it always means
+#: the second.
+NO_ACCESS: frozenset = frozenset()
+
+
+def is_unrestricted(ids):
+    """Whether a scope result means platform-wide reach."""
+    return ids is UNRESTRICTED
+
+
+def _normalize(ids):
+    """Coerce a scope result, treating anything unrecognised as no access.
+
+    `None` reaches here only from a bug -- a resolver that returned nothing
+    -- and is deliberately read as an empty set. Failing closed on a
+    programming error is the entire point of the sentinel.
+    """
+    if ids is UNRESTRICTED:
+        return UNRESTRICTED
+    return set(ids) if ids else set()
+
+
 def _active_scope_rows(user):
     return AdminRoleScope.objects.filter(
         admin_user_role__user=user,
@@ -47,36 +89,60 @@ def _active_scope_rows(user):
     ).select_related("organization", "classroom")
 
 
-def has_global_scope(user):
-    """Platform-wide reach.
+def _granting_scope_rows(user, permission=None):
+    """Scope rows belonging to grants that actually supply `permission`.
+
+    This is the difference between "the account holds users.view somewhere"
+    and "the account holds users.view *here*". Resolving those separately --
+    every permission the account has, crossed with every scope it has -- lets
+    two harmless grants combine into one nobody issued:
+
+        Role 1: users.view       on Organization A
+        Role 2: classes.update   on Organization B
+
+    the union says users.view and the union says {A, B}, so the account reads
+    Organization B's learners on the strength of a grant that only ever
+    allowed renaming its classes. Each row is therefore filtered by the
+    permission its own role carries.
+    """
+    rows = _active_scope_rows(user)
+    if permission:
+        rows = rows.filter(
+            admin_user_role__role__permissions__code=permission,
+            admin_user_role__role__is_active=True,
+        )
+    return rows
+
+
+def has_global_scope(user, permission=None):
+    """Platform-wide reach, optionally for one permission.
 
     `is_superuser` and the super_admin role keep the unrestricted access they
     had before organizations existed -- Phase 3 must not quietly demote the
     platform owner.
+
+    With a permission, the question is narrower and the only safe one to ask
+    of a multi-role account: is this permission granted globally? A support
+    role scoped globally must not make an organization-scoped
+    `organizations.archive` global too.
     """
     if not user or not getattr(user, "is_authenticated", False) or not user.is_active:
         return False
     if is_super_admin_user(user):
         return True
-    return _active_scope_rows(user).filter(scope_type=AdminRoleScope.ScopeType.GLOBAL).exists()
+    return _granting_scope_rows(user, permission).filter(scope_type=AdminRoleScope.ScopeType.GLOBAL).exists()
 
 
 def accessible_organization_ids(user, permission=None):
-    """Organization ids this account may act on, or None meaning "all".
-
-    None rather than a list of every id: a global admin must not be turned
-    into an `IN (...)` over the whole table, and the difference between
-    "everything" and "these 4000" matters for both correctness and the query
-    plan.
-    """
+    """Organization ids this account may act on, or UNRESTRICTED for all."""
     if not user or not getattr(user, "is_authenticated", False) or not user.is_active:
-        return set()
+        return NO_ACCESS
     if permission is not None and not user_has_scoped_permission(user, permission):
-        return set()
-    if has_global_scope(user):
-        return None
+        return NO_ACCESS
+    if has_global_scope(user, permission):
+        return UNRESTRICTED
 
-    rows = _active_scope_rows(user).exclude(scope_type=AdminRoleScope.ScopeType.GLOBAL)
+    rows = _granting_scope_rows(user, permission).exclude(scope_type=AdminRoleScope.ScopeType.GLOBAL)
     organization_ids = set()
     for row in rows:
         if row.scope_type == AdminRoleScope.ScopeType.ORGANIZATION and row.organization_id:
@@ -91,20 +157,20 @@ def accessible_organization_ids(user, permission=None):
 
 
 def accessible_classroom_ids(user, permission=None):
-    """Classroom ids this account may act on, or None meaning "all".
+    """Classroom ids this account may act on, or UNRESTRICTED for all.
 
     An organization grant implies every class inside it. A class grant
     implies exactly one class and never widens to its siblings -- a
     supervisor for 10-A has no business in 10-B.
     """
     if not user or not getattr(user, "is_authenticated", False) or not user.is_active:
-        return set()
+        return NO_ACCESS
     if permission is not None and not user_has_scoped_permission(user, permission):
-        return set()
-    if has_global_scope(user):
-        return None
+        return NO_ACCESS
+    if has_global_scope(user, permission):
+        return UNRESTRICTED
 
-    rows = list(_active_scope_rows(user).exclude(scope_type=AdminRoleScope.ScopeType.GLOBAL))
+    rows = list(_granting_scope_rows(user, permission).exclude(scope_type=AdminRoleScope.ScopeType.GLOBAL))
     organization_ids = {
         row.organization_id
         for row in rows
@@ -133,30 +199,30 @@ def user_has_scoped_permission(user, permission):
 
 
 def scope_organizations(user, queryset, permission=None):
-    ids = accessible_organization_ids(user, permission)
-    if ids is None:
+    ids = _normalize(accessible_organization_ids(user, permission))
+    if is_unrestricted(ids):
         return queryset
     return queryset.filter(id__in=ids)
 
 
 def scope_classrooms(user, queryset, permission=None):
-    ids = accessible_classroom_ids(user, permission)
-    if ids is None:
+    ids = _normalize(accessible_classroom_ids(user, permission))
+    if is_unrestricted(ids):
         return queryset
     return queryset.filter(id__in=ids)
 
 
 def scope_by_organization_field(user, queryset, permission=None, field="organization_id"):
     """Narrow any queryset that carries an organization foreign key."""
-    ids = accessible_organization_ids(user, permission)
-    if ids is None:
+    ids = _normalize(accessible_organization_ids(user, permission))
+    if is_unrestricted(ids):
         return queryset
     return queryset.filter(**{f"{field}__in": ids})
 
 
 def scope_by_classroom_field(user, queryset, permission=None, field="classroom_id"):
-    ids = accessible_classroom_ids(user, permission)
-    if ids is None:
+    ids = _normalize(accessible_classroom_ids(user, permission))
+    if is_unrestricted(ids):
         return queryset
     return queryset.filter(**{f"{field}__in": ids})
 
@@ -170,10 +236,12 @@ def scope_users(user, queryset, permission=None):
     than everybody -- `none()` is the safe answer to an empty scope, and the
     one a bug is least likely to turn into a leak.
     """
-    organization_ids = accessible_organization_ids(user, permission)
-    if organization_ids is None:
+    organization_ids = _normalize(accessible_organization_ids(user, permission))
+    if is_unrestricted(organization_ids):
         return queryset
-    classroom_ids = accessible_classroom_ids(user, permission)
+    classroom_ids = _normalize(accessible_classroom_ids(user, permission))
+    if is_unrestricted(classroom_ids):
+        return queryset
     if not organization_ids and not classroom_ids:
         return queryset.none()
     return queryset.filter(
@@ -195,8 +263,8 @@ def assert_organization_allowed(user, organization, permission=None):
     a detail route whose queryset was never scoped. Call this on every
     retrieve, update, archive and bulk element.
     """
-    ids = accessible_organization_ids(user, permission)
-    if ids is None:
+    ids = _normalize(accessible_organization_ids(user, permission))
+    if is_unrestricted(ids):
         return organization
     organization_id = getattr(organization, "id", organization)
     if organization_id not in ids:
@@ -205,8 +273,8 @@ def assert_organization_allowed(user, organization, permission=None):
 
 
 def assert_classroom_allowed(user, classroom, permission=None):
-    ids = accessible_classroom_ids(user, permission)
-    if ids is None:
+    ids = _normalize(accessible_classroom_ids(user, permission))
+    if is_unrestricted(ids):
         return classroom
     classroom_id = getattr(classroom, "id", classroom)
     if classroom_id not in ids:
@@ -275,12 +343,14 @@ def scoped_user_ids(user, permission=None):
     that learner belongs to an organization or class it was granted, never
     because it knows their id.
     """
-    organization_ids = accessible_organization_ids(user, permission)
-    if organization_ids is None:
-        return None
-    classroom_ids = accessible_classroom_ids(user, permission)
+    organization_ids = _normalize(accessible_organization_ids(user, permission))
+    if is_unrestricted(organization_ids):
+        return UNRESTRICTED
+    classroom_ids = _normalize(accessible_classroom_ids(user, permission))
+    if is_unrestricted(classroom_ids):
+        return UNRESTRICTED
     if not organization_ids and not classroom_ids:
-        return set()
+        return NO_ACCESS
 
     from django.contrib.auth import get_user_model
 
@@ -308,8 +378,8 @@ def scope_by_user_field(user, queryset, permission=None, field="user_id"):
     carry no organization column, so the tenant boundary reaches them
     through their owner.
     """
-    ids = scoped_user_ids(user, permission)
-    if ids is None:
+    ids = _normalize(scoped_user_ids(user, permission))
+    if is_unrestricted(ids):
         return queryset
     return queryset.filter(**{f"{field}__in": ids})
 
@@ -322,10 +392,12 @@ def scope_admin_accounts(user, queryset, permission=None):
     over an organization or class this caller also reaches, plus the caller
     themselves -- never the platform's full staff directory.
     """
-    organization_ids = accessible_organization_ids(user, permission)
-    if organization_ids is None:
+    organization_ids = _normalize(accessible_organization_ids(user, permission))
+    if is_unrestricted(organization_ids):
         return queryset
-    classroom_ids = accessible_classroom_ids(user, permission)
+    classroom_ids = _normalize(accessible_classroom_ids(user, permission))
+    if is_unrestricted(classroom_ids):
+        return queryset
     if not organization_ids and not classroom_ids:
         return queryset.filter(pk=user.pk)
     return queryset.filter(
@@ -410,8 +482,8 @@ def resolve_grantable_scopes(actor, raw_scopes):
         return None
 
     actor_is_global = has_global_scope(actor)
-    allowed_organizations = accessible_organization_ids(actor)
-    allowed_classrooms = accessible_classroom_ids(actor)
+    allowed_organizations = _normalize(accessible_organization_ids(actor))
+    allowed_classrooms = _normalize(accessible_classroom_ids(actor))
 
     resolved = []
     for entry in raw_scopes:
@@ -428,7 +500,7 @@ def resolve_grantable_scopes(actor, raw_scopes):
         if scope_type == AdminRoleScope.ScopeType.ORGANIZATION:
             organization = Organization.objects.filter(public_id=entry.get("organization")).first()
             if organization is None or (
-                allowed_organizations is not None and organization.id not in allowed_organizations
+                not is_unrestricted(allowed_organizations) and organization.id not in allowed_organizations
             ):
                 # One wording for both "does not exist" and "not yours": a
                 # distinct message would confirm an organization the actor
@@ -451,6 +523,9 @@ def resolve_grantable_scopes(actor, raw_scopes):
 
 
 __all__ = [
+    "is_unrestricted",
+    "NO_ACCESS",
+    "UNRESTRICTED",
     "resolve_grantable_scopes",
     "scoped_user_ids",
     "scope_by_user_field",
