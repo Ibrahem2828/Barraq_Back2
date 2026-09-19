@@ -3,10 +3,9 @@ import tempfile
 from unittest import mock
 
 from celery.exceptions import Retry
-from django.core.files.base import ContentFile
-
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
@@ -719,9 +718,8 @@ class SourceProcessingRetryTests(APITestCase):
     def test_a_retriable_storage_error_propagates_for_celery_to_retry(self):
         with mock.patch(
             'apps.sources.services._sha256_file', side_effect=OSError('storage unavailable')
-        ):
-            with self.assertRaises(OSError):
-                process_source(self.source)
+        ), self.assertRaises(OSError):
+            process_source(self.source)
 
         self.source.refresh_from_db()
         # The atomic block rolled back: not prematurely FAILED, so the retry
