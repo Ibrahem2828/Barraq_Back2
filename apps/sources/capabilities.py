@@ -1,5 +1,40 @@
 from .models import StudentSource
 
+#: Why a source cannot be used with any character right now, keyed by status.
+#: Only statuses outside StudentSource.AI_USABLE_STATUSES appear here --
+#: UPLOADED and READY are both usable (UPLOADED is the terminal success state
+#: for every non-text source, awaiting AI-side extraction).
+_UNUSABLE_STATUS_MESSAGES = {
+    StudentSource.Status.FAILED: 'تعذّرت معالجة هذا المصدر. أعد المحاولة أو ارفع الملف مرة أخرى.',
+    StudentSource.Status.PROCESSING: 'المصدر قيد المعالجة. حاول بعد قليل.',
+}
+_UNUSABLE_FALLBACK_MESSAGE = 'هذا المصدر غير جاهز للاستخدام مع الشخصيات.'
+
+
+def _block_all(capabilities, message):
+    return {
+        character: {**capability, 'available': False, 'actions': [], 'message': message}
+        for character, capability in capabilities.items()
+    }
+
+
+def _apply_source_state(capabilities, source):
+    """Withhold every character while the source itself is unusable.
+
+    use_source_with_character() rejects a source outside
+    AI_USABLE_STATUSES for *every* character, Rasheed included -- so
+    advertising any action here for such a source guarantees the next
+    request fails validation. Applied before entitlements so a plan-gated
+    character still reports the (more fundamental) subscription reason.
+    """
+
+    if source.status in StudentSource.AI_USABLE_STATUSES:
+        return capabilities
+    return _block_all(
+        capabilities,
+        _UNUSABLE_STATUS_MESSAGES.get(source.status, _UNUSABLE_FALLBACK_MESSAGE),
+    )
+
 
 def _apply_entitlements(capabilities, features):
     """Keep source capability hints aligned with the user's subscription."""
@@ -32,17 +67,30 @@ def get_source_character_capabilities(source, *, features=None):
         'kholasa': {'available': not is_audio, 'actions': ['summarize'] if not is_audio else [], 'message': 'إنشاء ملخص متعدد المستويات مع مراجع.' if not is_audio else 'استخدم صدى أولاً لتفريغ التسجيل.'},
         'sada': {'available': is_audio, 'actions': ['transcribe'] if is_audio else [], 'message': 'تحويل التسجيل الصوتي إلى نص منظم.' if is_audio else 'صدى مخصص للمصادر الصوتية.'},
     }
-    return _apply_entitlements(capabilities, features)
+    return _apply_entitlements(_apply_source_state(capabilities, source), features)
 
 
 def get_collection_character_capabilities(collection, *, features=None):
+    # Filtered in Python, not with .filter(): StudentSourceCollectionViewSet
+    # prefetches `sources`, and a queryset filter here would discard that
+    # cache and issue one extra query per collection on the list endpoint.
     sources = list(collection.sources.all())
-    has_sources = bool(sources)
+    usable_sources = [
+        source for source in sources if source.status in StudentSource.AI_USABLE_STATUSES
+    ]
+    # use_collection_with_character() requires at least one *usable* source,
+    # so a folder holding only failed sources must not advertise actions.
+    has_sources = bool(usable_sources)
+    empty_message = (
+        'أضف مصادر أولاً.'
+        if not sources
+        else 'لا يوجد مصدر جاهز في هذا المجلد. تحقّق من حالة المصادر.'
+    )
     capabilities = {
-        'khota': {'available': has_sources, 'actions': ['create_study_plan'] if has_sources else [], 'message': 'إنشاء خطة من محتوى المجلد.' if has_sources else 'أضف مصادر أولاً.'},
-        'fahes': {'available': has_sources, 'actions': ['create_quiz'] if has_sources else [], 'message': 'إنشاء اختبار من المجلد.' if has_sources else 'أضف مصادر أولاً.'},
+        'khota': {'available': has_sources, 'actions': ['create_study_plan'] if has_sources else [], 'message': 'إنشاء خطة من محتوى المجلد.' if has_sources else empty_message},
+        'fahes': {'available': has_sources, 'actions': ['create_quiz'] if has_sources else [], 'message': 'إنشاء اختبار من المجلد.' if has_sources else empty_message},
         'rasheed': {'available': True, 'actions': ['study_advice'], 'message': 'تحليل الأداء المرتبط بالمجلد.'},
-        'kholasa': {'available': has_sources, 'actions': ['summarize'] if has_sources else [], 'message': 'تلخيص مصادر المجلد.' if has_sources else 'أضف مصادر أولاً.'},
+        'kholasa': {'available': has_sources, 'actions': ['summarize'] if has_sources else [], 'message': 'تلخيص مصادر المجلد.' if has_sources else empty_message},
         # One Sada job maps to one audio object. Selecting a collection is
         # ambiguous when it contains several recordings or non-audio files.
         'sada': {'available': False, 'actions': [], 'message': 'اختر مصدراً صوتياً واحداً من المجلد قبل بدء صدى.'},

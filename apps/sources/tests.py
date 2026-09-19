@@ -7,14 +7,16 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.test import APITestCase
 
 from apps.ai_integration.models import AIJob
 from apps.projects.models import Project
 from apps.subjects.models import EducationStage, Subject
 
+from .capabilities import get_source_character_capabilities
 from .models import StudentSource, StudentSourceCollection, StudentSourceInteraction
-from .services import process_source
+from .services import process_source, use_source_with_character
 
 User = get_user_model()
 
@@ -311,6 +313,86 @@ class StudentSourceAPITestCase(APITestCase):
         self.assertTrue(response.data['khota']['available'])
         self.assertFalse(response.data['kholasa']['available'])
 
+    def test_capabilities_available_for_an_uploaded_non_text_source(self):
+        """UPLOADED is a terminal success state for non-text sources.
+
+        process_source() deliberately leaves every non-text source there
+        (extraction belongs to the AI service), and use_source_with_character
+        accepts it -- so capabilities must advertise the content characters
+        rather than implying the source is still being worked on.
+        """
+        upload = self.upload_source(
+            filename='slides.pdf',
+            content=b'%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
+            content_type='application/pdf',
+        )
+        source = StudentSource.objects.get(pk=upload.data['id'])
+        process_source(source)
+        source.refresh_from_db()
+        self.assertEqual(source.status, StudentSource.Status.UPLOADED)
+
+        response = self.client.get(reverse('student-source-capabilities', args=[source.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['khota']['available'])
+        self.assertTrue(response.data['fahes']['available'])
+
+    def test_capabilities_withheld_for_a_failed_source(self):
+        """A failed source must not advertise actions the request layer rejects.
+
+        use_source_with_character raises for a failed source regardless of
+        character -- Rasheed included -- so every entry must be unavailable
+        and carry a reason the UI can show.
+        """
+        upload = self.upload_source()
+        source = StudentSource.objects.get(pk=upload.data['id'])
+        StudentSource.objects.filter(pk=source.pk).update(status=StudentSource.Status.FAILED)
+
+        response = self.client.get(reverse('student-source-capabilities', args=[source.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for character in ('khota', 'fahes', 'rasheed', 'kholasa', 'sada'):
+            self.assertFalse(response.data[character]['available'], character)
+            self.assertEqual(response.data[character]['actions'], [], character)
+            self.assertTrue(response.data[character]['message'], character)
+
+    def test_capabilities_match_what_use_with_character_actually_accepts(self):
+        """The contract guard: capabilities must never disagree with the
+        request handler it describes, for any reachable status."""
+        upload = self.upload_source()
+        source = StudentSource.objects.get(pk=upload.data['id'])
+
+        for source_status in StudentSource.Status.values:
+            StudentSource.objects.filter(pk=source.pk).update(status=source_status)
+            source.refresh_from_db()
+            advertised = get_source_character_capabilities(source)['rasheed']['available']
+            try:
+                use_source_with_character(
+                    self.user, source, StudentSourceInteraction.Character.RASHEED
+                )
+                accepted = True
+            except DRFValidationError:
+                accepted = False
+            self.assertEqual(
+                advertised,
+                accepted,
+                f'capabilities and use_source_with_character disagree for status={source_status}',
+            )
+
+    def test_capabilities_keep_plan_reason_for_a_gated_character(self):
+        """Source state must not mask a subscription reason, or an upsell
+        prompt would be replaced by a misleading 'not ready' message."""
+        upload = self.upload_source()
+        source = StudentSource.objects.get(pk=upload.data['id'])
+
+        capabilities = get_source_character_capabilities(
+            source, features={'can_use_khota': True, 'can_use_kholasa': False}
+        )
+
+        self.assertTrue(capabilities['khota']['available'])
+        self.assertFalse(capabilities['kholasa']['available'])
+        self.assertIn('خطتك', capabilities['kholasa']['message'])
+
     def test_use_with_rasheed(self):
         upload = self.upload_source()
 
@@ -431,6 +513,25 @@ class StudentSourceAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['khota']['available'])
         self.assertFalse(response.data['kholasa']['available'])
+
+    def test_collection_capabilities_withheld_when_every_source_failed(self):
+        """use_collection_with_character requires one *usable* source, so a
+        folder holding only failed sources must not advertise actions."""
+        collection = self.create_collection(name='Math Folder')
+        upload = self.upload_source(collection=collection)
+        StudentSource.objects.filter(pk=upload.data['id']).update(
+            status=StudentSource.Status.FAILED
+        )
+
+        response = self.client.get(
+            reverse('student-source-collection-capabilities', args=[collection.id])
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['khota']['available'])
+        self.assertFalse(response.data['fahes']['available'])
+        # Distinct from the empty-folder message: the folder is not empty.
+        self.assertNotIn('أضف مصادر', response.data['khota']['message'])
 
     def test_use_collection_with_rasheed(self):
         collection = self.create_collection(name='Math Folder')

@@ -30,10 +30,22 @@ class StudentSource(BaseModel):
         OTHER = 'other', 'Other'
 
     class Status(models.TextChoices):
+        # UPLOADED is a terminal *success* state, not "work pending": it is
+        # what process_source() leaves every non-text source in once the file
+        # is stored and its SHA computed, because extraction for those types
+        # belongs to the AI service (see apps/sources/services.py). Only TEXT
+        # sources reach READY, which additionally means extracted_text is
+        # populated locally.
         UPLOADED = 'uploaded', 'Uploaded'
         PROCESSING = 'processing', 'Processing'
         READY = 'ready', 'Ready'
         FAILED = 'failed', 'Failed'
+
+    #: The statuses from which a source may be sent to the AI service. This is
+    #: the single definition of that rule -- it was previously spelled out by
+    #: hand at four call sites, which is how the capabilities endpoint came to
+    #: disagree with the request handlers that enforce it.
+    AI_USABLE_STATUSES = frozenset({Status.UPLOADED, Status.READY})
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

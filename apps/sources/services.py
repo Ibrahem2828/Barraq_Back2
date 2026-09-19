@@ -108,7 +108,10 @@ def _create_character_job(user, character, *, source=None, collection=None, acti
 def use_source_with_character(user, source, character, action=None):
     if source.user_id != user.id:
         raise ValidationError('لا تملك هذا المصدر.')
-    if source.status in {StudentSource.Status.PROCESSING, StudentSource.Status.FAILED}:
+    # Expressed as "not in the usable set" rather than "in {processing,
+    # failed}" so a future status is withheld by default instead of silently
+    # becoming AI-usable. Identical behaviour for today's four statuses.
+    if source.status not in StudentSource.AI_USABLE_STATUSES:
         raise ValidationError('المصدر غير جاهز للاستخدام مع الذكاء الاصطناعي.')
     return _create_character_job(user, character, source=source, action=action)
 
@@ -116,7 +119,7 @@ def use_source_with_character(user, source, character, action=None):
 def use_collection_with_character(user, collection, character, action=None):
     if collection.user_id != user.id:
         raise ValidationError('لا تملك هذا المجلد.')
-    usable_sources = collection.sources.filter(status__in=[StudentSource.Status.UPLOADED, StudentSource.Status.READY])
+    usable_sources = collection.sources.filter(status__in=StudentSource.AI_USABLE_STATUSES)
     if not usable_sources.exists() and character in {
         StudentSourceInteraction.Character.FAHES,
         StudentSourceInteraction.Character.KHOTA,
