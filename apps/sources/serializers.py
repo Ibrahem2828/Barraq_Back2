@@ -20,18 +20,20 @@ from .models import StudentSource, StudentSourceCollection, StudentSourceInterac
 from .validators import validate_student_source_file
 
 
+# Resolves subscription features once per serialization.
+#
+# The four capability call sites below used to omit `features` entirely, so a
+# list or detail response advertised Kholasa and Sada to a Free user while
+# `/capabilities/` -- the endpoint written for exactly this question, and
+# which does pass them -- said the opposite on the same page load.
+#
+# Cached on the serializer context so a list of N sources performs one
+# subscription lookup rather than N.
+#
+# Deliberately a comment, not a docstring: drf-spectacular publishes the first
+# base class's docstring as the schema description, and this note is
+# implementation detail that does not belong in the client contract.
 class _CapabilityFeaturesMixin:
-    """Resolve subscription features once per serialization.
-
-    The four capability call sites below used to omit `features` entirely,
-    so a list or detail response advertised Kholasa and Sada to a Free user
-    while `/capabilities/` -- the endpoint written for exactly this question,
-    and which does pass them -- said the opposite on the same page load.
-
-    Cached on the serializer context so a list of N sources performs one
-    subscription lookup rather than N.
-    """
-
     def _features(self):
         context = self.context
         if 'capability_features' not in context:
