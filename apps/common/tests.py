@@ -278,3 +278,127 @@ class SecureProxyForwardedProtoTests(SimpleTestCase):
         response = self._run(HTTP_X_FORWARDED_PROTO='https')
 
         self.assertEqual(response.status_code, 200)
+
+
+class ErrorEnvelopeContractTests(APITestCase):
+    """The single machine-readable error contract every client branches on.
+
+    Every error response carries a stable top-level ``code``. A domain
+    exception that declares its own code (``file_size_limit_exceeded``,
+    ``character_not_allowed``, ...) surfaces that code; everything else falls
+    back to a status-derived one. Before this, the top-level code was
+    *always* status-derived, so the real code stayed buried under ``errors``
+    and clients reading the documented field saw ``permission_denied`` for
+    every predictable plan failure.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='envelope@example.com',
+            password='StrongPass123',
+            full_name='Envelope User',
+        )
+
+    def assertEnvelope(self, response, *, status_code, code):
+        self.assertEqual(response.status_code, status_code)
+        for key in ('success', 'message', 'errors', 'code'):
+            self.assertIn(key, response.data, f'envelope is missing "{key}"')
+        self.assertFalse(response.data['success'])
+        self.assertTrue(response.data['message'])
+        self.assertEqual(response.data['code'], code)
+
+    def test_authentication_error_has_a_stable_code(self):
+        response = self.client.get(reverse('student-source-list'))
+        self.assertEnvelope(response, status_code=401, code='authentication_error')
+
+    def test_validation_error_keeps_field_errors_and_its_code(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.post(reverse('student-source-list'), {}, format='multipart')
+        self.assertEnvelope(response, status_code=400, code='validation_error')
+        self.assertTrue(response.data['errors'])
+
+    def test_not_found_has_a_stable_code(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get(reverse('student-source-detail', args=[999999]))
+        self.assertEnvelope(response, status_code=404, code='not_found')
+
+    def test_subscription_file_limit_surfaces_its_domain_code(self):
+        """The regression this contract exists for.
+
+        A predictable, actionable failure must not reach the client as a
+        generic `permission_denied` -- that is what made every client-side
+        subscription-limit mapping dead code.
+        """
+        from apps.subscriptions.exceptions import SubscriptionLimitExceeded
+        from apps.common.exceptions import custom_exception_handler
+
+        exc = SubscriptionLimitExceeded(
+            'حجم الملف أكبر من الحد المسموح (50MB).',
+            code='file_size_limit_exceeded',
+            limit=50,
+            usage=60,
+        )
+        response = custom_exception_handler(exc, {'request': None})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data['code'], 'file_size_limit_exceeded')
+        self.assertNotEqual(response.data['code'], 'permission_denied')
+        # The nested copy stays, so any client already reading it keeps working.
+        self.assertEqual(response.data['errors']['code'], 'file_size_limit_exceeded')
+        self.assertEqual(int(response.data['errors']['limit']), 50)
+
+    def test_subscription_feature_block_surfaces_its_domain_code(self):
+        from apps.common.exceptions import custom_exception_handler
+        from apps.subscriptions.exceptions import SubscriptionFeatureNotAllowed
+
+        exc = SubscriptionFeatureNotAllowed(
+            'هذه الشخصية غير متاحة في خطتك الحالية.',
+            code='character_not_allowed',
+            character='kholasa',
+        )
+        response = custom_exception_handler(exc, {'request': None})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data['code'], 'character_not_allowed')
+
+    def test_plain_permission_denied_keeps_the_generic_code(self):
+        """Backward compatibility: only an explicitly declared domain code is
+        promoted. A bare PermissionDenied must not change shape."""
+        from rest_framework.exceptions import PermissionDenied
+
+        from apps.common.exceptions import custom_exception_handler
+
+        response = custom_exception_handler(PermissionDenied(), {'request': None})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data['code'], 'permission_denied')
+
+    def test_rate_limit_has_its_own_code_not_request_error(self):
+        from rest_framework.exceptions import Throttled
+
+        from apps.common.exceptions import custom_exception_handler
+
+        response = custom_exception_handler(Throttled(wait=30), {'request': None})
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.data['code'], 'rate_limited')
+
+    def test_a_serializer_field_named_code_is_not_mistaken_for_a_domain_code(self):
+        """Guard against promoting user input.
+
+        SubscriptionPlan has a `code` field, so a validation error can legally
+        contain an errors key called `code`. DRF renders field errors as
+        lists, and only a bare string is promoted -- but assert it, because
+        promoting attacker-influenced input into the contract would be worse
+        than the bug this fixes.
+        """
+        from rest_framework.exceptions import ValidationError
+
+        from apps.common.exceptions import custom_exception_handler
+
+        response = custom_exception_handler(
+            ValidationError({'code': 'this-is-a-field-error'}), {'request': None}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['code'], 'validation_error')

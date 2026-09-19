@@ -17,6 +17,12 @@ class SubscriptionError(APIException):
         if code:
             payload['code'] = code
         payload.update(extra)
+        # Read by apps.common.exceptions.domain_error_code to put a stable,
+        # branchable code at the top level of the error envelope. Declared as
+        # an attribute rather than left only inside the payload so it can
+        # never be confused with a serializer field that happens to be named
+        # "code".
+        self.domain_code = code or self.default_code
         super().__init__(payload, code=code or self.default_code)
 
 
