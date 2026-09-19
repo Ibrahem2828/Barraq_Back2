@@ -1875,3 +1875,145 @@ class JobProgressContractTests(APITestCase):
         self.assertEqual(second.data['status'], AIJob.Status.FAILED)
         self.assertEqual(get_job.call_count, 1)
         self.assertFalse(Quiz.objects.filter(ai_job=self.job).exists())
+
+
+#: The exact field list each AI character result carries, mirrored from
+#: Baraq_AI's Pydantic result schemas. `Baraq_AI/tests/contract/
+#: test_character_result_fields.py` asserts the same lists against the models
+#: themselves, so a field added on either side fails on both.
+CHARACTER_RESULT_FIELDS: dict[str, set[str]] = {
+    'fahes': {'citations', 'covered_topics', 'description', 'questions', 'title', 'warnings'},
+    'kholasa': {
+        'citations', 'covered_topics', 'detailed_summary', 'executive_summary',
+        'flashcards', 'important_terms', 'key_points', 'limitations',
+        'review_questions', 'title',
+    },
+    'khota': {
+        'adaptation_rules', 'assumptions', 'citations', 'plan_days',
+        'strategy_summary', 'title',
+    },
+    'rasheed': {
+        'confidence_note', 'next_best_action', 'performance_summary',
+        'recommendations', 'strengths', 'weaknesses',
+    },
+    'sada': {
+        'cleaned_transcript', 'detected_topics', 'duration_seconds',
+        'full_transcript', 'important_terms', 'language', 'segments', 'warnings',
+    },
+}
+
+#: Fields the AI produces that this backend deliberately does not persist,
+#: each with the reason. Declaring them is the point: an undeclared field is
+#: lost in silence -- the AI bills for producing it, the schema validates it,
+#: and the learner never sees it. Adding a domain column for any of these is a
+#: product decision, not a bug fix.
+UNMAPPED_RESULT_FIELDS: dict[str, dict[str, str]] = {
+    'fahes': {
+        'citations': 'Per-question source_references are persisted on QuestionBankItem instead.',
+        'covered_topics': 'Quiz.topic already carries the requested topic.',
+        'warnings': 'Advisory only; AIJob.service_metadata keeps the raw payload.',
+    },
+    'kholasa': {
+        'flashcards': 'Summary has no flashcard column; adding one is a product decision.',
+        'limitations': 'Advisory caveats; no column, and not shown in the current UI.',
+    },
+    'khota': {
+        'adaptation_rules': 'StudyPlan has no adaptation column; plan regeneration is manual today.',
+        'assumptions': 'Advisory only; the raw payload stays on AIJob.result_payload.',
+        'citations': 'A plan is generated from context, not quoted from a source.',
+    },
+    'rasheed': {
+        'confidence_note': 'StudentRecommendation has no confidence column.',
+    },
+    'sada': {
+        'important_terms': 'Transcription has no terms column; detected_topics is persisted.',
+        'warnings': 'Advisory only; the raw payload stays on AIJob.result_payload.',
+    },
+}
+
+
+class CharacterResultFieldContractTests(SimpleTestCase):
+    """Every field the AI produces is either mapped or declared unmapped.
+
+    The per-character materializer tests prove the mappings that exist. They
+    cannot catch the opposite failure: a field the AI produces that nobody
+    reads. That is invisible -- the job completes, the result validates, and
+    the learner simply never sees the content.
+    """
+
+    #: Fields each materializer actually reads out of the AI payload.
+    CONSUMED = {
+        'fahes': {'description', 'questions', 'quiz_title', 'title'},
+        'kholasa': {
+            'title', 'executive_summary', 'short_summary', 'detailed_summary',
+            'key_points', 'important_terms', 'covered_topics', 'review_questions',
+            'citations', 'source_references', 'quality_score',
+        },
+        'khota': {'plan_days', 'plan_title', 'strategy_summary', 'summary', 'title'},
+        'rasheed': {
+            'next_best_action', 'performance_summary', 'recommendations',
+            'source_metrics', 'strengths', 'summary', 'title', 'weaknesses',
+        },
+        'sada': {
+            'cleaned_transcript', 'confidence_score', 'detected_topics',
+            'duration_seconds', 'full_transcript', 'language', 'segments', 'title',
+        },
+    }
+
+    def test_no_ai_field_is_lost_without_being_declared(self):
+        for character, produced in CHARACTER_RESULT_FIELDS.items():
+            with self.subTest(character=character):
+                accounted = self.CONSUMED[character] | set(
+                    UNMAPPED_RESULT_FIELDS.get(character, {})
+                )
+                lost = produced - accounted
+                self.assertEqual(
+                    lost,
+                    set(),
+                    f'{character} produces {sorted(lost)} which nothing reads and '
+                    'nothing declares as intentionally unmapped',
+                )
+
+    def test_every_declared_unmapped_field_is_really_produced(self):
+        """A stale declaration is its own kind of lie: it suggests a decision
+        was made about a field that no longer exists."""
+        for character, declared in UNMAPPED_RESULT_FIELDS.items():
+            with self.subTest(character=character):
+                stale = set(declared) - CHARACTER_RESULT_FIELDS[character]
+                self.assertEqual(stale, set(), f'{character} declares {sorted(stale)} which the AI no longer produces')
+
+    def test_every_unmapped_field_carries_a_reason(self):
+        for character, declared in UNMAPPED_RESULT_FIELDS.items():
+            for field, reason in declared.items():
+                with self.subTest(character=character, field=field):
+                    self.assertGreater(
+                        len(reason), 20, f'{character}.{field} needs a real reason'
+                    )
+
+    def test_a_declared_field_is_never_also_consumed(self):
+        """Contradictory declarations mean the list has stopped being read."""
+        for character, declared in UNMAPPED_RESULT_FIELDS.items():
+            overlap = set(declared) & self.CONSUMED[character]
+            with self.subTest(character=character):
+                self.assertEqual(
+                    overlap, set(), f'{character} both maps and disclaims {sorted(overlap)}'
+                )
+
+    def test_the_materializers_read_exactly_the_fields_this_contract_claims(self):
+        """Guards the CONSUMED table itself against drifting from the code."""
+        import inspect
+        import re
+
+        from apps.ai_integration import materializers
+
+        for character in CHARACTER_RESULT_FIELDS:
+            source = inspect.getsource(getattr(materializers, f'materialize_{character}'))
+            read = set(re.findall(r'data\.get\("([a-z_]+)"\)', source))
+            with self.subTest(character=character):
+                undeclared = read - self.CONSUMED[character]
+                self.assertEqual(
+                    undeclared,
+                    set(),
+                    f'materialize_{character} reads {sorted(undeclared)} which this '
+                    'contract does not list as consumed',
+                )
