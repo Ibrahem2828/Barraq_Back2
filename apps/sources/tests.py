@@ -1,5 +1,9 @@
 import shutil
 import tempfile
+from unittest import mock
+
+from celery.exceptions import Retry
+from django.core.files.base import ContentFile
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -17,6 +21,7 @@ from apps.subjects.models import EducationStage, Subject
 from .capabilities import get_source_character_capabilities
 from .models import StudentSource, StudentSourceCollection, StudentSourceInteraction
 from .services import process_source, use_source_with_character
+from .tasks import process_source_task
 from .validators import ALLOWED_EXTENSIONS
 
 User = get_user_model()
@@ -674,3 +679,115 @@ class StudentSourceAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertTrue(StudentSourceCollection.objects.filter(id=collection.id).exists())
+
+
+class SourceProcessingRetryTests(APITestCase):
+    """Celery retry correctness for source processing.
+
+    ``process_source_task`` declares ``autoretry_for=(OSError,)``, but
+    ``process_source`` used to catch every exception and *return* a failure
+    dict. A swallowed exception never reaches Celery, so autoretry could
+    never fire and a transient storage blip permanently marked the source
+    FAILED on the first attempt.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.media_root = tempfile.mkdtemp()
+        self.override = override_settings(MEDIA_ROOT=self.media_root)
+        self.override.enable()
+        self.user = User.objects.create_user(
+            email='retry@example.com', password='StrongPass123', full_name='Retry User'
+        )
+        self.project = Project.objects.create(owner=self.user, title='Retry Project')
+        self.source = StudentSource.objects.create(
+            user=self.user,
+            project=self.project,
+            title='Notes',
+            original_filename='notes.txt',
+            file_size=4,
+            mime_type='text/plain',
+            extension='txt',
+            source_type=StudentSource.SourceType.TEXT,
+        )
+        self.source.file.save('notes.txt', ContentFile(b'text'), save=True)
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.media_root, ignore_errors=True)
+
+    def test_a_retriable_storage_error_propagates_for_celery_to_retry(self):
+        with mock.patch(
+            'apps.sources.services._sha256_file', side_effect=OSError('storage unavailable')
+        ):
+            with self.assertRaises(OSError):
+                process_source(self.source)
+
+        self.source.refresh_from_db()
+        # The atomic block rolled back: not prematurely FAILED, so the retry
+        # that may well succeed still has a source to work on.
+        self.assertEqual(self.source.status, StudentSource.Status.UPLOADED)
+
+    def test_the_task_retries_a_storage_error_rather_than_failing_the_source(self):
+        with (
+            mock.patch(
+                'apps.sources.services._sha256_file', side_effect=OSError('storage unavailable')
+            ),
+            self.assertRaises(OSError),
+        ):
+            process_source_task.push_request(retries=0)
+            try:
+                process_source_task(self.source.pk)
+            finally:
+                process_source_task.pop_request()
+
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.status, StudentSource.Status.UPLOADED)
+
+    def test_the_task_records_failure_once_the_retries_are_spent(self):
+        with (
+            mock.patch(
+                'apps.sources.services._sha256_file', side_effect=OSError('storage unavailable')
+            ),
+            self.assertRaises(OSError),
+        ):
+            process_source_task.push_request(retries=process_source_task.max_retries)
+            try:
+                process_source_task(self.source.pk)
+            finally:
+                process_source_task.pop_request()
+
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.status, StudentSource.Status.FAILED)
+        self.assertTrue(self.source.processing_error)
+
+    def test_a_permanent_error_fails_immediately_without_retrying(self):
+        """A file we cannot decode will never decode. Retrying it three times
+        only delays the user's feedback."""
+        with mock.patch(
+            'apps.sources.services._read_text_file',
+            side_effect=DRFValidationError('undecodable'),
+        ):
+            result = process_source(self.source)
+
+        self.assertFalse(result['success'])
+        self.assertEqual(result['code'], 'source_processing_failed')
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.status, StudentSource.Status.FAILED)
+
+    def test_otp_and_email_tasks_reraise_so_celery_can_retry(self):
+        """The same class of defect, checked on the OTP path.
+
+        `send_email_otp` must not convert an SMTP failure into a silent
+        success -- a student would simply never receive the code.
+        """
+        from apps.users.tasks import send_email_otp
+
+        with (
+            mock.patch('apps.users.tasks.send_mail', side_effect=OSError('smtp down')),
+            mock.patch.object(send_email_otp, 'retry', side_effect=Retry()) as retry,
+            self.assertRaises(Retry),
+        ):
+            send_email_otp('student@example.com', '123456')
+
+        self.assertEqual(retry.call_count, 1)

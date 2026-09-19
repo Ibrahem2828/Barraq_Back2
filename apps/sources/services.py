@@ -60,12 +60,38 @@ def process_source(source):
         source.processing_error = ''
         source.save(update_fields=['status', 'extracted_text', 'processing_error', 'metadata', 'updated_at'])
         return {'success': True, 'message': message}
+    except OSError:
+        # Retriable: the file store blinked, the content is fine. Propagate so
+        # process_source_task's autoretry_for=(OSError,) actually fires -- it
+        # never could while this was swallowed by the broad handler below and
+        # turned into a success-shaped failure dict.
+        #
+        # Raising also rolls this atomic block back, so the source keeps its
+        # previous status instead of being marked FAILED before the retries
+        # that may well succeed. The task marks it FAILED once they are spent.
+        logger.warning(
+            "Source processing hit a retriable storage error; retrying. source_id=%s",
+            source.pk,
+        )
+        raise
     except Exception:
         logger.exception("Source processing failed for source_id=%s", source.pk)
         source.status = StudentSource.Status.FAILED
         source.processing_error = 'Source processing failed.'
         source.save(update_fields=['status', 'processing_error', 'updated_at'])
         return {'success': False, 'message': 'فشلت معالجة المصدر.', 'code': 'source_processing_failed'}
+
+
+def mark_source_failed(source, reason):
+    """Record a terminal processing failure outside process_source()'s
+    transaction, so it survives the rollback that a re-raised retriable error
+    causes."""
+
+    StudentSource.objects.filter(pk=source.pk).update(
+        status=StudentSource.Status.FAILED,
+        processing_error=reason,
+        updated_at=timezone.now(),
+    )
 
 
 TASK_BY_CHARACTER = {
