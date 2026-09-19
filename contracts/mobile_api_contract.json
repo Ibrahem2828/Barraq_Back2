@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-19T22:20:49+00:00",
-    "generated_from_backend_commit": "e9692023cd6f13f2bce1abb4c87e64939cc483ff",
+    "generated_at": "2026-09-19T22:45:15+00:00",
+    "generated_from_backend_commit": "3a6af1f3e8b2618c51b44e49cc4f3b678d1b2a4e",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",

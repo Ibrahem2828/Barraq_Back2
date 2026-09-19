@@ -387,7 +387,71 @@ def assert_global_scope(user):
         raise ScopeDenied("global_scope_required")
 
 
+def resolve_grantable_scopes(actor, raw_scopes):
+    """Turn requested scopes into model objects, refusing escalation.
+
+    An operator can only grant reach they already hold. Without this check,
+    `admins.assign_roles` is a privilege-escalation primitive: a manager of
+    one school assigns a colleague -- or themselves -- a role scoped to
+    another school, or to the whole platform, and every boundary in this
+    module is gone. The permission to assign roles is not the permission to
+    invent reach.
+
+    Returns None for "global", which is what `assign_roles_to_user` already
+    means by an omitted scope.
+    """
+    from rest_framework import serializers
+
+    from .models import Classroom, Organization
+
+    if not raw_scopes:
+        if not has_global_scope(actor):
+            raise serializers.ValidationError({"scopes": "A scoped operator must state the scope being granted."})
+        return None
+
+    actor_is_global = has_global_scope(actor)
+    allowed_organizations = accessible_organization_ids(actor)
+    allowed_classrooms = accessible_classroom_ids(actor)
+
+    resolved = []
+    for entry in raw_scopes:
+        scope_type = entry["scope_type"]
+
+        if scope_type == AdminRoleScope.ScopeType.GLOBAL:
+            if not actor_is_global:
+                raise serializers.ValidationError(
+                    {"scopes": "Only a platform administrator can grant platform-wide scope."}
+                )
+            resolved.append({"scope_type": scope_type})
+            continue
+
+        if scope_type == AdminRoleScope.ScopeType.ORGANIZATION:
+            organization = Organization.objects.filter(public_id=entry.get("organization")).first()
+            if organization is None or (
+                allowed_organizations is not None and organization.id not in allowed_organizations
+            ):
+                # One wording for both "does not exist" and "not yours": a
+                # distinct message would confirm an organization the actor
+                # is not allowed to know about.
+                raise serializers.ValidationError({"scopes": "Unknown organization."})
+            resolved.append({"scope_type": scope_type, "organization": organization})
+            continue
+
+        classroom = Classroom.objects.filter(public_id=entry.get("classroom")).first()
+        if classroom is None or (allowed_classrooms is not None and classroom.id not in allowed_classrooms):
+            raise serializers.ValidationError({"scopes": "Unknown class."})
+        resolved.append(
+            {
+                "scope_type": scope_type,
+                "classroom": classroom,
+                "organization": classroom.organization,
+            }
+        )
+    return resolved
+
+
 __all__ = [
+    "resolve_grantable_scopes",
     "scoped_user_ids",
     "scope_by_user_field",
     "scope_admin_accounts",

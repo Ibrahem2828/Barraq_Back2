@@ -2023,6 +2023,13 @@
             },
             "type": "array",
             "writeOnly": true
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/RoleScopeRequest"
+            },
+            "type": "array",
+            "writeOnly": true
           }
         },
         "required": [
@@ -2073,6 +2080,12 @@
               "type": "integer"
             },
             "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/RoleScope"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -2089,6 +2102,12 @@
           "role_ids": {
             "items": {
               "type": "integer"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/RoleScopeRequest"
             },
             "type": "array"
           }
@@ -6425,6 +6444,59 @@
           "admin",
           "support",
           "super_admin"
+        ],
+        "type": "string"
+      },
+      "RoleScope": {
+        "description": "One grant: what kind of scope, and which organization or class.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeTypeEnum"
+          }
+        },
+        "required": [
+          "scope_type"
+        ],
+        "type": "object"
+      },
+      "RoleScopeRequest": {
+        "description": "One grant: what kind of scope, and which organization or class.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeTypeEnum"
+          }
+        },
+        "required": [
+          "scope_type"
+        ],
+        "type": "object"
+      },
+      "ScopeTypeEnum": {
+        "description": "* `global` - global\n* `organization` - organization\n* `class` - class",
+        "enum": [
+          "global",
+          "organization",
+          "class"
         ],
         "type": "string"
       },

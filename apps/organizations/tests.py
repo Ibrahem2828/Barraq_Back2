@@ -1058,3 +1058,220 @@ def _admin_view_classes():
 
     walk(get_resolver())
     return list(seen.values())
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+class ScopeGrantTestCase(APITestCase):
+    """Granting a role must not be a way to invent reach.
+
+    `admins.assign_roles` is the most dangerous permission in the system
+    once scope exists: if an operator can attach any scope to any role, a
+    manager of one school can hand themselves -- or a colleague -- the whole
+    platform, and every other test in this file becomes decorative.
+    """
+
+    def setUp(self):
+        cache.clear()
+        _, self.roles = seed_default_rbac()
+        self.super_admin = User.objects.create_user(
+            email="root4@example.com",
+            password="StrongPass123",
+            full_name="Root",
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        self.org_a = Organization.objects.create(name="School A")
+        self.org_b = Organization.objects.create(name="School B")
+        self.class_b = Classroom.objects.create(organization=self.org_b, name="10-B")
+
+        # The granter holds everything organization_manager holds, plus the
+        # admin permissions -- otherwise the pre-existing "cannot assign
+        # permissions you do not have" check would refuse first and these
+        # tests would pass without ever reaching the scope rule.
+        self.granter_role = AdminRole.objects.create(code="granter", name="Granter")
+        manager_permissions = list(self.roles["organization_manager"].permissions.values_list("code", flat=True))
+        self.granter_role.permissions.set(
+            AdminPermission.objects.filter(
+                code__in=manager_permissions + ["admins.view", "admins.create", "admins.assign_roles"]
+            )
+        )
+        self.manager_a = User.objects.create_user(
+            email="granter-a@example.com",
+            password="StrongPass123",
+            full_name="Granter A",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            self.manager_a,
+            [self.granter_role],
+            scopes=[
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": self.org_a,
+                }
+            ],
+        )
+        # Already inside organization A, so the admin directory shows them to
+        # manager_a at all. An admin with no overlapping scope is invisible,
+        # which is correct but would refuse these requests for the wrong
+        # reason -- a 404 for "not your admin" rather than a 400 for "not
+        # your scope to grant".
+        self.colleague = User.objects.create_user(
+            email="colleague@example.com",
+            password="StrongPass123",
+            full_name="Colleague",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            self.colleague,
+            [self.roles["class_supervisor"]],
+            scopes=[
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": self.org_a,
+                }
+            ],
+        )
+
+    def _as(self, user):
+        self.client.force_authenticate(user)
+
+    def _assign(self, target, payload):
+        return self.client.post(reverse("admin-user-assign-roles", args=[target.id]), payload, format="json")
+
+    def _scopes_of(self, user):
+        # Only active assignments: re-assigning a role deactivates the old
+        # AdminUserRole rather than deleting it, and their scope rows stay
+        # behind as history. The policy reads active rows only, so a test
+        # that counted the rest would disagree with the thing it is testing.
+        return set(
+            AdminRoleScope.objects.filter(admin_user_role__user=user, admin_user_role__is_active=True).values_list(
+                "scope_type", "organization_id", "classroom_id"
+            )
+        )
+
+    def _unchanged(self, user, before):
+        self.assertEqual(self._scopes_of(user), before)
+
+    # -- escalation --------------------------------------------------------
+    def test_a_scoped_operator_cannot_grant_platform_wide_scope(self):
+        before = self._scopes_of(self.colleague)
+        self._as(self.manager_a)
+        response = self._assign(
+            self.colleague,
+            {"role_codes": ["organization_manager"], "scopes": [{"scope_type": "global"}]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self._unchanged(self.colleague, before)
+
+    def test_a_scoped_operator_cannot_grant_another_tenants_organization(self):
+        before = self._scopes_of(self.colleague)
+        self._as(self.manager_a)
+        response = self._assign(
+            self.colleague,
+            {
+                "role_codes": ["organization_manager"],
+                "scopes": [{"scope_type": "organization", "organization": str(self.org_b.public_id)}],
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self._unchanged(self.colleague, before)
+
+    def test_a_scoped_operator_cannot_grant_another_tenants_class(self):
+        before = self._scopes_of(self.colleague)
+        self._as(self.manager_a)
+        response = self._assign(
+            self.colleague,
+            {
+                "role_codes": ["class_supervisor"],
+                "scopes": [{"scope_type": "class", "classroom": str(self.class_b.public_id)}],
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self._unchanged(self.colleague, before)
+
+    def test_omitting_the_scope_no_longer_silently_means_global(self):
+        """The default that would have undone everything.
+
+        Before scopes were accepted here, every assignment made through the
+        dashboard was global -- so the first organization manager created
+        through the UI would have reached every school on the platform.
+        """
+        before = self._scopes_of(self.colleague)
+        self._as(self.manager_a)
+        response = self._assign(self.colleague, {"role_codes": ["organization_manager"]})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self._unchanged(self.colleague, before)
+
+    # -- what must still work ---------------------------------------------
+    def test_a_scoped_operator_can_grant_their_own_organization(self):
+        self._as(self.manager_a)
+        response = self._assign(
+            self.colleague,
+            {
+                "role_codes": ["organization_manager"],
+                "scopes": [{"scope_type": "organization", "organization": str(self.org_a.public_id)}],
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        granted = AdminRoleScope.objects.get(admin_user_role__user=self.colleague, admin_user_role__is_active=True)
+        self.assertEqual(granted.scope_type, AdminRoleScope.ScopeType.ORGANIZATION)
+        self.assertEqual(granted.organization_id, self.org_a.id)
+
+    def test_the_super_admin_can_still_grant_anything(self):
+        self._as(self.super_admin)
+        response = self._assign(
+            self.colleague,
+            {
+                "role_codes": ["organization_manager"],
+                "scopes": [{"scope_type": "organization", "organization": str(self.org_b.public_id)}],
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            AdminRoleScope.objects.get(
+                admin_user_role__user=self.colleague, admin_user_role__is_active=True
+            ).organization_id,
+            self.org_b.id,
+        )
+
+    def test_the_super_admin_still_gets_global_by_omission(self):
+        """Existing callers keep working: an omitted scope from a platform
+        admin still means what it always meant."""
+        self._as(self.super_admin)
+        response = self._assign(self.colleague, {"role_codes": ["organization_manager"]})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            {row[0] for row in self._scopes_of(self.colleague)},
+            {AdminRoleScope.ScopeType.GLOBAL},
+        )
+
+    def test_creating_an_admin_carries_the_same_rule(self):
+        """The other door into the same room.
+
+        Roles can also be attached while creating an account, and that path
+        defaulted to global too -- fixing only assign_roles would have left
+        the escalation one endpoint away.
+        """
+        self._as(self.manager_a)
+        response = self.client.post(
+            reverse("admin-user-list"),
+            {
+                "email": "new-admin@example.com",
+                "full_name": "New Admin",
+                "password": "StrongPass123",
+                "role_codes": ["organization_manager"],
+                "scopes": [{"scope_type": "organization", "organization": str(self.org_b.public_id)}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email="new-admin@example.com").exists())

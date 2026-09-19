@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-19T22:20:49+00:00",
-    "generated_from_backend_commit": "e9692023cd6f13f2bce1abb4c87e64939cc483ff",
+    "generated_at": "2026-09-19T22:45:15+00:00",
+    "generated_from_backend_commit": "3a6af1f3e8b2618c51b44e49cc4f3b678d1b2a4e",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -15107,6 +15107,15 @@
         "super_admin"
       ]
     },
+    "ScopeTypeEnum": {
+      "nullable": false,
+      "type": "string",
+      "values": [
+        "global",
+        "organization",
+        "class"
+      ]
+    },
     "SourceTypeEnum": {
       "nullable": false,
       "type": "string",
@@ -22035,6 +22044,22 @@
           "maximum": null,
           "min_length": null,
           "minimum": null,
+          "name": "scopes",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "array",
+          "write_only": true
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
           "name": "is_staff",
           "nullable": false,
           "read_only": false,
@@ -22103,6 +22128,13 @@
             "items": {
               "type": "integer",
               "writeOnly": true
+            },
+            "type": "array",
+            "writeOnly": true
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/resources/RoleScopeRequest/schema"
             },
             "type": "array",
             "writeOnly": true
@@ -22261,6 +22293,22 @@
           "required": false,
           "type": "array",
           "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "scopes",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "array",
+          "write_only": false
         }
       ],
       "schema": {
@@ -22274,6 +22322,12 @@
           "role_ids": {
             "items": {
               "type": "integer"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/resources/RoleScope/schema"
             },
             "type": "array"
           }
@@ -22314,6 +22368,22 @@
           "required": false,
           "type": "array",
           "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "scopes",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "array",
+          "write_only": false
         }
       ],
       "schema": {
@@ -22328,6 +22398,12 @@
           "role_ids": {
             "items": {
               "type": "integer"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/resources/RoleScopeRequest/schema"
             },
             "type": "array"
           }
@@ -28925,6 +29001,176 @@
           "admin",
           "support",
           "super_admin"
+        ],
+        "type": "string"
+      }
+    },
+    "RoleScope": {
+      "fields": [
+        {
+          "default": null,
+          "description": "* `global` - global\n* `organization` - organization\n* `class` - class",
+          "enum": [
+            "global",
+            "organization",
+            "class"
+          ],
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "scope_type",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "schema_ref": "#/resources/ScopeTypeEnum/schema",
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "description": "One grant: what kind of scope, and which organization or class.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/resources/ScopeTypeEnum/schema"
+          }
+        },
+        "required": [
+          "scope_type"
+        ],
+        "type": "object"
+      }
+    },
+    "RoleScopeRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": "* `global` - global\n* `organization` - organization\n* `class` - class",
+          "enum": [
+            "global",
+            "organization",
+            "class"
+          ],
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "scope_type",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "schema_ref": "#/resources/ScopeTypeEnum/schema",
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "description": "One grant: what kind of scope, and which organization or class.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/resources/ScopeTypeEnum/schema"
+          }
+        },
+        "required": [
+          "scope_type"
+        ],
+        "type": "object"
+      }
+    },
+    "ScopeTypeEnum": {
+      "fields": [],
+      "schema": {
+        "description": "* `global` - global\n* `organization` - organization\n* `class` - class",
+        "enum": [
+          "global",
+          "organization",
+          "class"
         ],
         "type": "string"
       }

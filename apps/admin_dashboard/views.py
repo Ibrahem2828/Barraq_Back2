@@ -375,10 +375,14 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
         roles = data.pop('role_ids', None) or data.pop('role_codes', [])
         password = data.pop('password')
         is_superuser = data.pop('is_superuser', False)
+        # Popped so they never reach create_user as model fields; the
+        # serializer already refused any scope the operator cannot grant.
+        resolved_scopes = data.pop('resolved_scopes', None)
+        data.pop('scopes', None)
         data.setdefault('is_staff', True)
         data['role'] = User.Roles.SUPER_ADMIN if is_superuser else User.Roles.ADMIN
         user = User.objects.create_user(password=password, is_superuser=is_superuser, **data)
-        assign_roles_to_user(user, roles, assigned_by=request.user)
+        assign_roles_to_user(user, roles, assigned_by=request.user, scopes=resolved_scopes)
         log_admin_action(
             request.user,
             'admin.created',
@@ -413,7 +417,10 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
         serializer = self.get_serializer(data=request.data, context={**self.get_serializer_context(), 'target_user': target})
         serializer.is_valid(raise_exception=True)
         roles = serializer.validated_data['roles']
-        assign_roles_to_user(target, roles, assigned_by=request.user)
+        # The serializer already refused any scope this operator cannot
+        # grant; None means global, which is what it always meant.
+        scopes = serializer.validated_data.get('scopes')
+        assign_roles_to_user(target, roles, assigned_by=request.user, scopes=scopes)
         target.role = User.Roles.SUPER_ADMIN if any(role.code == 'super_admin' for role in roles) else User.Roles.ADMIN
         target.is_staff = True
         target.save(update_fields=['role', 'is_staff', 'updated_at'])
@@ -421,7 +428,10 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
             request.user,
             'admin.role_assigned',
             target,
-            {'roles': [role.code for role in roles]},
+            {
+                'roles': [role.code for role in roles],
+                'scopes': [scope['scope_type'] for scope in scopes] if scopes else ['global'],
+            },
             request,
         )
         return Response(AdminUserSerializer(target, context=self.get_serializer_context()).data)

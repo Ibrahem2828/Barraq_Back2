@@ -3,6 +3,7 @@ from django.db.models import Count
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.organizations.scope import resolve_grantable_scopes
 from apps.quizzes.models import Quiz, QuizAttempt
 from apps.sources.models import (
     StudentSource,
@@ -152,6 +153,22 @@ class AdminUserSerializer(serializers.ModelSerializer):
         return sorted(get_user_admin_permissions(obj))
 
 
+class RoleScopeSerializer(serializers.Serializer):
+    """One grant: what kind of scope, and which organization or class."""
+
+    scope_type = serializers.ChoiceField(choices=['global', 'organization', 'class'])
+    organization = serializers.UUIDField(required=False, allow_null=True)
+    classroom = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        scope_type = attrs['scope_type']
+        if scope_type == 'organization' and not attrs.get('organization'):
+            raise serializers.ValidationError({'organization': 'An organization is required.'})
+        if scope_type == 'class' and not attrs.get('classroom'):
+            raise serializers.ValidationError({'classroom': 'A class is required.'})
+        return attrs
+
+
 class AdminUserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     role_ids = serializers.PrimaryKeyRelatedField(
@@ -167,6 +184,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         required=False,
         write_only=True,
     )
+    scopes = RoleScopeSerializer(many=True, required=False, write_only=True)
 
     class Meta:
         model = User
@@ -178,6 +196,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             'password',
             'role_ids',
             'role_codes',
+            'scopes',
             'is_staff',
             'is_superuser',
         )
@@ -196,6 +215,9 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 role_permissions = set(role.permissions.values_list('code', flat=True))
                 if not role_permissions.issubset(actor_permissions):
                     raise serializers.ValidationError('Cannot assign roles with permissions you do not have.')
+        # Same rule as assign_roles: a new admin cannot be handed reach the
+        # operator creating them does not have.
+        attrs['resolved_scopes'] = resolve_grantable_scopes(request.user, attrs.get('scopes') or [])
         return attrs
 
 
@@ -225,6 +247,10 @@ class AssignRolesSerializer(serializers.Serializer):
         many=True,
         required=False,
     )
+    #: Omitted means global, which is what every assignment meant before
+    #: scope existed. Existing callers keep working; a scoped assignment
+    #: says so explicitly.
+    scopes = RoleScopeSerializer(many=True, required=False)
 
     def validate(self, attrs):
         roles = attrs.get('role_ids') or attrs.get('role_codes') or []
@@ -243,6 +269,7 @@ class AssignRolesSerializer(serializers.Serializer):
                 if not role_permissions.issubset(actor_permissions):
                     raise serializers.ValidationError('Cannot assign roles with permissions you do not have.')
         attrs['roles'] = roles
+        attrs['scopes'] = resolve_grantable_scopes(request.user, attrs.get('scopes') or [])
         return attrs
 
 
