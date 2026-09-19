@@ -81,9 +81,9 @@ def materialize_fahes(job, data):
         user=job.user,
         project=job.project,
         subject=subject,
-        title=str(data.get("quiz_title") or f"اختبار {subject.name}")[:255],
+        title=str(data.get("title") or data.get("quiz_title") or f"اختبار {subject.name}")[:255],
         description=str(data.get("description") or "تم إنشاء الاختبار بواسطة فاحص."),
-        topic=str(job.parameters.get("topic") or subject.name),
+        topic=str(job.input_payload.get("topic") or job.parameters.get("topic") or subject.name),
         difficulty_level=difficulty,
         quiz_type=quiz_type,
         generation_type=GenerationTypeChoices.AI,
@@ -143,15 +143,22 @@ def materialize_khota(job, data):
     if not days:
         raise ValidationError("AI output did not contain plan days.")
     dates = [date.fromisoformat(str(item["date"])) for item in days]
-    start = date.fromisoformat(str(job.parameters.get("start_date"))) if job.parameters.get("start_date") else min(dates)
-    end = date.fromisoformat(str(job.parameters.get("end_date"))) if job.parameters.get("end_date") else max(dates)
-    daily_limit = max(15, min(int(job.parameters.get("daily_minutes") or 60), 720))
+    requested_start = job.input_payload.get("start_date") or job.parameters.get("start_date")
+    requested_end = job.input_payload.get("end_date") or job.parameters.get("end_date")
+    start = date.fromisoformat(str(requested_start)) if requested_start else min(dates)
+    end = date.fromisoformat(str(requested_end)) if requested_end else max(dates)
+    requested_daily_minutes = (
+        job.input_payload.get("daily_available_minutes")
+        or job.parameters.get("daily_minutes")
+        or 60
+    )
+    daily_limit = max(15, min(int(requested_daily_minutes), 720))
     plan = StudyPlan.objects.create(
         user=job.user,
         project=job.project,
         subject=subject,
-        title=str(data.get("plan_title") or f"خطة {subject.name}")[:255],
-        description=str(data.get("summary") or ""),
+        title=str(data.get("title") or data.get("plan_title") or f"خطة {subject.name}")[:255],
+        description=str(data.get("strategy_summary") or data.get("summary") or ""),
         start_date=start,
         end_date=end,
         daily_study_minutes=daily_limit,
@@ -166,11 +173,15 @@ def materialize_khota(job, data):
     created_tasks = 0
     for day in days:
         task_date = date.fromisoformat(str(day["date"]))
+        if not (start <= task_date <= end):
+            raise ValidationError("AI output contains a task date outside the requested plan.")
         used = 0
         for item in day.get("tasks") or []:
-            minutes = max(int(item.get("estimated_minutes") or 0), 0)
-            if not minutes or used + minutes > daily_limit or not (start <= task_date <= end):
-                continue
+            minutes = int(item.get("estimated_minutes") or 0)
+            if minutes <= 0:
+                raise ValidationError("AI output contains a task with an invalid duration.")
+            if used + minutes > daily_limit:
+                raise ValidationError("AI output exceeds the requested daily study limit.")
             used += minutes
             per_day[task_date] += 1
             priority = item.get("priority") or StudyTask.Priority.MEDIUM
@@ -178,7 +189,7 @@ def materialize_khota(job, data):
                 priority = StudyTask.Priority.MEDIUM
             StudyTask.objects.create(
                 plan=plan,
-                title=str(item.get("topic") or item.get("subject") or subject.name)[:255],
+                title=str(item.get("topic") or item.get("subject_name") or subject.name)[:255],
                 description=str(item.get("reason") or ""),
                 task_date=task_date,
                 estimated_minutes=minutes,
@@ -202,19 +213,44 @@ def materialize_khota(job, data):
 
 @transaction.atomic
 def materialize_rasheed(job, data):
+    topic_performance = job.input_payload.get("topic_performance") or []
+    scores = [
+        float(item["score"])
+        for item in topic_performance
+        if isinstance(item, dict) and item.get("score") is not None
+    ]
+    if scores:
+        overall_score = sum(scores) / len(scores)
+    else:
+        overall_score = next(
+            (
+                float(item["value"])
+                for item in (job.input_payload.get("metrics") or [])
+                if isinstance(item, dict)
+                and item.get("name") == "average_quiz_percentage"
+                and item.get("value") is not None
+            ),
+            None,
+        )
+    next_best_action = data.get("next_best_action") or ""
+    if isinstance(next_best_action, str):
+        next_best_action = {"label": next_best_action} if next_best_action.strip() else {}
     recommendation = StudentRecommendation.objects.create(
         user=job.user,
         project=job.project,
         subject=_subject(job),
         ai_job=job,
         title=str(data.get("title") or "توصيات رشيد")[:255],
-        summary=str(data.get("summary") or ""),
-        overall_score=Decimal(str(data["overall_score"])) if data.get("overall_score") is not None else None,
+        summary=str(data.get("performance_summary") or data.get("summary") or ""),
+        overall_score=Decimal(str(overall_score)) if overall_score is not None else None,
         strengths=data.get("strengths") or [],
         weaknesses=data.get("weaknesses") or [],
         recommendations=data.get("recommendations") or [],
-        next_best_action=data.get("next_best_action") or {},
-        source_metrics=data.get("source_metrics") or {},
+        next_best_action=next_best_action,
+        source_metrics=data.get("source_metrics") or {
+            "metrics": job.input_payload.get("metrics") or [],
+            "topic_performance": topic_performance,
+        },
     )
     return "recommendation", str(recommendation.id)
 
@@ -228,13 +264,13 @@ def materialize_kholasa(job, data):
         collection=job.collection,
         ai_job=job,
         title=str(data.get("title") or "خلاصة المحتوى")[:255],
-        short_summary=str(data.get("short_summary") or ""),
+        short_summary=str(data.get("executive_summary") or data.get("short_summary") or ""),
         detailed_summary=str(data.get("detailed_summary") or ""),
         key_points=data.get("key_points") or [],
         important_terms=data.get("important_terms") or [],
         covered_topics=data.get("covered_topics") or [],
         review_questions=data.get("review_questions") or [],
-        source_references=data.get("source_references") or [],
+        source_references=data.get("citations") or data.get("source_references") or [],
         quality_score=data.get("quality_score"),
     )
     return "summary", str(summary.id)

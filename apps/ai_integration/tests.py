@@ -16,11 +16,13 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
+from apps.analytics.models import StudentRecommendation
 from apps.audio.models import Transcription
 from apps.projects.models import Project
 from apps.quizzes.models import Quiz
 from apps.sources.capabilities import get_source_character_capabilities
 from apps.sources.models import StudentSource, StudentSourceCollection
+from apps.study_plans.models import StudyPlan
 from apps.subjects.models import EducationStage, Subject
 from apps.subscriptions.models import UsageLedgerEntry
 from apps.subscriptions.services import (
@@ -28,6 +30,7 @@ from apps.subscriptions.services import (
     get_or_create_user_subscription,
     reserve_character_request,
 )
+from apps.summaries.models import Summary
 
 from .client import AIServiceClient, AIServiceError
 from .error_codes import ErrorCode
@@ -782,6 +785,197 @@ class HMACV2InboundVerificationTests(SimpleTestCase):
         with self.assertRaises(InternalAuthenticationError) as ctx:
             verify_internal_request(request_two)
         self.assertEqual(ctx.exception.code, 'replay_detected')
+
+
+class CharacterMaterializationContractTests(APITestCase):
+    """The Django domain projection consumes the exact validated AI schemas."""
+
+    def setUp(self):
+        self.media_override = override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        self.media_override.enable()
+        self.user = User.objects.create_user(
+            email='materialize@example.com', password='StrongPass123!', full_name='Materialize'
+        )
+        stage = EducationStage.objects.create(name='Secondary', order=1)
+        self.subject = Subject.objects.create(
+            name='Physics', education_stage=stage, grade_level='12'
+        )
+        self.project = Project.objects.create(owner=self.user, title='Physics Project')
+        body = b'The Baraq verification protocol has exactly seven stages.'
+        self.source = StudentSource.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            title='Protocol',
+            source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile('protocol.txt', body, content_type='text/plain'),
+            original_filename='protocol.txt',
+            file_size=len(body),
+            mime_type='text/plain',
+            extension='txt',
+            status=StudentSource.Status.READY,
+        )
+
+    def tearDown(self):
+        cache.clear()
+        self.media_override.disable()
+
+    def _job(self, task_type, *, input_payload=None):
+        return AIJob.objects.create(
+            user=self.user,
+            project=self.project,
+            source=self.source if task_type != AIJob.TaskType.RASHEED_RECOMMENDATIONS else None,
+            subject=self.subject,
+            character={
+                AIJob.TaskType.FAHES_GENERATE_QUIZ: AIJob.Character.FAHES,
+                AIJob.TaskType.KHOLASA_GENERATE_SUMMARY: AIJob.Character.KHOLASA,
+                AIJob.TaskType.KHOTA_GENERATE_PLAN: AIJob.Character.KHOTA,
+                AIJob.TaskType.RASHEED_RECOMMENDATIONS: AIJob.Character.RASHEED,
+            }[task_type],
+            task_type=task_type,
+            status=AIJob.Status.QUEUED,
+            idempotency_key=f'materialize-{task_type}',
+            input_payload=input_payload or {},
+        )
+
+    def test_fahes_materializes_the_ai_schema_title_and_valid_question(self):
+        job = self._job(AIJob.TaskType.FAHES_GENERATE_QUIZ)
+        complete_job(job, {
+            'title': 'اختبار بروتوكول برّاق',
+            'description': 'اختبار مبني على المصدر المحدد.',
+            'questions': [{
+                'question_type': 'mcq',
+                'question': 'كم عدد مراحل بروتوكول التحقق في برّاق؟',
+                'choices': ['سبع مراحل', 'خمس مراحل'],
+                'correct_answer_index': 0,
+                'explanation': 'ينص المصدر صراحة على وجود سبع مراحل.',
+                'difficulty': 'medium',
+                'topic': 'التحقق',
+                'source_references': [1],
+            }],
+            'covered_topics': ['التحقق'],
+            'warnings': [],
+            'citations': [],
+        })
+
+        quiz = Quiz.objects.get(ai_job=job)
+        self.assertEqual(quiz.title, 'اختبار بروتوكول برّاق')
+        self.assertEqual(quiz.questions.count(), 1)
+        self.assertTrue(quiz.questions.get().choices.get(is_correct=True).text.startswith('سبع'))
+
+    def test_kholasa_materializes_executive_summary_from_ai_schema(self):
+        job = self._job(AIJob.TaskType.KHOLASA_GENERATE_SUMMARY)
+        complete_job(job, {
+            'title': 'خلاصة بروتوكول برّاق',
+            'executive_summary': 'يتكون بروتوكول التحقق في برّاق من سبع مراحل مستقلة ومتتابعة.',
+            'detailed_summary': 'يوضح المصدر أن آلية التحقق تضم سبع مراحل مستقلة لضمان سلامة النتيجة.',
+            'key_points': ['البروتوكول يتكون من سبع مراحل'],
+            'important_terms': ['بروتوكول التحقق'],
+            'covered_topics': ['التحقق'],
+            'review_questions': ['كم عدد مراحل التحقق؟'],
+            'flashcards': [],
+            'limitations': [],
+            'citations': [{'source_id': str(self.source.id), 'chunk_id': 'chunk-1', 'excerpt': 'سبع مراحل'}],
+        })
+
+        summary = Summary.objects.get(ai_job=job)
+        self.assertIn('سبع مراحل', summary.short_summary)
+        self.assertIn('سبع مراحل', summary.detailed_summary)
+        self.assertEqual(summary.source_references[0]['source_id'], str(self.source.id))
+
+    def test_khota_materializes_requested_bounds_and_daily_limit(self):
+        job = self._job(
+            AIJob.TaskType.KHOTA_GENERATE_PLAN,
+            input_payload={
+                'start_date': '2026-09-20',
+                'end_date': '2026-09-22',
+                'daily_available_minutes': 120,
+            },
+        )
+        complete_job(job, {
+            'title': 'خطة مراجعة الفيزياء',
+            'strategy_summary': 'توزيع المراجعة والتطبيق على أيام الخطة ضمن الوقت المتاح.',
+            'plan_days': [{
+                'date': '2026-09-20',
+                'total_minutes': 90,
+                'tasks': [{
+                    'subject_id': str(self.subject.id),
+                    'subject_name': self.subject.name,
+                    'topic': 'بروتوكول التحقق',
+                    'task_type': 'review',
+                    'estimated_minutes': 90,
+                    'priority': 'high',
+                    'reason': 'مراجعة المفهوم الأساسي قبل الاختبار.',
+                    'source_ids': [str(self.source.id)],
+                }],
+            }],
+            'assumptions': [],
+            'adaptation_rules': [],
+            'citations': [],
+        })
+
+        plan = StudyPlan.objects.get(ai_job=job)
+        self.assertEqual(plan.title, 'خطة مراجعة الفيزياء')
+        self.assertIn('توزيع المراجعة', plan.description)
+        self.assertEqual(plan.daily_study_minutes, 120)
+        self.assertEqual(plan.start_date.isoformat(), '2026-09-20')
+        self.assertEqual(plan.end_date.isoformat(), '2026-09-22')
+        self.assertEqual(plan.tasks.get().estimated_minutes, 90)
+
+    def test_khota_rejects_a_task_outside_the_accepted_plan(self):
+        job = self._job(
+            AIJob.TaskType.KHOTA_GENERATE_PLAN,
+            input_payload={
+                'start_date': '2026-09-20',
+                'end_date': '2026-09-22',
+                'daily_available_minutes': 60,
+            },
+        )
+        with self.assertRaises(ValidationError):
+            complete_job(job, {
+                'title': 'خطة غير صالحة',
+                'strategy_summary': 'هذه الخطة تحتوي تاريخًا خارج النطاق المقبول.',
+                'plan_days': [{'date': '2026-09-23', 'tasks': [{
+                    'topic': 'خارج النطاق', 'estimated_minutes': 30, 'priority': 'medium'
+                }]}],
+            })
+        self.assertFalse(StudyPlan.objects.filter(ai_job=job).exists())
+
+    def test_rasheed_materializes_analysis_from_authoritative_input(self):
+        job = self._job(
+            AIJob.TaskType.RASHEED_RECOMMENDATIONS,
+            input_payload={
+                'metrics': [{
+                    'name': 'average_quiz_percentage', 'value': 70, 'unit': 'percent',
+                    'period': 'all_time', 'authoritative': True,
+                }],
+                'topic_performance': [
+                    {'topic': 'الحركة', 'score': 90, 'answered_questions': 10},
+                    {'topic': 'القوة', 'score': 50, 'answered_questions': 10},
+                ],
+            },
+        )
+        complete_job(job, {
+            'performance_summary': 'الأداء قوي في الحركة ويحتاج إلى تحسين في موضوع القوة.',
+            'strengths': ['الحركة'],
+            'weaknesses': ['القوة'],
+            'recommendations': [{
+                'title': 'راجع القوة',
+                'action': 'حل مجموعة إضافية من مسائل القوة.',
+                'reason': 'درجة القوة أقل من درجة الحركة.',
+                'priority': 'now',
+                'success_measure': 'الوصول إلى 75 بالمئة.',
+                'related_topics': ['القوة'],
+            }],
+            'next_best_action': 'ابدأ بمراجعة القوة اليوم.',
+            'confidence_note': 'التوصية مبنية على عشرين إجابة.',
+        })
+
+        recommendation = StudentRecommendation.objects.get(ai_job=job)
+        self.assertIn('قوي في الحركة', recommendation.summary)
+        self.assertEqual(recommendation.overall_score, Decimal('70'))
+        self.assertEqual(recommendation.next_best_action['label'], 'ابدأ بمراجعة القوة اليوم.')
+        self.assertEqual(len(recommendation.source_metrics['topic_performance']), 2)
 
 
 class SadaDerivedSourceTests(APITestCase):
