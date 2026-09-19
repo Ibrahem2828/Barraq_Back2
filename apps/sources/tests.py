@@ -278,9 +278,26 @@ class StudentSourceAPITestCase(APITestCase):
         self.assertIsNone(response.data['subject'])
 
     def test_reject_too_large_file(self):
+        """Oversize uploads are one rejection with one machine-readable code.
+
+        This used to answer 400 with a codeless `{"file": "..."}` when the
+        platform cap tripped, and 403 `file_size_limit_exceeded` when the plan
+        cap tripped -- two shapes for one user-visible event, which a client
+        could not branch on. Both ceilings now resolve through
+        `effective_max_file_size_mb`, so the answer is always the 403 already
+        used by every other plan limit (source/storage/collection).
+        """
         response = self.upload_source(content=b'a' * (1024 * 1024 + 1))
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # NOTE: the domain code lands under `errors`, while the envelope's
+        # top-level `code` is the generic `permission_denied` for every 403.
+        # That is pre-existing behaviour of custom_exception_handler and it
+        # currently defeats the web client, which reads the top-level code --
+        # tracked as a P1-H (error-model) defect, deliberately not changed
+        # here because it would alter every error response in the API.
+        self.assertEqual(response.data['errors']['code'], 'file_size_limit_exceeded')
+        self.assertEqual(int(response.data['errors']['limit']), 1)
         self.assertEqual(StudentSource.objects.count(), 0)
 
     def test_list_only_own_sources(self):

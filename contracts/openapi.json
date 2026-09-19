@@ -2546,6 +2546,10 @@
       },
       "MySubscription": {
         "properties": {
+          "effective_limits": {
+            "additionalProperties": {},
+            "type": "object"
+          },
           "features": {
             "additionalProperties": {},
             "type": "object"
@@ -2569,6 +2573,7 @@
           }
         },
         "required": [
+          "effective_limits",
           "features",
           "limits",
           "plan",

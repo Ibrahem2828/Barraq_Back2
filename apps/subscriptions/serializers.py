@@ -161,6 +161,10 @@ class MySubscriptionSerializer(serializers.Serializer):
     limits = serializers.DictField()
     features = serializers.DictField()
     remaining = serializers.DictField()
+    # The plan figures intersected with the platform ceiling. `limits` alone
+    # is what a client must NOT display: a plan may advertise more than the
+    # platform can accept. See services.effective_max_file_size_mb.
+    effective_limits = serializers.DictField()
 
 
 class SubscriptionEventSerializer(serializers.ModelSerializer):

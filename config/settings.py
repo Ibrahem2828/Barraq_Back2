@@ -30,7 +30,12 @@ env = environ.Env(
     DATABASE_CONN_MAX_AGE=(int, 60),
     DATABASE_CONN_HEALTH_CHECKS=(bool, True),
     DATABASE_CONNECT_TIMEOUT=(int, 10),
-    STUDENT_SOURCE_MAX_UPLOAD_MB=(int, 25),
+    # Platform ceiling for one source upload. Bounded by the AI service,
+    # which reads a whole source into memory during ingestion
+    # (Baraq_AI settings.max_source_file_bytes = 50MB). Raising this
+    # above that figure would let Django accept a file the AI must then
+    # reject, so the two move together.
+    STUDENT_SOURCE_MAX_UPLOAD_MB=(int, 50),
     API_DOCS_PUBLIC=(bool, False),
     AI_SERVICE_ENABLED=(bool, True),
     AI_SERVICE_VERIFY_SSL=(bool, True),

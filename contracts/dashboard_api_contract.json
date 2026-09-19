@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-19T15:49:05+00:00",
-    "generated_from_backend_commit": "03677e76f76f4fdac846b98bb46af7d77764a667",
+    "generated_at": "2026-09-19T17:37:28+00:00",
+    "generated_from_backend_commit": "47c2a4dc3d881bd0dfbaf873694ee822d34470e3",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",

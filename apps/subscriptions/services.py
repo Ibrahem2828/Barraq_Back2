@@ -1,5 +1,6 @@
 import calendar
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -160,6 +161,25 @@ def bytes_to_mb(size_bytes):
     return size_bytes / (1024 * 1024)
 
 
+def effective_max_file_size_mb(user):
+    """The upload size a user can actually achieve, in MB.
+
+    Two independent ceilings apply: the plan's `max_file_size_mb`, and the
+    platform-wide STUDENT_SOURCE_MAX_UPLOAD_MB, which exists because the AI
+    service reads a whole source into memory during ingestion and cannot be
+    promised more than it can hold. The smaller one is what the user gets, so
+    it is the only number a client should ever display -- showing the plan
+    figure alone is how a Pro user came to be told 150MB when uploads over
+    the platform cap were refused outright.
+    """
+
+    platform_limit = int(getattr(settings, 'STUDENT_SOURCE_MAX_UPLOAD_MB', 25))
+    plan_limit = limit_value(get_user_limits(user), 'max_file_size_mb')
+    if plan_limit is None:
+        return platform_limit
+    return min(plan_limit, platform_limit)
+
+
 def get_remaining_limits(user):
     limits = get_user_limits(user)
     usage = recalculate_storage_used(user)
@@ -217,10 +237,14 @@ def can_upload_source(user, file_size_bytes):
             source_count,
         )
 
-    file_limit = limit_value(limits, 'max_file_size_mb')
-    if file_limit is not None and bytes_to_mb(file_size_bytes) > file_limit:
+    # The effective limit, not the plan figure: the platform ceiling can be
+    # lower than what a plan advertises, and rejecting here with the plan
+    # number would quote a limit the upload never actually had. Reported as
+    # one code so the client has a single case to handle.
+    file_limit = effective_max_file_size_mb(user)
+    if bytes_to_mb(file_size_bytes) > file_limit:
         _raise_limit(
-            'حجم الملف أكبر من الحد المسموح في خطتك.',
+            f'حجم الملف أكبر من الحد المسموح ({file_limit}MB).',
             'file_size_limit_exceeded',
             file_limit,
             round(bytes_to_mb(file_size_bytes), 2),
@@ -346,6 +370,9 @@ def subscription_summary_for_user(user):
         'limits': get_user_limits(user),
         'features': get_user_features(user),
         'remaining': get_remaining_limits(user),
+        'effective_limits': {
+            'max_file_size_mb': effective_max_file_size_mb(user),
+        },
     }
 
 def _usage_operation_key(job=None, idempotency_key=None):

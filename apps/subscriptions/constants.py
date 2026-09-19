@@ -104,7 +104,7 @@ DEFAULT_PLANS = {
         'limits': {
             'max_collections': 200,
             'max_sources': 3000,
-            'max_file_size_mb': 150,
+            'max_file_size_mb': 50,
             'max_storage_mb': 50000,
             'max_ai_requests_per_month': 10000,
             'max_khota_requests_per_month': 3000,
@@ -134,7 +134,7 @@ DEFAULT_PLANS = {
         'limits': {
             'max_collections': 1000,
             'max_sources': 50000,
-            'max_file_size_mb': 250,
+            'max_file_size_mb': 50,
             'max_storage_mb': 500000,
             'max_ai_requests_per_month': 100000,
             'max_khota_requests_per_month': 25000,

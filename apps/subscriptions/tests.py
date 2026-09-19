@@ -15,6 +15,7 @@ from apps.projects.models import Project
 from apps.sources.models import StudentSource, StudentSourceCollection, StudentSourceInteraction
 from apps.subjects.models import EducationStage, Subject
 
+from .constants import DEFAULT_PLANS
 from .exceptions import SubscriptionFeatureNotAllowed, SubscriptionLimitExceeded
 from .models import SubscriptionPlan, SubscriptionUsage, UsageLedgerEntry, UserSubscription
 from .services import (
@@ -22,6 +23,7 @@ from .services import (
     can_upload_source,
     can_use_character,
     consume_character_request,
+    effective_max_file_size_mb,
     ensure_default_plans,
     get_or_create_user_subscription,
     get_remaining_limits,
@@ -164,6 +166,64 @@ class SubscriptionsTestCase(APITestCase):
 
         with self.assertRaises(SubscriptionLimitExceeded):
             can_upload_source(self.student, 2 * 1024 * 1024)
+
+    def test_effective_limit_is_the_smaller_of_plan_and_platform(self):
+        """A plan may advertise more than the platform can accept.
+
+        The AI service reads a whole source into memory during ingestion, so
+        STUDENT_SOURCE_MAX_UPLOAD_MB is a real ceiling. Quoting the plan
+        figure alone is how a Pro user came to be told 150MB while uploads
+        over the platform cap were refused outright.
+        """
+        free = self.plans['free']
+        free.limits = {**free.limits, 'max_file_size_mb': 150}
+        free.save(update_fields=['limits', 'updated_at'])
+
+        with override_settings(STUDENT_SOURCE_MAX_UPLOAD_MB=50):
+            self.assertEqual(effective_max_file_size_mb(self.student), 50)
+
+        free.limits = {**free.limits, 'max_file_size_mb': 10}
+        free.save(update_fields=['limits', 'updated_at'])
+        with override_settings(STUDENT_SOURCE_MAX_UPLOAD_MB=50):
+            self.assertEqual(effective_max_file_size_mb(self.student), 10)
+
+    def test_upload_rejection_quotes_the_effective_limit(self):
+        free = self.plans['free']
+        free.limits = {**free.limits, 'max_file_size_mb': 150}
+        free.save(update_fields=['limits', 'updated_at'])
+
+        with (
+            override_settings(STUDENT_SOURCE_MAX_UPLOAD_MB=50),
+            self.assertRaises(SubscriptionLimitExceeded) as caught,
+        ):
+            can_upload_source(self.student, 60 * 1024 * 1024)
+        # The platform ceiling, not the plan's unreachable 150.
+        self.assertEqual(int(caught.exception.detail['limit']), 50)
+        self.assertIn('50MB', str(caught.exception.detail['detail']))
+
+    def test_no_default_plan_advertises_more_than_the_platform_accepts(self):
+        """Guard against re-introducing an unreachable advertised tier."""
+        from django.conf import settings
+
+        for code, payload in DEFAULT_PLANS.items():
+            with self.subTest(plan=code):
+                self.assertLessEqual(
+                    payload['limits']['max_file_size_mb'],
+                    settings.STUDENT_SOURCE_MAX_UPLOAD_MB,
+                    f'plan {code} advertises a file size the platform will refuse',
+                )
+
+    def test_my_subscription_exposes_the_effective_limit(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get(reverse('my-subscription'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('effective_limits', response.data)
+        self.assertEqual(
+            response.data['effective_limits']['max_file_size_mb'],
+            effective_max_file_size_mb(self.student),
+        )
 
     def test_can_use_character_respects_feature_flags(self):
         with self.assertRaises(SubscriptionFeatureNotAllowed):
