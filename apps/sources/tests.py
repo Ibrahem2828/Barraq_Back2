@@ -17,6 +17,7 @@ from apps.subjects.models import EducationStage, Subject
 from .capabilities import get_source_character_capabilities
 from .models import StudentSource, StudentSourceCollection, StudentSourceInteraction
 from .services import process_source, use_source_with_character
+from .validators import ALLOWED_EXTENSIONS
 
 User = get_user_model()
 
@@ -114,15 +115,82 @@ class StudentSourceAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['source_type'], StudentSource.SourceType.PDF)
 
-    def test_upload_png_file(self):
-        response = self.upload_source(
-            filename='note.png',
-            content=b'\x89PNG\r\n\x1a\n',
-            content_type='image/png',
+    def test_upload_rejects_formats_the_ai_cannot_extract(self):
+        """Accepting an upload is a promise to process it.
+
+        Images have no OCR path and legacy OLE Office has no reader in
+        Baraq_AI's DocumentExtractor, so these uploads used to succeed and
+        then fail at job time with `unsupported_source_format`. They are now
+        refused at the boundary, with the supported list in the message.
+        """
+        unsupported = [
+            ('note.png', b'\x89PNG\r\n\x1a\n', 'image/png'),
+            ('photo.jpg', b'\xff\xd8\xff\xe0', 'image/jpeg'),
+            ('art.webp', b'RIFF\x00\x00\x00\x00WEBP', 'image/webp'),
+            ('old.doc', b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1', 'application/msword'),
+            ('old.ppt', b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1', 'application/vnd.ms-powerpoint'),
+        ]
+        for filename, content, content_type in unsupported:
+            with self.subTest(filename=filename):
+                response = self.upload_source(
+                    filename=filename, content=content, content_type=content_type
+                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn('PDF', str(response.data['errors']['file']))
+        self.assertEqual(StudentSource.objects.count(), 0)
+
+    def test_upload_accepts_every_format_the_ai_can_process(self):
+        """The mirror of the test above: nothing the AI supports is refused."""
+        supported = [
+            ('notes.txt', b'Limits describe behavior near a value.', 'text/plain'),
+            (
+                'lesson.pdf',
+                b'%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
+                'application/pdf',
+            ),
+            ('talk.mp3', b'ID3' + b'\x00' * 40, 'audio/mpeg'),
+            ('talk.wav', b'RIFF\x00\x00\x00\x00WAVE' + b'\x00' * 20, 'audio/wav'),
+            ('talk.m4a', b'\x00\x00\x00\x20ftypM4A ' + b'\x00' * 20, 'audio/mp4'),
+        ]
+        for filename, content, content_type in supported:
+            with self.subTest(filename=filename):
+                response = self.upload_source(
+                    filename=filename, content=content, content_type=content_type
+                )
+                self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+    def test_capabilities_withheld_for_a_legacy_unextractable_source(self):
+        """Rows created before the allowlist narrowed still carry source_type
+        `image`/`other`. They must not advertise characters whose jobs would
+        fail -- this is what covers already-uploaded production data."""
+        upload = self.upload_source()
+        source = StudentSource.objects.get(pk=upload.data['id'])
+        StudentSource.objects.filter(pk=source.pk).update(
+            source_type=StudentSource.SourceType.IMAGE
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['source_type'], StudentSource.SourceType.IMAGE)
+        response = self.client.get(reverse('student-source-capabilities', args=[source.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for character in ('khota', 'fahes', 'rasheed', 'kholasa', 'sada'):
+            self.assertFalse(response.data[character]['available'], character)
+        self.assertIn('غير مدعوم', response.data['fahes']['message'])
+
+    def test_backend_allowlist_never_exceeds_what_the_ai_can_process(self):
+        """Contract guard between two repositories.
+
+        Baraq_AI's DocumentExtractor dispatches on txt/md/csv/json, pdf, docx
+        and pptx; the Sada pipeline handles audio/*. Anything this backend
+        accepts must fall in one of those buckets, or the upload is a promise
+        the platform cannot keep.
+        """
+        ai_extractable = {'pdf', 'txt', 'md', 'csv', 'json', 'docx', 'pptx'}
+        ai_transcribable = {'mp3', 'm4a', 'wav'}
+        self.assertEqual(
+            ALLOWED_EXTENSIONS - ai_extractable - ai_transcribable,
+            set(),
+            'backend accepts an extension no AI pipeline can handle',
+        )
 
     def test_upload_arabic_filename(self):
         response = self.upload_source(filename='ملخص الرياضيات.txt')

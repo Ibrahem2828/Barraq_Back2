@@ -47,6 +47,18 @@ class StudentSource(BaseModel):
     #: disagree with the request handlers that enforce it.
     AI_USABLE_STATUSES = frozenset({Status.UPLOADED, Status.READY})
 
+    #: Source types the AI service can turn into text, mirroring Baraq_AI's
+    #: DocumentExtractor.extract() dispatch. AUDIO is deliberately absent: it
+    #: is not extractable, it is transcribable, and only by Sada.
+    #:
+    #: IMAGE/LINK/OTHER remain valid model choices because rows created before
+    #: the upload allowlist was narrowed still carry them -- this set is what
+    #: stops those legacy rows from advertising characters whose jobs would
+    #: fail with `unsupported_source_format`.
+    AI_EXTRACTABLE_SOURCE_TYPES = frozenset(
+        {SourceType.TEXT, SourceType.PDF, SourceType.DOCUMENT, SourceType.PRESENTATION}
+    )
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

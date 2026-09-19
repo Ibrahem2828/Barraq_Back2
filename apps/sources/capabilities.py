@@ -18,6 +18,30 @@ def _block_all(capabilities, message):
     }
 
 
+_UNSUPPORTED_TYPE_MESSAGE = (
+    'هذا النوع من الملفات غير مدعوم للمعالجة بالذكاء الاصطناعي. '
+    'الصيغ المدعومة: PDF, TXT, DOCX, PPTX, MP3, M4A, WAV.'
+)
+
+
+def _apply_source_type(capabilities, source):
+    """Withhold every character for a source the AI cannot read.
+
+    Audio is handled by the per-character rules above (Sada only). Anything
+    else outside AI_EXTRACTABLE_SOURCE_TYPES -- images, links, `other` --
+    cannot be turned into text by any pipeline, so advertising an action
+    would guarantee an `unsupported_source_format` failure. New uploads of
+    those types are rejected at the validator, but rows created before that
+    allowlist was narrowed still exist and must not mislead.
+    """
+
+    if source.source_type == StudentSource.SourceType.AUDIO:
+        return capabilities
+    if source.source_type in StudentSource.AI_EXTRACTABLE_SOURCE_TYPES:
+        return capabilities
+    return _block_all(capabilities, _UNSUPPORTED_TYPE_MESSAGE)
+
+
 def _apply_source_state(capabilities, source):
     """Withhold every character while the source itself is unusable.
 
@@ -67,6 +91,7 @@ def get_source_character_capabilities(source, *, features=None):
         'kholasa': {'available': not is_audio, 'actions': ['summarize'] if not is_audio else [], 'message': 'إنشاء ملخص متعدد المستويات مع مراجع.' if not is_audio else 'استخدم صدى أولاً لتفريغ التسجيل.'},
         'sada': {'available': is_audio, 'actions': ['transcribe'] if is_audio else [], 'message': 'تحويل التسجيل الصوتي إلى نص منظم.' if is_audio else 'صدى مخصص للمصادر الصوتية.'},
     }
+    capabilities = _apply_source_type(capabilities, source)
     return _apply_entitlements(_apply_source_state(capabilities, source), features)
 
 

@@ -5,17 +5,27 @@ from pathlib import Path
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
+# Every extension here must be one the AI service can actually turn into text,
+# because accepting an upload is a promise to process it. The authoritative
+# list on the other side is Baraq_AI's DocumentExtractor.extract() dispatch
+# (txt/pdf/docx/pptx) plus the Sada audio pipeline, which requires an audio/*
+# mime type. jpg/jpeg/png/webp (no OCR path), and doc/ppt (legacy OLE, no
+# reader) were accepted here until they were removed: uploads succeeded and
+# then every AI job failed with `unsupported_source_format`. If OCR or a
+# legacy-Office converter is added later, restore the entry here *and* the
+# matching signature check -- both are recoverable from this commit's parent.
 ALLOWED_EXTENSIONS = {
-    "pdf", "txt", "jpg", "jpeg", "png", "webp", "doc", "docx", "ppt", "pptx", "mp3", "m4a", "wav",
+    "pdf", "txt", "docx", "pptx", "mp3", "m4a", "wav",
 }
 DANGEROUS_EXTENSIONS = {
     "exe", "sh", "bat", "cmd", "js", "html", "php", "py", "jar", "zip", "rar", "7z", "sql", "env",
 }
 EXTENSION_SOURCE_TYPES = {
-    "pdf": "pdf", "txt": "text", "jpg": "image", "jpeg": "image", "png": "image", "webp": "image",
-    "doc": "document", "docx": "document", "ppt": "presentation", "pptx": "presentation",
+    "pdf": "pdf", "txt": "text",
+    "docx": "document", "pptx": "presentation",
     "mp3": "audio", "m4a": "audio", "wav": "audio",
 }
+SUPPORTED_FORMATS_LABEL = "PDF, TXT, DOCX, PPTX, MP3, M4A, WAV"
 
 
 def get_safe_extension(filename):
@@ -25,7 +35,9 @@ def get_safe_extension(filename):
     if extension in DANGEROUS_EXTENSIONS:
         raise ValidationError({"file": f"هذا النوع من الملفات غير مسموح به: .{extension}"})
     if extension not in ALLOWED_EXTENSIONS:
-        raise ValidationError({"file": f"نوع الملف غير مدعوم: .{extension}"})
+        raise ValidationError(
+            {"file": f"نوع الملف غير مدعوم: .{extension}. الصيغ المدعومة: {SUPPORTED_FORMATS_LABEL}."}
+        )
     return extension
 
 
@@ -84,12 +96,6 @@ def validate_file_signature(file, extension):
     valid = True
     if extension == "pdf":
         valid = head.startswith(b"%PDF-")
-    elif extension in {"jpg", "jpeg"}:
-        valid = head.startswith(b"\xff\xd8\xff")
-    elif extension == "png":
-        valid = head.startswith(b"\x89PNG\r\n\x1a\n")
-    elif extension == "webp":
-        valid = head.startswith(b"RIFF") and head[8:12] == b"WEBP"
     elif extension == "wav":
         valid = head.startswith(b"RIFF") and head[8:12] == b"WAVE"
     elif extension == "mp3":
@@ -99,8 +105,6 @@ def validate_file_signature(file, extension):
     elif extension in {"docx", "pptx"}:
         _validate_office_zip(file, extension)
         return
-    elif extension in {"doc", "ppt"}:
-        valid = head.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1")
     elif extension == "txt":
         valid = b"\x00" not in head
     if not valid:
