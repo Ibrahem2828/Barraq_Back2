@@ -162,6 +162,10 @@ SECTION_PERMISSIONS = {
     'admins': 'admins.view',
     'roles': 'roles.view',
     'students': 'students.view',
+    # `subjects.*` permissions existed with no section entry, so the
+    # dashboard's education nav resolved to undefined and was hidden from
+    # every non-superuser admin.
+    'subjects': 'subjects.view',
     'sources': 'sources.view',
     'collections': 'collections.view',
     'study': 'study_plans.view',
