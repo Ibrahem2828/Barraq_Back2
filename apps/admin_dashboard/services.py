@@ -22,6 +22,21 @@ DEFAULT_PERMISSIONS = [
     ('admins.update', 'Admins', 'Update admins'),
     ('admins.delete', 'Admins', 'Delete admins'),
     ('admins.assign_roles', 'Admins', 'Assign admin roles'),
+    ('organizations.view', 'Organizations', 'View organizations'),
+    ('organizations.create', 'Organizations', 'Create organizations'),
+    ('organizations.update', 'Organizations', 'Update organizations'),
+    ('organizations.archive', 'Organizations', 'Archive organizations'),
+    ('organizations.manage_members', 'Organizations', 'Manage organization members'),
+    ('classes.view', 'Classes', 'View classes'),
+    ('classes.create', 'Classes', 'Create classes'),
+    ('classes.update', 'Classes', 'Update classes'),
+    ('classes.archive', 'Classes', 'Archive classes'),
+    ('class_members.view', 'Classes', 'View class members'),
+    ('class_members.manage', 'Classes', 'Manage class members'),
+    ('invitations.view', 'Classes', 'View class invitations'),
+    ('invitations.manage', 'Classes', 'Create and revoke class invitations'),
+    ('join_requests.view', 'Classes', 'View join requests'),
+    ('join_requests.manage', 'Classes', 'Approve or reject join requests'),
     ('admins.assign_permissions', 'Admins', 'Assign admin permissions'),
     ('roles.view', 'Roles', 'View roles'),
     ('roles.create', 'Roles', 'Create roles'),
@@ -96,6 +111,46 @@ DEFAULT_ROLES = {
             'ai_feedback.view',
         ],
     },
+    'organization_manager': {
+        'name': 'Organization Manager',
+        'description': 'Runs one school or institute. Its reach comes from the '
+                       'scope attached to the assignment, not from this name.',
+        'is_system': True,
+        'permissions': [
+            'dashboard.view',
+            'organizations.view',
+            'organizations.manage_members',
+            'classes.view',
+            'classes.create',
+            'classes.update',
+            'classes.archive',
+            'class_members.view',
+            'class_members.manage',
+            'invitations.view',
+            'invitations.manage',
+            'join_requests.view',
+            'join_requests.manage',
+            'users.view',
+            'subjects.view',
+            'education_stages.view',
+        ],
+    },
+    'class_supervisor': {
+        'name': 'Class Supervisor',
+        'description': 'Runs the classes its assignment is scoped to. Holds no '
+                       'organization-wide grant.',
+        'is_system': True,
+        'permissions': [
+            'dashboard.view',
+            'classes.view',
+            'class_members.view',
+            'class_members.manage',
+            'join_requests.view',
+            'join_requests.manage',
+            'subjects.view',
+            'education_stages.view',
+        ],
+    },
     'content_manager': {
         'name': 'Content Manager',
         'description': 'Manage academic content and quiz moderation.',
@@ -162,6 +217,9 @@ SECTION_PERMISSIONS = {
     'admins': 'admins.view',
     'roles': 'roles.view',
     'students': 'students.view',
+    'organizations': 'organizations.view',
+    'classes': 'classes.view',
+    'join_requests': 'join_requests.view',
     # `subjects.*` permissions existed with no section entry, so the
     # dashboard's education nav resolved to undefined and was hidden from
     # every non-superuser admin.
@@ -307,7 +365,20 @@ def is_super_admin_user(user):
     ).exists()
 
 
-def assign_roles_to_user(user, roles, assigned_by=None):
+def assign_roles_to_user(user, roles, assigned_by=None, scopes=None):
+    """Assign roles, and the data scope each one applies to.
+
+    `scopes` defaults to a single GLOBAL grant, which is exactly what every
+    assignment meant before scope existed -- so existing callers keep working
+    unchanged. A scoped assignment (an organization manager, a class
+    supervisor) passes its own list.
+
+    Scope rows are replaced rather than merged: re-assigning a role is how an
+    operator narrows or moves someone's reach, and merging would make
+    revoking an organization impossible through this path.
+    """
+    from apps.organizations.models import AdminRoleScope
+
     role_ids = [role.id for role in roles]
     AdminUserRole.objects.filter(user=user).exclude(role_id__in=role_ids).update(is_active=False)
     assignments = []
@@ -317,6 +388,15 @@ def assign_roles_to_user(user, roles, assigned_by=None):
             role=role,
             defaults={'assigned_by': assigned_by, 'is_active': True},
         )
+        AdminRoleScope.objects.filter(admin_user_role=assignment).delete()
+        for scope in scopes or [{'scope_type': AdminRoleScope.ScopeType.GLOBAL}]:
+            AdminRoleScope.objects.create(
+                admin_user_role=assignment,
+                scope_type=scope.get('scope_type', AdminRoleScope.ScopeType.GLOBAL),
+                organization=scope.get('organization'),
+                classroom=scope.get('classroom'),
+                granted_by=assigned_by,
+            )
         assignments.append(assignment)
     return assignments
 

@@ -142,6 +142,7 @@ INSTALLED_APPS = [
     "apps.support.apps.SupportConfig",
     "apps.waitlist.apps.WaitlistConfig",
     "apps.admin_dashboard",
+    "apps.organizations.apps.OrganizationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -265,6 +266,10 @@ REST_FRAMEWORK = {
         "uploads": env("THROTTLE_UPLOADS", default="30/hour"),
         "ai_requests": env("THROTTLE_AI", default="100/day"),
         "waitlist": env("THROTTLE_WAITLIST", default="5/hour"),
+        # Invitation codes are short enough to guess at scale. Generous
+        # enough for a class of learners all joining in one lesson,
+        # tight enough that enumerating the code space is not viable.
+        "join_attempts": env("THROTTLE_JOIN_ATTEMPTS", default="30/hour"),
     },
 }
 

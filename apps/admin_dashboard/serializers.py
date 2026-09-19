@@ -310,6 +310,10 @@ class AdminMeSerializer(serializers.Serializer):
     allowed_sections = serializers.DictField(child=serializers.BooleanField())
     #: Backend-authoritative app access; see services.get_allowed_apps.
     allowed_apps = serializers.ListField(child=serializers.CharField())
+    #: Which data each grant applies to. Context for the dashboard to render,
+    #: never the authorization itself -- the backend re-derives scope on every
+    #: request, so a client that ignores or forges this gains nothing.
+    scopes = serializers.ListField(child=serializers.DictField())
 
 
 class AdminOverviewSerializer(serializers.Serializer):
@@ -592,6 +596,10 @@ class AdminCharacterInteractionSerializer(serializers.ModelSerializer):
 
 
 def build_admin_me_payload(user):
+    # Imported here: apps.organizations depends on apps.admin_dashboard for
+    # permission resolution, so a module-level import would close the cycle.
+    from apps.organizations.scope import describe_scopes
+
     roles = AdminRole.objects.filter(
         user_roles__user=user,
         user_roles__is_active=True,
@@ -613,6 +621,7 @@ def build_admin_me_payload(user):
             for section, permission in SECTION_PERMISSIONS.items()
         },
         'allowed_apps': get_allowed_apps(user),
+        'scopes': describe_scopes(user),
     }
 
 
