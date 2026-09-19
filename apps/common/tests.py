@@ -329,8 +329,8 @@ class ErrorEnvelopeContractTests(APITestCase):
         generic `permission_denied` -- that is what made every client-side
         subscription-limit mapping dead code.
         """
-        from apps.subscriptions.exceptions import SubscriptionLimitExceeded
         from apps.common.exceptions import custom_exception_handler
+        from apps.subscriptions.exceptions import SubscriptionLimitExceeded
 
         exc = SubscriptionLimitExceeded(
             'حجم الملف أكبر من الحد المسموح (50MB).',
