@@ -24,7 +24,7 @@ from apps.study_plans.models import StudyTask
 from apps.subjects.models import UserSubject
 
 from .client import AIServiceClient, AIServiceError
-from .error_codes import ErrorCode
+from .error_codes import ErrorCode, is_retryable_error, public_error_message
 from .models import AIFeedback, AIJob, AIWebhookEvent
 from .security import HasInternalServiceKey, verify_webhook
 from .serializers import AIFeedbackSerializer, AIJobCreateSerializer, AIJobListSerializer, AIJobSerializer
@@ -64,7 +64,9 @@ def _remote_failure_error(payload):
     remote_code = str(payload.get('error_code') or (payload.get('error') or {}).get('code') or '')
     code = remote_code if remote_code in ErrorCode.values_set() else ErrorCode.PROVIDER_UNAVAILABLE
     return AIServiceError(
-        payload.get('error_message') or 'AI service job failed.', code=code, retryable=False
+        public_error_message(code),
+        code=code,
+        retryable=is_retryable_error(code),
     )
 
 

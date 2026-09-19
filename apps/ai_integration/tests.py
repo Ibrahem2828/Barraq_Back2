@@ -42,6 +42,7 @@ from .services import (
     complete_job,
     content_sha256,
     create_ai_job,
+    fail_job,
     public_progress_stage,
     record_ai_stage,
     resolve_job_sources,
@@ -541,6 +542,76 @@ class AIIntegrationApiTests(APITestCase):
         job.refresh_from_db()
         self.assertEqual(job.status, AIJob.Status.FAILED)
         self.assertEqual(job.error_code, ErrorCode.SOURCE_NOT_FOUND)
+
+    def test_webhook_failure_preserves_actionable_code_but_not_remote_diagnostics(self):
+        job = self._quiz_ready_job('webhook-actionable-failure')
+        payload = {
+            'event_id': 'evt-failure-actionable-1',
+            'job_id': job.external_job_id,
+            'status': 'failed',
+            'error_code': 'pdf_ocr_required',
+            'error_message': 'postgresql://user:secret@private-db plus source text',
+            'retryable': True,
+        }
+
+        response = self._post_signed_webhook(payload, nonce='webhook-nonce-failure-actionable-1')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        job.refresh_from_db()
+        self.assertEqual(job.status, AIJob.Status.FAILED)
+        self.assertEqual(job.error_code, ErrorCode.PDF_OCR_REQUIRED)
+        self.assertEqual(
+            job.error_message,
+            'This PDF does not contain extractable text and requires OCR.',
+        )
+        self.assertNotIn('private-db', job.error_message)
+        self.assertEqual(
+            job.service_metadata['failure'],
+            {'code': 'pdf_ocr_required', 'retryable': False},
+        )
+
+        self.authenticate()
+        detail = self.client.get(reverse('ai-job-detail', args=[job.public_id]))
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail.data['error_code'], 'pdf_ocr_required')
+        self.assertEqual(detail.data['error_message'], job.error_message)
+
+    def test_unknown_remote_failure_is_reduced_to_safe_generic_error(self):
+        job = self._quiz_ready_job('webhook-unknown-failure')
+        payload = {
+            'event_id': 'evt-failure-unknown-1',
+            'job_id': job.external_job_id,
+            'status': 'failed',
+            'error_code': 'RuntimeError',
+            'error_message': 'api_key=do-not-leak',
+        }
+
+        response = self._post_signed_webhook(payload, nonce='webhook-nonce-failure-unknown-1')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        job.refresh_from_db()
+        self.assertEqual(job.error_code, ErrorCode.PROVIDER_UNAVAILABLE)
+        self.assertNotIn('do-not-leak', job.error_message)
+
+    def test_late_failure_cannot_overwrite_completed_job(self):
+        job = self._quiz_ready_job('late-failure-after-completion')
+        complete_job(job, {'questions': [{
+            'question': 'Which fact is in the source?',
+            'choices': ['Seven stages', 'Nine stages'],
+            'correct_answer_index': 0,
+        }]})
+
+        unchanged = fail_job(
+            job,
+            AIServiceError(
+                'provider diagnostic',
+                code=ErrorCode.PROVIDER_TIMEOUT,
+                retryable=True,
+            ),
+        )
+
+        self.assertEqual(unchanged.status, AIJob.Status.COMPLETED)
+        self.assertEqual(unchanged.error_code, '')
 
     def test_feedback_captures_provider_model_prompt_version_snapshot(self):
         job = self._quiz_ready_job('feedback-snapshot')

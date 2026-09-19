@@ -21,7 +21,7 @@ from apps.subscriptions.services import (
 )
 
 from .client import AIServiceClient, AIServiceError
-from .error_codes import ErrorCode
+from .error_codes import ErrorCode, is_retryable_error, public_error_message
 from .materializers import materialize_job
 from .models import AIJob, AIJobDispatchOutbox
 
@@ -896,10 +896,29 @@ def fail_job(job, error):
     if job.status in TERMINAL_JOB_STATUSES:
         return job
     job.status = AIJob.Status.FAILED
-    job.error_code = getattr(error, "code", ErrorCode.PROVIDER_UNAVAILABLE)
-    job.error_message = 'The AI request could not be completed. Please try again.'
+    candidate_code = str(getattr(error, "code", ""))
+    job.error_code = (
+        candidate_code if candidate_code in ErrorCode.values_set() else ErrorCode.PROVIDER_UNAVAILABLE
+    )
+    job.error_message = public_error_message(job.error_code)
+    job.service_metadata = {
+        **(job.service_metadata or {}),
+        "failure": {
+            "code": job.error_code,
+            "retryable": is_retryable_error(job.error_code),
+        },
+    }
     job.completed_at = timezone.now()
-    job.save(update_fields=["status", "error_code", "error_message", "completed_at", "updated_at"])
+    job.save(
+        update_fields=[
+            "status",
+            "error_code",
+            "error_message",
+            "service_metadata",
+            "completed_at",
+            "updated_at",
+        ]
+    )
     if job.credits_reserved and not job.credits_committed:
         refund_character_request(job.user, job.character, job=job)
         job.credits_reserved = False
