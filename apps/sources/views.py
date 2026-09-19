@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.http import FileResponse, Http404
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -27,6 +27,7 @@ from .capabilities import (
 from .models import StudentSource, StudentSourceCollection, StudentSourceInteraction
 from .serializers import (
     SourceCharacterResponseSerializer,
+    SourceProcessingQueuedResponseSerializer,
     StudentSourceBriefSerializer,
     StudentSourceCollectionCreateUpdateSerializer,
     StudentSourceCollectionDetailSerializer,
@@ -183,7 +184,12 @@ class StudentSourceViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         methods=['POST'],
-        responses=StudentSourceDetailSerializer,
+        responses={
+            202: OpenApiResponse(
+                response=SourceProcessingQueuedResponseSerializer,
+                description='Source processing was queued or was already processing.',
+            )
+        },
         description='Queue source processing and return immediately.',
     )
     @action(detail=True, methods=['post'], url_path='process')

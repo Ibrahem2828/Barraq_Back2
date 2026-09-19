@@ -105,16 +105,6 @@ def add_code_truth_overrides(schema: dict[str, Any]) -> None:
             "$ref": "#/components/schemas/AIJob"
         }
 
-    components["SourceProcessingQueuedResponse"] = {
-        "type": "object",
-        "properties": {
-            "message": {"type": "string"},
-            "source": {"$ref": "#/components/schemas/StudentSourceDetail"},
-        },
-        "required": ["message", "source"],
-        "description": "Actual response returned by StudentSourceViewSet.process.",
-    }
-
     paths = schema.get("paths", {})
     feedback_operation = paths.get("/api/v1/ai/jobs/{public_id}/feedback/", {}).get("post")
     if feedback_operation:
@@ -145,19 +135,11 @@ def add_code_truth_overrides(schema: dict[str, Any]) -> None:
             },
         }
 
+    # The source process route needs no override here: StudentSourceViewSet
+    # .process declares its real 202 {message, source} body via
+    # SourceProcessingQueuedResponseSerializer, so DRF Spectacular emits it
+    # directly and `spectacular --validate` guards it.
     for prefix in ("/api/v1/student-sources/{id}/", "/api/v1/student-source-collections/{id}/"):
-        process_operation = paths.get(prefix + "process/", {}).get("post")
-        if process_operation:
-            process_operation["responses"] = {
-                "202": {
-                    "description": "Source processing was queued or was already processing.",
-                    "content": {
-                        "application/json": {
-                            "schema": {"$ref": "#/components/schemas/SourceProcessingQueuedResponse"}
-                        }
-                    },
-                }
-            }
         for suffix in (
             "use-with-fahes/",
             "use-with-khota/",
@@ -829,12 +811,6 @@ def findings(audience: str) -> list[dict[str, Any]]:
             "code": "openapi_source_character_response_omits_ai_job",
             "evidence": "SourceCharacterResponseSerializer does not declare ai_job, while StudentSourceViewSet/CollectionViewSet _build_character_response adds AIJobSerializer(ai_job).data.",
             "contract_treatment": "SourceCharacterResponse includes optional ai_job from concrete response-building code.",
-        },
-        {
-            "severity": "warning",
-            "code": "openapi_source_process_response_mismatch",
-            "evidence": "The process action returns {message, source} with 202, while its decorator declares StudentSourceDetailSerializer.",
-            "contract_treatment": "The projection uses SourceProcessingQueuedResponse for the source process route.",
         },
         {
             "severity": "info",

@@ -394,6 +394,25 @@ class UseWithCharacterSerializer(serializers.Serializer):
     )
 
 
+# The process action does not return a bare source: it wraps the (unchanged,
+# still pre-processing) source alongside the Arabic message explaining that
+# the work was queued rather than performed. Declaring that shape as a real
+# serializer -- rather than patching it into the generated contract
+# afterwards, as scripts/generate_api_contracts.py used to -- keeps
+# `manage.py spectacular --validate` able to catch drift between this
+# endpoint's code and its published schema.
+class SourceProcessingQueuedResponseSerializer(serializers.Serializer):
+    """Actual response returned by StudentSourceViewSet.process."""
+
+    message = serializers.CharField()
+    # Every DRF Serializer is itself a Field, and Field.source is a real
+    # (differently-typed) base attribute -- the DRF metaclass intercepts
+    # declared fields before that collision ever matters at runtime, but
+    # mypy still sees it as an incompatible override of the base attribute.
+    # Same treatment as AIJobCreateSerializer.source in apps/ai_integration.
+    source = StudentSourceDetailSerializer()  # type: ignore[assignment]
+
+
 class SourceCharacterResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     available = serializers.BooleanField(required=False)

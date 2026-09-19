@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-16T06:00:05+00:00",
-    "generated_from_backend_commit": "cad377d041aee8e50d9b8d1554869426455314ec",
+    "generated_at": "2026-09-19T15:49:05+00:00",
+    "generated_from_backend_commit": "03677e76f76f4fdac846b98bb46af7d77764a667",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -27400,12 +27400,6 @@
       "code": "openapi_source_character_response_omits_ai_job",
       "contract_treatment": "SourceCharacterResponse includes optional ai_job from concrete response-building code.",
       "evidence": "SourceCharacterResponseSerializer does not declare ai_job, while StudentSourceViewSet/CollectionViewSet _build_character_response adds AIJobSerializer(ai_job).data.",
-      "severity": "warning"
-    },
-    {
-      "code": "openapi_source_process_response_mismatch",
-      "contract_treatment": "The projection uses SourceProcessingQueuedResponse for the source process route.",
-      "evidence": "The process action returns {message, source} with 202, while its decorator declares StudentSourceDetailSerializer.",
       "severity": "warning"
     },
     {

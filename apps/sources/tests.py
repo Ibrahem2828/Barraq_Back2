@@ -266,6 +266,42 @@ class StudentSourceAPITestCase(APITestCase):
         self.assertEqual(source.status, StudentSource.Status.READY)
         self.assertTrue(source.extracted_text)
 
+    def test_process_returns_queued_envelope_not_a_bare_source(self):
+        """Contract guard for SourceProcessingQueuedResponseSerializer.
+
+        The action answers 202 with {message, source} -- not a bare
+        StudentSourceDetail. Clients typed against the bare serializer read
+        `undefined` for every field, so this shape is part of the published
+        contract and must not silently regress.
+        """
+        upload = self.upload_source()
+        source = StudentSource.objects.get(pk=upload.data['id'])
+
+        response = self.client.post(reverse('student-source-process', args=[source.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(set(response.data), {'message', 'source'})
+        self.assertTrue(response.data['message'])
+        self.assertEqual(response.data['source']['id'], source.id)
+        self.assertIn('status', response.data['source'])
+        self.assertIn('capabilities', response.data['source'])
+
+    def test_process_while_already_processing_uses_the_same_envelope(self):
+        upload = self.upload_source()
+        source = StudentSource.objects.get(pk=upload.data['id'])
+        StudentSource.objects.filter(pk=source.pk).update(
+            status=StudentSource.Status.PROCESSING
+        )
+
+        response = self.client.post(reverse('student-source-process', args=[source.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(set(response.data), {'message', 'source'})
+        self.assertEqual(response.data['source']['id'], source.id)
+        self.assertEqual(
+            response.data['source']['status'], StudentSource.Status.PROCESSING
+        )
+
     def test_source_capabilities(self):
         upload = self.upload_source()
 
