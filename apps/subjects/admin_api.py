@@ -1,12 +1,15 @@
 from rest_framework import filters, viewsets
 
 from apps.admin_dashboard.permissions import HasAdminPermission, IsAdminDashboardUser
+from apps.organizations import scope as scope_policy
 
 from .models import EducationStage, Subject
 from .serializers import EducationStageSerializer, SubjectSerializer
 
 
-class AdminEducationStageViewSet(viewsets.ModelViewSet):
+class AdminEducationStageViewSet(scope_policy.TenantScopedQuerysetMixin, viewsets.ModelViewSet):
+    # Platform curriculum, shared by every tenant.
+    tenant_user_field = None
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     serializer_class = EducationStageSerializer
     queryset = EducationStage.objects.all().order_by("order", "id")
@@ -27,7 +30,9 @@ class AdminEducationStageViewSet(viewsets.ModelViewSet):
         return mapping.get(self.action, "education_stages.view")
 
 
-class AdminSubjectViewSet(viewsets.ModelViewSet):
+class AdminSubjectViewSet(scope_policy.TenantScopedQuerysetMixin, viewsets.ModelViewSet):
+    # Platform curriculum, shared by every tenant.
+    tenant_user_field = None
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     serializer_class = SubjectSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]

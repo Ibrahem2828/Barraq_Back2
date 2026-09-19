@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.admin_dashboard.permissions import HasAdminPermission, IsAdminDashboardUser
+from apps.organizations import scope as scope_policy
 
 from .models import SupportMessage, SupportTicket
 
@@ -48,7 +49,8 @@ class AdminSupportMessageCreateSerializer(serializers.Serializer):
     is_internal = serializers.BooleanField(default=False)
 
 
-class AdminSupportTicketViewSet(viewsets.ModelViewSet):
+class AdminSupportTicketViewSet(scope_policy.TenantScopedQuerysetMixin, viewsets.ModelViewSet):
+    tenant_user_field = 'user_id'
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = "support.view"
     serializer_class = AdminSupportTicketSerializer

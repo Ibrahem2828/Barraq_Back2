@@ -13,19 +13,30 @@ the list looks correct, so nobody looks at the detail route.
 
 from __future__ import annotations
 
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
+from rest_framework.exceptions import NotFound
 
 from apps.admin_dashboard.services import get_user_admin_permissions, is_super_admin_user
 
 from .models import AdminRoleScope, Classroom
 
 
-class ScopeDenied(Exception):
-    """Raised when an object exists but lies outside the caller's scope."""
+class ScopeDenied(NotFound):
+    """Raised when an object exists but lies outside the caller's scope.
 
-    def __init__(self, code="scope_access_denied"):
+    A 404 rather than a 403, and deliberately: telling a manager that
+    organization 12 exists but is not theirs is itself the disclosure that
+    scoping exists to prevent. Subclassing DRF's NotFound means every caller
+    gets this -- including views outside this app -- instead of each viewset
+    remembering to translate a bare exception into the right status.
+    """
+
+    default_detail = "غير موجود."
+
+    def __init__(self, code="scope_access_denied", detail=None):
         self.domain_code = code
-        super().__init__(code)
+        super().__init__(detail)
 
 
 def _active_scope_rows(user):
@@ -257,7 +268,131 @@ def organization_for_write(user, organization, permission=None):
     return assert_organization_allowed(user, organization, permission)
 
 
+def scoped_user_ids(user, permission=None):
+    """Ids of the users this account may see, or None meaning "all".
+
+    Visibility follows membership. An account reaches a learner because
+    that learner belongs to an organization or class it was granted, never
+    because it knows their id.
+    """
+    organization_ids = accessible_organization_ids(user, permission)
+    if organization_ids is None:
+        return None
+    classroom_ids = accessible_classroom_ids(user, permission)
+    if not organization_ids and not classroom_ids:
+        return set()
+
+    from django.contrib.auth import get_user_model
+
+    return set(
+        get_user_model()
+        .objects.filter(
+            Q(
+                organization_memberships__organization_id__in=organization_ids,
+                organization_memberships__status="active",
+            )
+            | Q(
+                class_memberships__classroom_id__in=classroom_ids or [],
+                class_memberships__status="active",
+            )
+        )
+        .values_list("id", flat=True)
+    )
+
+
+def scope_by_user_field(user, queryset, permission=None, field="user_id"):
+    """Narrow any queryset whose rows belong to a learner.
+
+    Sources, plans, quizzes, attempts, interactions, tickets, subscriptions
+    and audit entries are all tenant data by virtue of whose they are. They
+    carry no organization column, so the tenant boundary reaches them
+    through their owner.
+    """
+    ids = scoped_user_ids(user, permission)
+    if ids is None:
+        return queryset
+    return queryset.filter(**{f"{field}__in": ids})
+
+
+def scope_admin_accounts(user, queryset, permission=None):
+    """Other admin accounts this account may see.
+
+    A scoped manager administers people inside their own tenant, so the
+    overlap is on scope rather than on membership: admins holding a grant
+    over an organization or class this caller also reaches, plus the caller
+    themselves -- never the platform's full staff directory.
+    """
+    organization_ids = accessible_organization_ids(user, permission)
+    if organization_ids is None:
+        return queryset
+    classroom_ids = accessible_classroom_ids(user, permission)
+    if not organization_ids and not classroom_ids:
+        return queryset.filter(pk=user.pk)
+    return queryset.filter(
+        Q(admin_user_roles__scopes__organization_id__in=organization_ids)
+        | Q(admin_user_roles__scopes__classroom_id__in=classroom_ids or [])
+        | Q(pk=user.pk)
+    ).distinct()
+
+
+class TenantScopedQuerysetMixin:
+    """Applies the tenant boundary to a DRF viewset at one point.
+
+    `filter_queryset` rather than `get_queryset`, because DRF routes both
+    list and `get_object` through it -- scoping only the list is how a
+    detail route keeps answering for ids it should never have seen.
+
+    `tenant_user_field` is mandatory. A new admin viewset that forgets it
+    fails loudly at request time instead of quietly serving every tenant,
+    which is the failure mode this whole module exists to prevent.
+    """
+
+    _UNSET = "__tenant_user_field_not_declared__"
+
+    #: For viewsets that apply the boundary themselves, by organization or
+    #: class, rather than through a row's owner -- the organization
+    #: endpoints. Distinct from None so "scoped elsewhere" can never be read
+    #: as "not tenant data".
+    SCOPED_BY_ORGANIZATION = "__scoped_by_organization__"
+
+    #: Column linking a row to its owning learner, "admins" for the staff
+    #: directory, SCOPED_BY_ORGANIZATION, or None for a genuine platform
+    #: catalogue (roles, permissions, plans, curriculum).
+    tenant_user_field: str | None = _UNSET
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        field = getattr(self, "tenant_user_field", self._UNSET)
+        if field == self._UNSET:
+            raise ImproperlyConfigured(
+                f"{type(self).__name__} must declare tenant_user_field "
+                "(a column name, 'admins', or None for platform catalogues)."
+            )
+        if field is None or field == self.SCOPED_BY_ORGANIZATION:
+            return queryset
+        permission = self.get_required_permission() if hasattr(self, "get_required_permission") else None
+        if field == "admins":
+            return scope_admin_accounts(self.request.user, queryset, permission)
+        return scope_by_user_field(self.request.user, queryset, permission, field)
+
+
+def assert_global_scope(user):
+    """Guard for platform-wide aggregates.
+
+    A scoped manager must never receive a platform total: a count leaks the
+    shape of every other tenant as surely as a list leaks their rows. Scoped
+    accounts read their own numbers from the organization overview instead.
+    """
+    if not has_global_scope(user):
+        raise ScopeDenied("global_scope_required")
+
+
 __all__ = [
+    "scoped_user_ids",
+    "scope_by_user_field",
+    "scope_admin_accounts",
+    "assert_global_scope",
+    "TenantScopedQuerysetMixin",
     "ScopeDenied",
     "accessible_classroom_ids",
     "accessible_organization_ids",

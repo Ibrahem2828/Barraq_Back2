@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from apps.ai_integration.models import AIFeedback, AIJob
 from apps.common.health import cache_status, database_status, storage_status
 from apps.notifications.models import Notification
+from apps.organizations import scope as scope_policy
 from apps.quizzes.models import Quiz, QuizAttempt
 from apps.sources.models import (
     StudentSource,
@@ -76,7 +77,7 @@ User = get_user_model()
 # `# type: ignore[misc]` on its class line: mypy's cross-base override
 # check treats the mixin and the DRF base as unrelated, even though the
 # annotated types above are compatible. Standard DRF composition pattern.
-class AdminPermissionMixin:
+class AdminPermissionMixin(scope_policy.TenantScopedQuerysetMixin):
     permission_classes: Sequence[type[BasePermission]] = [IsAdminDashboardUser, HasAdminPermission]
     permission_map: dict[str, str] = {}
     required_permission: str | None = None
@@ -121,6 +122,11 @@ class AdminOverviewView(APIView):
 
     @extend_schema(responses=AdminOverviewSerializer)
     def get(self, request):
+        # Platform totals, not tenant totals. A scoped manager reads their
+        # own numbers from /admin/organizations/<id>/overview/ instead: a
+        # count describes the shape of every tenant it covers, so handing a
+        # global one to a scoped account leaks exactly what scoping hides.
+        scope_policy.assert_global_scope(request.user)
         today = timezone.localdate()
         week_start = today - timezone.timedelta(days=today.weekday())
         payload = {
@@ -179,6 +185,9 @@ class AdminAIUsageView(APIView):
 
     @extend_schema(responses=AdminAIUsageSerializer)
     def get(self, request):
+        # Same reasoning as the overview: platform-wide AI usage is not a
+        # scoped account's to read.
+        scope_policy.assert_global_scope(request.user)
         try:
             range_days = int(request.query_params.get('days', 30))
         except (TypeError, ValueError):
@@ -264,6 +273,8 @@ class AdminPermissionViewSet(  # type: ignore[misc]
     mixins.ListModelMixin,
     viewsets.GenericViewSet,
 ):
+    # Platform catalogue: a permission code names an action, never a tenant.
+    tenant_user_field = None
     serializer_class = AdminPermissionSerializer
     required_permission = 'roles.view'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -281,6 +292,8 @@ class AdminPermissionViewSet(  # type: ignore[misc]
 
 @extend_schema(tags=['Admin Roles'])
 class AdminRoleViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ignore[misc]
+    # Platform catalogue: a role definition is not tenant data.
+    tenant_user_field = None
     serializer_class = AdminRoleSerializer
     permission_map = {
         'list': 'roles.view',
@@ -316,6 +329,8 @@ class AdminRoleViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
 
 @extend_schema(tags=['Admin Users'])
 class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ignore[misc]
+    # Staff directory, narrowed to admins whose scope overlaps the caller's.
+    tenant_user_field = 'admins'
     permission_map = {
         'list': 'admins.view',
         'retrieve': 'admins.view',
@@ -420,6 +435,8 @@ class ManagedUserViewSet(  # type: ignore[misc]
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
+    # Rows are the learners themselves, so the boundary is the pk.
+    tenant_user_field = 'id'
     serializer_class = ManagedUserSerializer
     permission_map = {
         'list': 'users.view',
@@ -521,6 +538,7 @@ class AdminReadOnlyViewSet(AdminPermissionMixin, viewsets.ReadOnlyModelViewSet):
 
 @extend_schema(tags=['Admin Sources'])
 class AdminSourceCollectionViewSet(AdminReadOnlyViewSet):
+    tenant_user_field = 'user_id'
     serializer_class = AdminStudentSourceCollectionSerializer
     required_permission = 'collections.view'
     search_fields = ['name', 'description', 'user__email', 'user__full_name']
@@ -545,6 +563,7 @@ class AdminSourceCollectionViewSet(AdminReadOnlyViewSet):
 
 @extend_schema(tags=['Admin Sources'])
 class AdminSourceViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ignore[misc]
+    tenant_user_field = 'user_id'
     serializer_class = AdminStudentSourceSerializer
     permission_map = {'list': 'sources.view', 'retrieve': 'sources.view', 'destroy': 'sources.delete'}
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -576,6 +595,7 @@ class AdminSourceViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: 
 
 @extend_schema(tags=['Admin Study'])
 class AdminStudyPlanViewSet(AdminReadOnlyViewSet):
+    tenant_user_field = 'user_id'
     serializer_class = AdminStudyPlanSerializer
     required_permission = 'study_plans.view'
     search_fields = ['title', 'description', 'goal', 'user__email', 'user__full_name']
@@ -596,6 +616,7 @@ class AdminStudyPlanViewSet(AdminReadOnlyViewSet):
 
 @extend_schema(tags=['Admin Quizzes'])
 class AdminQuizViewSet(AdminReadOnlyViewSet):
+    tenant_user_field = 'user_id'
     serializer_class = AdminQuizSerializer
     required_permission = 'quizzes.view'
     search_fields = ['title', 'description', 'topic', 'user__email', 'user__full_name']
@@ -616,6 +637,7 @@ class AdminQuizViewSet(AdminReadOnlyViewSet):
 
 @extend_schema(tags=['Admin Quizzes'])
 class AdminQuizAttemptViewSet(AdminReadOnlyViewSet):
+    tenant_user_field = 'user_id'
     serializer_class = AdminQuizAttemptSerializer
     required_permission = 'quiz_attempts.view'
     search_fields = ['quiz__title', 'user__email', 'user__full_name']
@@ -636,6 +658,7 @@ class AdminQuizAttemptViewSet(AdminReadOnlyViewSet):
 
 @extend_schema(tags=['Admin Characters'])
 class AdminCharacterInteractionViewSet(AdminReadOnlyViewSet):
+    tenant_user_field = 'user_id'
     serializer_class = AdminCharacterInteractionSerializer
     required_permission = 'character_interactions.view'
     search_fields = ['message', 'user__email', 'user__full_name']
@@ -656,6 +679,8 @@ class AdminCharacterInteractionViewSet(AdminReadOnlyViewSet):
 
 @extend_schema(tags=['Admin Audit'])
 class AuditLogViewSet(AdminReadOnlyViewSet):
+    # An audit entry belongs to the tenant of whoever performed it.
+    tenant_user_field = 'actor_id'
     serializer_class = AuditLogSerializer
     required_permission = 'audit_logs.view'
     search_fields = ['action', 'target_type', 'target_id', 'actor__email', 'actor__full_name']

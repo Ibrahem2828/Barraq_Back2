@@ -4,13 +4,20 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.admin_dashboard.permissions import HasAdminPermission, IsAdminDashboardUser
+from apps.organizations import scope as scope_policy
 
 from .models import AIFeedback, AIJob, AIWebhookEvent
 from .serializers import AIFeedbackSerializer, AIJobSerializer
 from .services import cancel_job
 
 
-class AdminAIJobViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class AdminAIJobViewSet(
+    scope_policy.TenantScopedQuerysetMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    tenant_user_field = "user_id"
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = "ai_jobs.view"
     serializer_class = AIJobSerializer
@@ -40,10 +47,15 @@ class AdminAIJobViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
 
     @action(detail=False, methods=["get"], url_path="metrics")
     def metrics(self, request):
-        queryset = self.get_queryset()
+        # filter_queryset, not get_queryset: an aggregate computed before the
+        # tenant boundary reports every tenant's jobs as though they were
+        # the caller's.
+        queryset = self.filter_queryset(self.get_queryset())
         by_status = list(queryset.values("status").annotate(count=Count("id")).order_by("status"))
         by_character = list(queryset.values("character").annotate(count=Count("id")).order_by("character"))
-        feedback = AIFeedback.objects.aggregate(count=Count("id"), average_rating=Avg("rating"))
+        feedback = scope_policy.scope_by_user_field(
+            request.user, AIFeedback.objects.all(), self.get_required_permission()
+        ).aggregate(count=Count("id"), average_rating=Avg("rating"))
         return Response(
             {
                 "total": queryset.count(),
@@ -55,7 +67,13 @@ class AdminAIJobViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         )
 
 
-class AdminAIFeedbackViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class AdminAIFeedbackViewSet(
+    scope_policy.TenantScopedQuerysetMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    tenant_user_field = "user_id"
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = "ai_feedback.view"
     serializer_class = AIFeedbackSerializer
@@ -92,7 +110,16 @@ class AIWebhookEventSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class AdminAIWebhookEventViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+# A webhook event is infrastructure telemetry from the AI service, not a
+# learner's row, and reading it needs ai_webhooks.view -- a permission no
+# scoped role is seeded with.
+class AdminAIWebhookEventViewSet(
+    scope_policy.TenantScopedQuerysetMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    tenant_user_field = None
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = "system.view"
     serializer_class = AIWebhookEventSerializer

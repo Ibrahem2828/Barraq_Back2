@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.admin_dashboard.permissions import HasAdminPermission, IsAdminDashboardUser
 from apps.admin_dashboard.services import log_admin_action
+from apps.organizations import scope as scope_policy
 
 from .models import SubscriptionPlan, SubscriptionUsage, UserSubscription
 from .serializers import (
@@ -51,7 +52,7 @@ class PublicSubscriptionPlanViewSet(viewsets.ReadOnlyModelViewSet):
 # `# type: ignore[misc]` on its class line: mypy's cross-base override
 # check treats the mixin and the DRF base as unrelated, even though the
 # annotated types above are compatible. Standard DRF composition pattern.
-class AdminSubscriptionPermissionMixin:
+class AdminSubscriptionPermissionMixin(scope_policy.TenantScopedQuerysetMixin):
     permission_classes: Sequence[type[BasePermission]] = [IsAdminDashboardUser, HasAdminPermission]
     permission_map: dict[str, str] = {}
     required_permission: str | None = None
@@ -62,6 +63,8 @@ class AdminSubscriptionPermissionMixin:
 
 @extend_schema(tags=['Admin Subscriptions'])
 class AdminSubscriptionPlanViewSet(AdminSubscriptionPermissionMixin, viewsets.ModelViewSet):  # type: ignore[misc]
+    # Platform catalogue: plans are offered to everyone.
+    tenant_user_field = None
     serializer_class = SubscriptionPlanSerializer
     permission_map = {
         'list': 'subscription_plans.view',
@@ -112,6 +115,7 @@ class AdminSubscriptionPlanViewSet(AdminSubscriptionPermissionMixin, viewsets.Mo
 
 @extend_schema(tags=['Admin Subscriptions'])
 class AdminUserSubscriptionViewSet(AdminSubscriptionPermissionMixin, viewsets.ModelViewSet):  # type: ignore[misc]
+    tenant_user_field = 'user_id'
     serializer_class = UserSubscriptionSerializer
     permission_map = {
         'list': 'subscriptions.view',
@@ -166,6 +170,7 @@ class AdminUserSubscriptionViewSet(AdminSubscriptionPermissionMixin, viewsets.Mo
 
 @extend_schema(tags=['Admin Subscriptions'])
 class AdminSubscriptionUsageViewSet(AdminSubscriptionPermissionMixin, viewsets.ReadOnlyModelViewSet):  # type: ignore[misc]
+    tenant_user_field = 'user_id'
     serializer_class = SubscriptionUsageSerializer
     required_permission = 'subscriptions.view'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]

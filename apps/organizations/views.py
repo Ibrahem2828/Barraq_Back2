@@ -43,7 +43,7 @@ from .serializers import (
 )
 
 
-class ScopedAdminViewSet(viewsets.ModelViewSet):
+class ScopedAdminViewSet(scope_policy.TenantScopedQuerysetMixin, viewsets.ModelViewSet):
     """Base for every organization-scoped admin resource.
 
     Scope is applied in `get_queryset`, so list, retrieve, update, destroy and
@@ -52,6 +52,9 @@ class ScopedAdminViewSet(viewsets.ModelViewSet):
     someone tries a neighbour's id, which is to say, in production.
     """
 
+    # These resources carry the organization themselves, so the boundary is
+    # applied in get_queryset rather than through a row's owner.
+    tenant_user_field = scope_policy.TenantScopedQuerysetMixin.SCOPED_BY_ORGANIZATION
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     permission_map: dict[str, str] = {}
     required_permission: str | None = None
@@ -59,21 +62,6 @@ class ScopedAdminViewSet(viewsets.ModelViewSet):
 
     def get_required_permission(self):
         return self.permission_map.get(getattr(self, "action", None), self.required_permission)
-
-    def handle_exception(self, exc):
-        if isinstance(exc, scope_policy.ScopeDenied):
-            # A non-enumerating 404: telling a manager that organization 12
-            # exists but is not theirs is itself a disclosure.
-            return Response(
-                {
-                    "success": False,
-                    "message": "غير موجود.",
-                    "code": exc.domain_code,
-                    "errors": {},
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return super().handle_exception(exc)
 
 
 @extend_schema(tags=["Organizations"])

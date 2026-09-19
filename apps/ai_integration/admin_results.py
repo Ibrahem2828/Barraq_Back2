@@ -9,6 +9,7 @@ from apps.analytics.models import StudentRecommendation
 from apps.analytics.serializers import StudentRecommendationSerializer
 from apps.audio.models import Transcription
 from apps.audio.serializers import TranscriptionSerializer
+from apps.organizations import scope as scope_policy
 from apps.summaries.models import Summary
 from apps.summaries.serializers import SummarySerializer
 
@@ -19,7 +20,10 @@ from apps.summaries.serializers import SummarySerializer
 # unrelated (the mixin itself doesn't inherit APIView), so it flags the
 # override even though the annotated types below are actually compatible.
 # This is a standard Django/DRF composition pattern, not a real conflict.
-class AdminAIResultMixin:
+class AdminAIResultMixin(scope_policy.TenantScopedQuerysetMixin):
+    # Every AI result is derived from one learner's material and carries
+    # their id, so the tenant boundary reaches it through its owner.
+    tenant_user_field = "user_id"
     permission_classes: Sequence[type[BasePermission]] = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = "ai_jobs.view"
     filter_backends: Sequence[type[BaseFilterBackend]] = [filters.SearchFilter, filters.OrderingFilter]

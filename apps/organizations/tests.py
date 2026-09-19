@@ -23,8 +23,10 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.admin_dashboard.models import AdminRole
+from apps.admin_dashboard.models import AdminPermission, AdminRole, AuditLog
 from apps.admin_dashboard.services import assign_roles_to_user, seed_default_rbac
+from apps.subscriptions.models import UserSubscription
+from apps.support.models import SupportTicket
 
 from .models import (
     JOIN_CODE_ALPHABET,
@@ -38,6 +40,7 @@ from .models import (
     Organization,
     OrganizationMembership,
 )
+from .scope import TenantScopedQuerysetMixin
 from .services import (
     OrganizationError,
     approve_join_request,
@@ -828,3 +831,230 @@ class InvitationSecurityTestCase(APITestCase):
         membership.refresh_from_db()
         self.assertEqual(membership.status, OrganizationMembership.Status.ACTIVE)
         self.assertTrue(Classroom.objects.filter(pk=self.classroom.pk).exists())
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+class AdminSurfaceScopingTestCase(APITestCase):
+    """The surfaces that existed before organizations did.
+
+    Sources, plans, quizzes, tickets, subscriptions, AI results and audit
+    entries carry no organization column -- they are tenant data by virtue
+    of whose they are. Scoping the new organization endpoints while leaving
+    these global would have been theatre: a manager who cannot list another
+    school's classes but can list its learners' support tickets is not
+    isolated.
+    """
+
+    def setUp(self):
+        cache.clear()
+        _, self.roles = seed_default_rbac()
+        self.super_admin = User.objects.create_user(
+            email="root3@example.com",
+            password="StrongPass123",
+            full_name="Root",
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        self.org_a = Organization.objects.create(name="School A")
+        self.org_b = Organization.objects.create(name="School B")
+        self.class_a = Classroom.objects.create(organization=self.org_a, name="10-A")
+        self.class_b = Classroom.objects.create(organization=self.org_b, name="10-B")
+
+        self.learner_a = self._member("learner-a@example.com", self.org_a, self.class_a)
+        self.learner_b = self._member("learner-b@example.com", self.org_b, self.class_b)
+
+        # A role holding every read permission, so what follows can only be
+        # explained by scope. Proving this with a role that lacks the
+        # permission would say nothing about the tenant boundary.
+        self.wide_role = AdminRole.objects.create(code="wide_reader", name="Wide reader")
+        self.wide_role.permissions.set(
+            AdminPermission.objects.filter(
+                code__in=[
+                    "dashboard.view",
+                    "users.view",
+                    "admins.view",
+                    "sources.view",
+                    "study_plans.view",
+                    "quizzes.view",
+                    "analytics.view",
+                    "support.view",
+                    "audit_logs.view",
+                    "subscriptions.view",
+                    "roles.view",
+                    "subjects.view",
+                    "ai_jobs.view",
+                ]
+            )
+        )
+        self.manager_a = self._scoped("mgr-wide-a@example.com", self.org_a)
+        self.manager_b = self._scoped("mgr-wide-b@example.com", self.org_b)
+
+        self.ticket_a = SupportTicket.objects.create(user=self.learner_a, subject="A cannot log in")
+        self.ticket_b = SupportTicket.objects.create(user=self.learner_b, subject="B cannot log in")
+        # Every account already has exactly one subscription, created with it.
+        self.sub_a = UserSubscription.objects.get(user=self.learner_a)
+        self.sub_b = UserSubscription.objects.get(user=self.learner_b)
+        AuditLog.objects.create(actor=self.learner_a, action="a.did.something")
+        AuditLog.objects.create(actor=self.learner_b, action="b.did.something")
+
+    def _member(self, email, organization, classroom):
+        user = User.objects.create_user(email=email, password="StrongPass123", full_name=email.split("@")[0])
+        OrganizationMembership.objects.create(organization=organization, user=user, joined_at=timezone.now())
+        ClassMembership.objects.create(classroom=classroom, user=user, joined_at=timezone.now())
+        return user
+
+    def _scoped(self, email, organization):
+        user = User.objects.create_user(email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN)
+        assign_roles_to_user(
+            user,
+            [self.wide_role],
+            scopes=[
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": organization,
+                }
+            ],
+        )
+        return user
+
+    def _as(self, user):
+        self.client.force_authenticate(user)
+
+    # -- learner-owned surfaces -------------------------------------------
+    def test_the_learner_directory_is_scoped(self):
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-managed-user-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        emails = {row["email"] for row in response.data["results"]}
+        self.assertIn(self.learner_a.email, emails)
+        self.assertNotIn(self.learner_b.email, emails)
+
+    def test_support_tickets_are_scoped_in_both_directions(self):
+        for manager, mine, theirs in (
+            (self.manager_a, self.ticket_a, self.ticket_b),
+            (self.manager_b, self.ticket_b, self.ticket_a),
+        ):
+            with self.subTest(manager=manager.email):
+                self._as(manager)
+                response = self.client.get(reverse("admin-support-ticket-list"))
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                ids = {row["id"] for row in response.data["results"]}
+                self.assertIn(mine.id, ids)
+                self.assertNotIn(theirs.id, ids)
+
+    def test_a_ticket_in_another_tenant_is_not_reachable_by_direct_id(self):
+        """The detail route, not the list: scoping one and not the other is
+        the most common way this boundary is actually crossed."""
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-support-ticket-detail", args=[self.ticket_b.id]))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_subscriptions_are_scoped(self):
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-user-subscription-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = {row["id"] for row in response.data["results"]}
+        self.assertIn(self.sub_a.id, ids)
+        self.assertNotIn(self.sub_b.id, ids)
+
+    def test_audit_entries_are_scoped_to_their_actor(self):
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-audit-log-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        actions = {row["action"] for row in response.data["results"]}
+        self.assertIn("a.did.something", actions)
+        self.assertNotIn("b.did.something", actions)
+
+    # -- aggregates --------------------------------------------------------
+    def test_platform_totals_are_refused_to_a_scoped_account(self):
+        """A count describes the shape of every tenant it covers."""
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-overview"))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["code"], "global_scope_required")
+
+    def test_platform_ai_usage_is_refused_to_a_scoped_account(self):
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-ai-usage"))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_the_super_admin_still_sees_platform_totals(self):
+        self._as(self.super_admin)
+        response = self.client.get(reverse("admin-overview"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(response.data["users_count"], 5)
+
+    # -- what scope must NOT hide -----------------------------------------
+    def test_the_super_admin_still_sees_every_tenant(self):
+        self._as(self.super_admin)
+        emails = {row["email"] for row in self.client.get(reverse("admin-managed-user-list")).data["results"]}
+        self.assertIn(self.learner_a.email, emails)
+        self.assertIn(self.learner_b.email, emails)
+
+    def test_platform_catalogues_stay_visible_to_a_scoped_account(self):
+        """Scope answers "whose data", and a role definition is nobody's.
+
+        Hiding the catalogue would break the dashboard without protecting
+        anything -- there is no tenant inside a permission code.
+        """
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-role-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(len(response.data["results"]), 0)
+
+    def test_a_manager_sees_their_own_account_but_not_the_other_tenants_staff(self):
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-user-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        emails = {row["email"] for row in response.data["results"]}
+        self.assertIn(self.manager_a.email, emails)
+        self.assertNotIn(self.manager_b.email, emails)
+        self.assertNotIn(self.super_admin.email, emails)
+
+    # -- the structural guarantee ------------------------------------------
+    def test_every_admin_viewset_declares_its_tenancy(self):
+        """The rule that keeps this true after today.
+
+        The next admin endpoint will be added by someone who is not thinking
+        about tenancy. Walking the URL conf and refusing an undeclared
+        viewset turns "remember to scope it" into something the suite
+        enforces, which is the only version of that instruction that
+        survives contact with a deadline.
+        """
+        unset = TenantScopedQuerysetMixin._UNSET
+        undeclared = []
+        for cls in _admin_view_classes():
+            if not issubclass(cls, TenantScopedQuerysetMixin):
+                undeclared.append(cls.__name__ + " (not scoped at all)")
+            elif getattr(cls, "tenant_user_field", unset) == unset:
+                undeclared.append(cls.__name__ + " (no tenant_user_field)")
+        self.assertEqual(undeclared, [], "admin viewsets missing a tenancy declaration")
+
+
+def _admin_view_classes():
+    """Every admin viewset reachable through the URL conf."""
+    from django.urls import get_resolver
+
+    from apps.admin_dashboard.permissions import IsAdminDashboardUser
+
+    seen = {}
+
+    def walk(resolver):
+        for entry in resolver.url_patterns:
+            if hasattr(entry, "url_patterns"):
+                walk(entry)
+                continue
+            cls = getattr(entry.callback, "cls", None) or getattr(entry.callback, "view_class", None)
+            if cls is None:
+                continue
+            if not hasattr(cls, "queryset") and not hasattr(cls, "get_queryset"):
+                continue
+            if IsAdminDashboardUser in tuple(getattr(cls, "permission_classes", ())):
+                seen[cls.__name__] = cls
+
+    walk(get_resolver())
+    return list(seen.values())
