@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
@@ -272,22 +274,53 @@ def materialize_sada(job, data):
 def _create_derived_text_source(job, transcription, cleaned_text):
     """Sada's whole point in the Learning Loop is that its output becomes a
     normal text Source Kholasa/Fahes can select (spec sections 06/19/42).
+
+    The derived row must be a *complete* source, not a UI-visible record. It
+    previously carried ``extracted_text`` with no ``file``, so the first
+    downstream job died in ``content_sha256`` -- which raises Http404 on a
+    source without a file -- before it ever reached the AI service. The outbox
+    then retried the dispatch to exhaustion and the learner was finally told
+    "provider unavailable", which was not remotely what happened. Every other
+    source in the system is bytes plus a content hash, and this one is now the
+    same: one source contract, no special read path.
+
     Reuses the generic ``metadata`` JSONField already on StudentSource for
-    traceability instead of adding a new column."""
+    traceability instead of adding a new column.
+    """
 
     text = cleaned_text.strip()
     if not text:
         return None
+
+    # Idempotency. complete_job() already returns early for a job that is
+    # COMPLETED, and the webhook layer dedupes on event_id, but a derived
+    # source is user-visible library content: a second one would be a
+    # duplicate the learner has to clean up. Keyed on the job so a replay
+    # through any path resolves to the same row.
+    existing = StudentSource.objects.filter(
+        user=job.user, metadata__ai_job_id=str(job.public_id), metadata__derived_from="sada"
+    ).first()
+    if existing is not None:
+        return str(existing.id)
+
     title = f"{transcription.title} (تفريغ منظف)"[:255]
-    derived = StudentSource.objects.create(
+    # Deterministic bytes: the same transcript always produces the same file
+    # and therefore the same content hash, so the AI service's ingestion cache
+    # keys on it exactly as it would for an uploaded file.
+    payload = text.encode("utf-8")
+    filename = f"sada-{job.public_id}.txt"
+    derived = StudentSource(
         user=job.user,
         project=job.project,
         subject=job.subject or getattr(job.source, "subject", None),
+        # Inherit the audio source's folder so the transcript lands beside the
+        # recording it came from rather than loose in the library root.
+        collection=getattr(job.source, "collection", None),
         title=title,
         description="مصدر نصي مشتق تلقائيًا من تفريغ صدى.",
         source_type=StudentSource.SourceType.TEXT,
-        original_filename=f"sada-{job.public_id}.txt",
-        file_size=len(text.encode("utf-8")),
+        original_filename=filename,
+        file_size=len(payload),
         mime_type="text/plain",
         extension="txt",
         status=StudentSource.Status.READY,
@@ -296,8 +329,17 @@ def _create_derived_text_source(job, transcription, cleaned_text):
             "derived_from": "sada",
             "ai_job_id": str(job.public_id),
             "transcription_id": transcription.id,
+            # Storage accounting still counts this row, same as before: the
+            # aggregate in subscriptions.services sums file_size across every
+            # StudentSource. Whether a system-generated artifact should be
+            # billed alongside the audio it came from is a product decision,
+            # not a bug, so behaviour is unchanged -- this flag is what a
+            # later policy would filter on.
+            "generated_artifact": True,
+            "sha256": hashlib.sha256(payload).hexdigest(),
         },
     )
+    derived.file.save(filename, ContentFile(payload), save=True)
     return str(derived.id)
 
 

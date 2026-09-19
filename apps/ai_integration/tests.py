@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import time
@@ -15,9 +16,11 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
+from apps.audio.models import Transcription
 from apps.projects.models import Project
 from apps.quizzes.models import Quiz
-from apps.sources.models import StudentSource
+from apps.sources.capabilities import get_source_character_capabilities
+from apps.sources.models import StudentSource, StudentSourceCollection
 from apps.subjects.models import EducationStage, Subject
 from apps.subscriptions.models import UsageLedgerEntry
 from apps.subscriptions.services import (
@@ -28,9 +31,16 @@ from apps.subscriptions.services import (
 
 from .client import AIServiceClient, AIServiceError
 from .error_codes import ErrorCode
+from .materializers import _create_derived_text_source, materialize_job
 from .models import AIJob, AIWebhookEvent
 from .security import InternalAuthenticationError, make_service_signature, verify_internal_request
-from .services import build_khota_job_input, build_service_payload, complete_job, update_job_progress
+from .services import (
+    build_khota_job_input,
+    build_service_payload,
+    complete_job,
+    content_sha256,
+    update_job_progress,
+)
 
 User = get_user_model()
 
@@ -693,3 +703,189 @@ class HMACV2InboundVerificationTests(SimpleTestCase):
         with self.assertRaises(InternalAuthenticationError) as ctx:
             verify_internal_request(request_two)
         self.assertEqual(ctx.exception.code, 'replay_detected')
+
+
+class SadaDerivedSourceTests(APITestCase):
+    """The Sada learning loop: audio -> transcript -> a source Fahes and
+    Kholasa can actually select.
+
+    The derived source used to be created with `extracted_text` but no
+    `file`. Every other source in the system is bytes plus a content hash,
+    and `content_sha256` raises Http404 on a source without a file -- so the
+    first downstream job died at dispatch, the outbox retried it to
+    exhaustion, and the learner was told "provider unavailable" for something
+    no provider was ever asked about.
+    """
+
+    def setUp(self):
+        self.media_override = override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        self.media_override.enable()
+        self.user = User.objects.create_user(
+            email='sada@example.com', password='StrongPass123!', full_name='Sada User'
+        )
+        stage = EducationStage.objects.create(name='Secondary', order=1)
+        self.subject = Subject.objects.create(
+            name='History', education_stage=stage, grade_level='12'
+        )
+        self.project = Project.objects.create(owner=self.user, title='History Project')
+        self.collection = StudentSourceCollection.objects.create(
+            user=self.user, project=self.project, name='Lectures'
+        )
+        self.audio = StudentSource.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            collection=self.collection,
+            title='Lecture recording',
+            source_type=StudentSource.SourceType.AUDIO,
+            file=SimpleUploadedFile(
+                'lecture.mp3', b'ID3' + b'\x00' * 40, content_type='audio/mpeg'
+            ),
+            original_filename='lecture.mp3',
+            file_size=43,
+            mime_type='audio/mpeg',
+            extension='mp3',
+            status=StudentSource.Status.UPLOADED,
+        )
+        self.job = AIJob.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            character=AIJob.Character.SADA,
+            task_type=AIJob.TaskType.SADA_TRANSCRIBE_AUDIO,
+            source=self.audio,
+            idempotency_key='sada-derived-source-test',
+            status=AIJob.Status.PROCESSING,
+        )
+        self.transcript = 'بروتوكول زفير-913 يستخدم سبع مراحل تحقق.'
+        self.result = {
+            'full_transcript': self.transcript,
+            'cleaned_transcript': self.transcript,
+            'language': 'ar',
+            'duration_seconds': 42,
+        }
+
+    def tearDown(self):
+        cache.clear()
+        self.media_override.disable()
+
+    def _materialize(self, data=None):
+        payload = dict(data if data is not None else self.result)
+        return materialize_job(self.job, payload)
+
+    def test_the_derived_source_is_a_complete_source_with_real_bytes(self):
+        self._materialize()
+
+        derived = StudentSource.objects.get(metadata__derived_from='sada')
+        self.assertTrue(derived.file, 'the derived source has no file')
+        with derived.file.open('rb') as handle:
+            stored = handle.read()
+        self.assertEqual(stored.decode('utf-8'), self.transcript)
+        self.assertEqual(derived.file_size, len(self.transcript.encode('utf-8')))
+        self.assertEqual(derived.mime_type, 'text/plain')
+        self.assertEqual(derived.source_type, StudentSource.SourceType.TEXT)
+        self.assertEqual(derived.status, StudentSource.Status.READY)
+
+    def test_the_content_hash_resolves_through_the_canonical_mechanism(self):
+        """This is the exact call that used to raise Http404 at dispatch."""
+        self._materialize()
+        derived = StudentSource.objects.get(metadata__derived_from='sada')
+
+        checksum = content_sha256(derived)
+
+        self.assertEqual(len(checksum), 64)
+        self.assertEqual(
+            checksum, hashlib.sha256(self.transcript.encode('utf-8')).hexdigest()
+        )
+
+    def test_the_derived_source_dispatches_without_raising(self):
+        """The end of the loop: a downstream character job can be built."""
+        self._materialize()
+        derived = StudentSource.objects.get(metadata__derived_from='sada')
+
+        downstream = AIJob.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            character=AIJob.Character.KHOLASA,
+            task_type=AIJob.TaskType.KHOLASA_GENERATE_SUMMARY,
+            source=derived,
+            idempotency_key='downstream-kholasa',
+            status=AIJob.Status.QUEUED,
+        )
+
+        payload = build_service_payload(downstream)
+
+        self.assertEqual(payload['source_ids'], [str(derived.id)])
+        self.assertIn(str(derived.id), payload['source_versions'])
+        self.assertEqual(len(payload['source_versions'][str(derived.id)]), 64)
+
+    def test_ownership_project_and_folder_are_preserved(self):
+        self._materialize()
+        derived = StudentSource.objects.get(metadata__derived_from='sada')
+
+        self.assertEqual(derived.user_id, self.user.id)
+        self.assertEqual(derived.project_id, self.project.id)
+        self.assertEqual(derived.subject_id, self.subject.id)
+        # Lands beside the recording it came from, not loose in the library.
+        self.assertEqual(derived.collection_id, self.collection.id)
+
+    def test_a_replayed_callback_does_not_create_a_second_transcript(self):
+        """A duplicate callback must not leave the learner two copies.
+
+        Exercised through complete_job, which is how a replay actually
+        arrives. Three guards stand in the way and this pins all of them:
+        complete_job returns early for an already-COMPLETED job, Transcription
+        has a unique constraint on ai_job, and the derived source is looked up
+        by job before being created.
+        """
+        self.job.status = AIJob.Status.PROCESSING
+        self.job.save(update_fields=['status'])
+
+        complete_job(self.job, dict(self.result))
+        complete_job(self.job, dict(self.result))
+
+        self.assertEqual(
+            StudentSource.objects.filter(metadata__derived_from='sada').count(), 1
+        )
+        self.assertEqual(Transcription.objects.filter(ai_job=self.job).count(), 1)
+
+    def test_the_derived_source_lookup_is_itself_idempotent(self):
+        """The guard inside the materializer, independent of the outer ones:
+        a second attempt resolves to the existing row rather than adding one."""
+        self._materialize()
+        transcription = Transcription.objects.get(ai_job=self.job)
+
+        first = StudentSource.objects.get(metadata__derived_from='sada')
+        again = _create_derived_text_source(self.job, transcription, self.transcript)
+
+        self.assertEqual(again, str(first.id))
+        self.assertEqual(
+            StudentSource.objects.filter(metadata__derived_from='sada').count(), 1
+        )
+
+    def test_an_empty_transcript_creates_no_source(self):
+        with self.assertRaises(ValidationError):
+            self._materialize({**self.result, 'full_transcript': '   '})
+        self.assertFalse(
+            StudentSource.objects.filter(metadata__derived_from='sada').exists()
+        )
+
+    def test_the_derived_source_is_marked_as_a_generated_artifact(self):
+        """Storage accounting is unchanged -- the aggregate still counts this
+        row -- but the flag is what a later billing policy would filter on."""
+        self._materialize()
+        derived = StudentSource.objects.get(metadata__derived_from='sada')
+
+        self.assertIs(derived.metadata['generated_artifact'], True)
+        self.assertEqual(derived.metadata['ai_job_id'], str(self.job.public_id))
+
+    def test_the_derived_source_is_offered_to_the_text_characters(self):
+        self._materialize()
+        derived = StudentSource.objects.get(metadata__derived_from='sada')
+
+        capabilities = get_source_character_capabilities(derived)
+
+        self.assertTrue(capabilities['kholasa']['available'])
+        self.assertTrue(capabilities['fahes']['available'])
+        self.assertFalse(capabilities['sada']['available'])
