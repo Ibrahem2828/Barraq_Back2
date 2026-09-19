@@ -318,6 +318,23 @@ SPECTACULAR_SETTINGS = {
         "SupportTicketCategoryEnum": "apps.support.models.SupportTicket.Category",
         "SupportTicketPriorityEnum": "apps.support.models.SupportTicket.Priority",
         "SupportTicketStatusEnum": "apps.support.models.SupportTicket.Status",
+        "OrganizationTypeEnum": "apps.organizations.models.Organization.Type",
+        "OrganizationStatusEnum": "apps.organizations.models.Organization.Status",
+        "OrganizationMembershipTypeEnum": "apps.organizations.models.OrganizationMembership.MemberType",
+        # Organization and class membership share one set of states by
+        # design -- a member is active, removed, gone or archived in
+        # either -- so they share one name rather than two that would
+        # have to be kept identical by hand.
+        "MembershipStatusEnum": "apps.organizations.models.OrganizationMembership.Status",
+        # Classroom.Status is deliberately absent: its choices are
+        # identical to StudentSourceCollection.Status, and
+        # drf-spectacular emits one component per distinct choice set.
+        # Naming it again would be a duplicate override, and renaming
+        # the existing component would break every generated client
+        # for a cosmetic gain.
+        "InvitationStatusEnum": "apps.organizations.models.Invitation.Status",
+        "JoinRequestStatusEnum": "apps.organizations.models.JoinRequest.Status",
+        "AdminRoleScopeTypeEnum": "apps.organizations.models.AdminRoleScope.ScopeType",
     },
 }
 

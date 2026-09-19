@@ -77,4 +77,7 @@ class OpenAPISurfaceTests(TestCase):
                     self.assertNotIn(response.status_code, REDIRECT_STATUSES)
                     self.assertLess(response.status_code, 500)
 
-        self.assertEqual(exercised, 215)
+        # 215 before organizations; the 27 added here are the scoped
+        # admin resources and the learner join flow. Pinned so a new
+        # endpoint cannot quietly skip this sweep.
+        self.assertEqual(exercised, 242)

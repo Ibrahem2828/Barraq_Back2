@@ -11,7 +11,7 @@ from __future__ import annotations
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework import permissions, status, viewsets
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -36,15 +36,28 @@ from .serializers import (
     InvitationCreateSerializer,
     InvitationSerializer,
     JoinPreviewRequestSerializer,
+    JoinPreviewResponseSerializer,
     JoinRequestSerializer,
+    MyMembershipSerializer,
     OrganizationMembershipSerializer,
     OrganizationSerializer,
     OrganizationWriteSerializer,
 )
 
 
-class ScopedAdminViewSet(scope_policy.TenantScopedQuerysetMixin, viewsets.ModelViewSet):
+class ScopedAdminViewSet(
+    scope_policy.TenantScopedQuerysetMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     """Base for every organization-scoped admin resource.
+
+    List and retrieve only. Writes are declared per resource, as explicit
+    methods, because each one has to re-resolve its target through the
+    caller's scope -- a generic `create` would take the organization from
+    the request body, which is the single most common way a tenant boundary
+    is crossed. Invitations and join requests get no create route at all.
 
     Scope is applied in `get_queryset`, so list, retrieve, update, destroy and
     any custom action all inherit it from one place. A detail route that
@@ -338,7 +351,11 @@ class JoinRequestViewSet(ScopedAdminViewSet):
 # --------------------------------------------------------------------------
 
 
-@extend_schema(tags=["Organizations"])
+@extend_schema(
+    tags=["Organizations"],
+    request=JoinPreviewRequestSerializer,
+    responses=JoinPreviewResponseSerializer,
+)
 class JoinPreviewView(APIView):
     """What a learner sees before committing to anything.
 
@@ -360,7 +377,11 @@ class JoinPreviewView(APIView):
         return Response(services.preview_invitation(invitation))
 
 
-@extend_schema(tags=["Organizations"])
+@extend_schema(
+    tags=["Organizations"],
+    request=JoinPreviewRequestSerializer,
+    responses=JoinRequestSerializer,
+)
 class JoinConfirmView(APIView):
     """The learner's explicit ask. Still creates no membership."""
 
@@ -381,7 +402,10 @@ class JoinConfirmView(APIView):
         )
 
 
-@extend_schema(tags=["Organizations"])
+@extend_schema(
+    tags=["Organizations"],
+    responses=MyMembershipSerializer(many=True),
+)
 class MyMembershipsView(APIView):
     """A learner's own memberships and pending requests.
 

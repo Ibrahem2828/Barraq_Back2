@@ -915,6 +915,13 @@
               "$ref": "#/components/schemas/AdminRole"
             },
             "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -927,7 +934,8 @@
           "is_superuser",
           "permissions",
           "role",
-          "roles"
+          "roles",
+          "scopes"
         ],
         "type": "object"
       },
@@ -2300,6 +2308,115 @@
         ],
         "type": "object"
       },
+      "Classroom": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "member_count": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "created_at",
+          "member_count",
+          "name",
+          "organization",
+          "public_id",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ClassroomRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ClassroomWrite": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "ClassroomWriteRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CustomTokenObtainPairRequest": {
         "properties": {
           "email": {
@@ -2416,6 +2533,199 @@
           "success"
         ],
         "type": "object"
+      },
+      "Invitation": {
+        "description": "Manager-facing view of an invitation.\n\nIncludes the code and token, because the manager is the one who has to\nhand them out. Nothing else in the API ever returns them -- the learner's\npreview deliberately echoes back neither.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "max_uses": {
+            "format": "int64",
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatusEnum"
+          },
+          "token": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "usage_count": {
+            "readOnly": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "classroom",
+          "code",
+          "created_at",
+          "id",
+          "organization",
+          "token",
+          "usage_count"
+        ],
+        "type": "object"
+      },
+      "InvitationRequest": {
+        "description": "Manager-facing view of an invitation.\n\nIncludes the code and token, because the manager is the one who has to\nhand them out. Nothing else in the API ever returns them -- the learner's\npreview deliberately echoes back neither.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "max_uses": {
+            "format": "int64",
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatusEnum"
+          }
+        },
+        "type": "object"
+      },
+      "InvitationStatusEnum": {
+        "description": "* `active` - Active\n* `revoked` - Revoked",
+        "enum": [
+          "active",
+          "revoked"
+        ],
+        "type": "string"
+      },
+      "JoinPreviewRequestRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "JoinPreviewResponse": {
+        "properties": {
+          "classroom": {
+            "additionalProperties": {},
+            "nullable": true,
+            "type": "object"
+          },
+          "organization": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "classroom",
+          "organization"
+        ],
+        "type": "object"
+      },
+      "JoinRequest": {
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "nullable": true,
+            "readOnly": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JoinRequestStatusEnum"
+              }
+            ],
+            "default": "pending",
+            "readOnly": true
+          },
+          "user": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "user_email": {
+            "format": "email",
+            "readOnly": true,
+            "type": "string"
+          },
+          "user_full_name": {
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "classroom",
+          "created_at",
+          "decided_at",
+          "organization",
+          "public_id",
+          "status",
+          "user",
+          "user_email",
+          "user_full_name"
+        ],
+        "type": "object"
+      },
+      "JoinRequestStatusEnum": {
+        "description": "* `pending` - Pending\n* `approved` - Approved\n* `rejected` - Rejected\n* `cancelled` - Cancelled",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "cancelled"
+        ],
+        "type": "string"
       },
       "LocaleEnum": {
         "description": "* `ar` - Arabic\n* `en` - English",
@@ -2568,6 +2878,35 @@
         ],
         "type": "object"
       },
+      "MyMembership": {
+        "description": "What a learner sees about their own place in an organization.",
+        "properties": {
+          "classroom": {
+            "additionalProperties": {},
+            "nullable": true,
+            "type": "object"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "classroom",
+          "joined_at",
+          "organization",
+          "status"
+        ],
+        "type": "object"
+      },
       "MySubscription": {
         "properties": {
           "effective_limits": {
@@ -2677,6 +3016,115 @@
           "support"
         ],
         "type": "string"
+      },
+      "Organization": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "name",
+          "public_id",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "OrganizationRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "OrganizationStatusEnum": {
+        "description": "* `active` - Active\n* `inactive` - Inactive\n* `archived` - Archived",
+        "enum": [
+          "active",
+          "inactive",
+          "archived"
+        ],
+        "type": "string"
+      },
+      "OrganizationTypeEnum": {
+        "description": "* `school` - School\n* `institute` - Institute",
+        "enum": [
+          "school",
+          "institute"
+        ],
+        "type": "string"
+      },
+      "OrganizationWrite": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "OrganizationWriteRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
       },
       "PaginatedAIFeedbackList": {
         "properties": {
@@ -3143,6 +3591,37 @@
         ],
         "type": "object"
       },
+      "PaginatedClassroomList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Classroom"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
       "PaginatedEducationStageList": {
         "properties": {
           "count": {
@@ -3164,6 +3643,68 @@
           "results": {
             "items": {
               "$ref": "#/components/schemas/EducationStage"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
+      "PaginatedInvitationList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Invitation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
+      "PaginatedJoinRequestList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/JoinRequest"
             },
             "type": "array"
           }
@@ -3226,6 +3767,37 @@
           "results": {
             "items": {
               "$ref": "#/components/schemas/Notification"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
+      "PaginatedOrganizationList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Organization"
             },
             "type": "array"
           }
@@ -3985,6 +4557,23 @@
         },
         "type": "object"
       },
+      "PatchedClassroomWriteRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "type": "object"
+      },
       "PatchedEducationStageRequest": {
         "properties": {
           "description": {
@@ -4021,6 +4610,22 @@
             "maxLength": 20,
             "pattern": "^[0-9+\\-\\s()]{7,20}$",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchedOrganizationWriteRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
           }
         },
         "type": "object"
@@ -9068,6 +9673,7 @@
     },
     "/api/v1/admin/admin-users/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_admin_users_list",
         "parameters": [
           {
@@ -9129,6 +9735,7 @@
         ]
       },
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_admin_users_create",
         "requestBody": {
           "content": {
@@ -9174,6 +9781,7 @@
     },
     "/api/v1/admin/admin-users/{id}/": {
       "delete": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_admin_users_destroy",
         "parameters": [
           {
@@ -9200,6 +9808,7 @@
         ]
       },
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_admin_users_retrieve",
         "parameters": [
           {
@@ -9233,6 +9842,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_admin_users_partial_update",
         "parameters": [
           {
@@ -9287,6 +9897,7 @@
     },
     "/api/v1/admin/admin-users/{id}/assign-roles/": {
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_admin_users_assign_roles_create",
         "parameters": [
           {
@@ -9341,6 +9952,7 @@
     },
     "/api/v1/admin/ai-feedback/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_feedback_list",
         "parameters": [
           {
@@ -9404,6 +10016,7 @@
     },
     "/api/v1/admin/ai-feedback/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_feedback_retrieve",
         "parameters": [
           {
@@ -9439,6 +10052,7 @@
     },
     "/api/v1/admin/ai-jobs/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_jobs_list",
         "parameters": [
           {
@@ -9502,6 +10116,7 @@
     },
     "/api/v1/admin/ai-jobs/metrics/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_jobs_metrics_retrieve",
         "responses": {
           "200": {
@@ -9527,6 +10142,7 @@
     },
     "/api/v1/admin/ai-jobs/{public_id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_jobs_retrieve",
         "parameters": [
           {
@@ -9562,6 +10178,7 @@
     },
     "/api/v1/admin/ai-jobs/{public_id}/cancel/": {
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_jobs_cancel_create",
         "parameters": [
           {
@@ -9597,6 +10214,7 @@
     },
     "/api/v1/admin/ai-recommendations/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_recommendations_list",
         "parameters": [
           {
@@ -9660,6 +10278,7 @@
     },
     "/api/v1/admin/ai-recommendations/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_recommendations_retrieve",
         "parameters": [
           {
@@ -9695,6 +10314,7 @@
     },
     "/api/v1/admin/ai-summaries/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_summaries_list",
         "parameters": [
           {
@@ -9758,6 +10378,7 @@
     },
     "/api/v1/admin/ai-summaries/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_summaries_retrieve",
         "parameters": [
           {
@@ -9793,6 +10414,7 @@
     },
     "/api/v1/admin/ai-transcriptions/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_transcriptions_list",
         "parameters": [
           {
@@ -9856,6 +10478,7 @@
     },
     "/api/v1/admin/ai-transcriptions/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_transcriptions_retrieve",
         "parameters": [
           {
@@ -9917,6 +10540,7 @@
     },
     "/api/v1/admin/ai-webhook-events/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_webhook_events_list",
         "parameters": [
           {
@@ -9980,6 +10604,7 @@
     },
     "/api/v1/admin/ai-webhook-events/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_ai_webhook_events_retrieve",
         "parameters": [
           {
@@ -10015,6 +10640,7 @@
     },
     "/api/v1/admin/audit-logs/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_audit_logs_list",
         "parameters": [
           {
@@ -10078,6 +10704,7 @@
     },
     "/api/v1/admin/audit-logs/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_audit_logs_retrieve",
         "parameters": [
           {
@@ -10113,6 +10740,7 @@
     },
     "/api/v1/admin/character-interactions/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_character_interactions_list",
         "parameters": [
           {
@@ -10176,6 +10804,7 @@
     },
     "/api/v1/admin/character-interactions/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_character_interactions_retrieve",
         "parameters": [
           {
@@ -10209,8 +10838,484 @@
         ]
       }
     },
+    "/api/v1/admin/classes/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_list",
+        "parameters": [
+          {
+            "description": "رقم الصفحة ضمن النتائج المقسمة.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedClassroomList"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      },
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomWriteRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomWriteRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomWrite"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/classes/{public_id}/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      },
+      "patch": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedClassroomWriteRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedClassroomWriteRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedClassroomWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassroomWrite"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/classes/{public_id}/archive/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_archive_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/classes/{public_id}/invitations/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_invitations_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/classes/{public_id}/invitations/create/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_invitations_create_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/classes/{public_id}/members/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_members_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/classes/{public_id}/members/remove/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_members_remove_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/classes/{public_id}/members/transfer/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_classes_members_transfer_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassroomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Classroom"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/api/v1/admin/education-stages/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_education_stages_list",
         "parameters": [
           {
@@ -10272,6 +11377,7 @@
         ]
       },
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_education_stages_create",
         "requestBody": {
           "content": {
@@ -10317,6 +11423,7 @@
     },
     "/api/v1/admin/education-stages/{id}/": {
       "delete": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_education_stages_destroy",
         "parameters": [
           {
@@ -10343,6 +11450,7 @@
         ]
       },
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_education_stages_retrieve",
         "parameters": [
           {
@@ -10376,6 +11484,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_education_stages_partial_update",
         "parameters": [
           {
@@ -10428,6 +11537,7 @@
         ]
       },
       "put": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_education_stages_update",
         "parameters": [
           {
@@ -10481,6 +11591,297 @@
         ]
       }
     },
+    "/api/v1/admin/invitations/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_invitations_list",
+        "parameters": [
+          {
+            "description": "رقم الصفحة ضمن النتائج المقسمة.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedInvitationList"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/invitations/{id}/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_invitations_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/invitations/{id}/revoke/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_invitations_revoke_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/join-requests/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_join_requests_list",
+        "parameters": [
+          {
+            "description": "رقم الصفحة ضمن النتائج المقسمة.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedJoinRequestList"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/join-requests/{public_id}/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_join_requests_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequest"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/join-requests/{public_id}/approve/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_join_requests_approve_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequest"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/join-requests/{public_id}/reject/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_join_requests_reject_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequest"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/api/v1/admin/me/": {
       "get": {
         "operationId": "v1_admin_me_retrieve",
@@ -10503,6 +11904,313 @@
         ],
         "tags": [
           "Admin Dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/organizations/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_organizations_list",
+        "parameters": [
+          {
+            "description": "رقم الصفحة ضمن النتائج المقسمة.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedOrganizationList"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      },
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_organizations_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationWriteRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationWriteRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWrite"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organizations/{public_id}/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_organizations_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      },
+      "patch": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_organizations_partial_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedOrganizationWriteRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedOrganizationWriteRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedOrganizationWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationWrite"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organizations/{public_id}/archive/": {
+      "post": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_organizations_archive_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organizations/{public_id}/members/": {
+      "get": {
+        "description": "Base for every organization-scoped admin resource.\n\nList and retrieve only. Writes are declared per resource, as explicit\nmethods, because each one has to re-resolve its target through the\ncaller's scope -- a generic `create` would take the organization from\nthe request body, which is the single most common way a tenant boundary\nis crossed. Invitations and join requests get no create route at all.\n\nScope is applied in `get_queryset`, so list, retrieve, update, destroy and\nany custom action all inherit it from one place. A detail route that\nforgets to re-check is the classic tenant leak -- it only shows up when\nsomeone tries a neighbour's id, which is to say, in production.",
+        "operationId": "v1_admin_organizations_members_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/admin/organizations/{public_id}/overview/": {
+      "get": {
+        "description": "Counts for one organization, aggregated in the database.\n\nA scoped account never receives a platform total -- an aggregate\nleaks tenant shape as surely as a list does.",
+        "operationId": "v1_admin_organizations_overview_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
         ]
       }
     },
@@ -10533,6 +12241,7 @@
     },
     "/api/v1/admin/permissions/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_permissions_list",
         "parameters": [
           {
@@ -10596,6 +12305,7 @@
     },
     "/api/v1/admin/quiz-attempts/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_quiz_attempts_list",
         "parameters": [
           {
@@ -10659,6 +12369,7 @@
     },
     "/api/v1/admin/quiz-attempts/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_quiz_attempts_retrieve",
         "parameters": [
           {
@@ -10694,6 +12405,7 @@
     },
     "/api/v1/admin/quizzes/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_quizzes_list",
         "parameters": [
           {
@@ -10757,6 +12469,7 @@
     },
     "/api/v1/admin/quizzes/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_quizzes_retrieve",
         "parameters": [
           {
@@ -10792,6 +12505,7 @@
     },
     "/api/v1/admin/roles/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_roles_list",
         "parameters": [
           {
@@ -10853,6 +12567,7 @@
         ]
       },
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_roles_create",
         "requestBody": {
           "content": {
@@ -10898,6 +12613,7 @@
     },
     "/api/v1/admin/roles/{id}/": {
       "delete": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_roles_destroy",
         "parameters": [
           {
@@ -10924,6 +12640,7 @@
         ]
       },
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_roles_retrieve",
         "parameters": [
           {
@@ -10957,6 +12674,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_roles_partial_update",
         "parameters": [
           {
@@ -11011,6 +12729,7 @@
     },
     "/api/v1/admin/source-collections/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_source_collections_list",
         "parameters": [
           {
@@ -11074,6 +12793,7 @@
     },
     "/api/v1/admin/source-collections/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_source_collections_retrieve",
         "parameters": [
           {
@@ -11109,6 +12829,7 @@
     },
     "/api/v1/admin/sources/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_sources_list",
         "parameters": [
           {
@@ -11172,6 +12893,7 @@
     },
     "/api/v1/admin/sources/{id}/": {
       "delete": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_sources_destroy",
         "parameters": [
           {
@@ -11198,6 +12920,7 @@
         ]
       },
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_sources_retrieve",
         "parameters": [
           {
@@ -11233,6 +12956,7 @@
     },
     "/api/v1/admin/study-plans/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_study_plans_list",
         "parameters": [
           {
@@ -11296,6 +13020,7 @@
     },
     "/api/v1/admin/study-plans/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_study_plans_retrieve",
         "parameters": [
           {
@@ -11331,6 +13056,7 @@
     },
     "/api/v1/admin/subjects/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subjects_list",
         "parameters": [
           {
@@ -11392,6 +13118,7 @@
         ]
       },
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subjects_create",
         "requestBody": {
           "content": {
@@ -11437,6 +13164,7 @@
     },
     "/api/v1/admin/subjects/{id}/": {
       "delete": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subjects_destroy",
         "parameters": [
           {
@@ -11463,6 +13191,7 @@
         ]
       },
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subjects_retrieve",
         "parameters": [
           {
@@ -11496,6 +13225,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subjects_partial_update",
         "parameters": [
           {
@@ -11548,6 +13278,7 @@
         ]
       },
       "put": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subjects_update",
         "parameters": [
           {
@@ -11603,6 +13334,7 @@
     },
     "/api/v1/admin/subscription-plans/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subscription_plans_list",
         "parameters": [
           {
@@ -11664,6 +13396,7 @@
         ]
       },
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subscription_plans_create",
         "requestBody": {
           "content": {
@@ -11709,6 +13442,7 @@
     },
     "/api/v1/admin/subscription-plans/{id}/": {
       "delete": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subscription_plans_destroy",
         "parameters": [
           {
@@ -11735,6 +13469,7 @@
         ]
       },
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subscription_plans_retrieve",
         "parameters": [
           {
@@ -11768,6 +13503,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subscription_plans_partial_update",
         "parameters": [
           {
@@ -11822,6 +13558,7 @@
     },
     "/api/v1/admin/subscription-usage/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subscription_usage_list",
         "parameters": [
           {
@@ -11885,6 +13622,7 @@
     },
     "/api/v1/admin/subscription-usage/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_subscription_usage_retrieve",
         "parameters": [
           {
@@ -11920,6 +13658,7 @@
     },
     "/api/v1/admin/support-tickets/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_support_tickets_list",
         "parameters": [
           {
@@ -11981,6 +13720,7 @@
         ]
       },
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_support_tickets_create",
         "requestBody": {
           "content": {
@@ -12026,6 +13766,7 @@
     },
     "/api/v1/admin/support-tickets/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_support_tickets_retrieve",
         "parameters": [
           {
@@ -12059,6 +13800,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_support_tickets_partial_update",
         "parameters": [
           {
@@ -12113,6 +13855,7 @@
     },
     "/api/v1/admin/support-tickets/{id}/messages/": {
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_support_tickets_messages_create",
         "parameters": [
           {
@@ -12193,6 +13936,7 @@
     },
     "/api/v1/admin/user-subscriptions/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_user_subscriptions_list",
         "parameters": [
           {
@@ -12256,6 +14000,7 @@
     },
     "/api/v1/admin/user-subscriptions/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_user_subscriptions_retrieve",
         "parameters": [
           {
@@ -12289,6 +14034,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_user_subscriptions_partial_update",
         "parameters": [
           {
@@ -12343,6 +14089,7 @@
     },
     "/api/v1/admin/users/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_users_list",
         "parameters": [
           {
@@ -12406,6 +14153,7 @@
     },
     "/api/v1/admin/users/{id}/": {
       "get": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_users_retrieve",
         "parameters": [
           {
@@ -12439,6 +14187,7 @@
         ]
       },
       "patch": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_users_partial_update",
         "parameters": [
           {
@@ -12493,6 +14242,7 @@
     },
     "/api/v1/admin/users/{id}/activate/": {
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_users_activate_create",
         "parameters": [
           {
@@ -12548,6 +14298,7 @@
     },
     "/api/v1/admin/users/{id}/cancel-subscription/": {
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_users_cancel_subscription_create",
         "parameters": [
           {
@@ -12603,6 +14354,7 @@
     },
     "/api/v1/admin/users/{id}/change-subscription/": {
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_users_change_subscription_create",
         "parameters": [
           {
@@ -12658,6 +14410,7 @@
     },
     "/api/v1/admin/users/{id}/suspend/": {
       "post": {
+        "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
         "operationId": "v1_admin_users_suspend_create",
         "parameters": [
           {
@@ -13666,6 +15419,96 @@
         ]
       }
     },
+    "/api/v1/join/confirm/": {
+      "post": {
+        "description": "The learner's explicit ask. Still creates no membership.",
+        "operationId": "v1_join_confirm_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequest"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/join/preview/": {
+      "post": {
+        "description": "What a learner sees before committing to anything.\n\nCreates no membership and no request. Throttled, because this is the one\nendpoint that takes an invitation secret from an unauthenticated-ish\nposition and says whether it is real.",
+        "operationId": "v1_join_preview_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinPreviewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/api/v1/meta/": {
       "get": {
         "operationId": "v1_meta_retrieve",
@@ -13686,6 +15529,35 @@
         ],
         "tags": [
           "System"
+        ]
+      }
+    },
+    "/api/v1/my/memberships/": {
+      "get": {
+        "description": "A learner's own memberships and pending requests.\n\nScoped to `request.user` by construction; there is no id to supply and\ntherefore nothing to tamper with.",
+        "operationId": "v1_my_memberships_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyMembership"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
         ]
       }
     },

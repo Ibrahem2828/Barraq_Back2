@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-19T18:49:42+00:00",
-    "generated_from_backend_commit": "d5f3f91a1efa1716cbff7bb7f3f6190fd05e54fe",
+    "generated_at": "2026-09-19T22:20:49+00:00",
+    "generated_from_backend_commit": "e9692023cd6f13f2bce1abb4c87e64939cc483ff",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -2183,6 +2183,361 @@
           "schema": {
             "items": {
               "$ref": "#/resources/EducationStage/schema"
+            },
+            "type": "array"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": null,
+        "url_file": "config/urls.py; config/api_urls.py; apps/organizations/urls.py",
+        "view": "apps.organizations.views.JoinConfirmView"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "The learner's explicit ask. Still creates no membership.",
+      "domain": "organizations",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_join_confirm_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_join_confirm_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/join/confirm/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": {
+          "$ref": "#/resources/JoinPreviewRequestRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/JoinRequest/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": null,
+        "url_file": "config/urls.py; config/api_urls.py; apps/organizations/urls.py",
+        "view": "apps.organizations.views.JoinPreviewView"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "What a learner sees before committing to anything.\n\nCreates no membership and no request. Throttled, because this is the one\nendpoint that takes an invitation secret from an unauthenticated-ish\nposition and says whether it is real.",
+      "domain": "organizations",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_join_preview_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_join_preview_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/join/preview/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": {
+          "$ref": "#/resources/JoinPreviewRequestRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/JoinPreviewResponse/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": null,
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": null,
+        "url_file": "config/urls.py; config/api_urls.py; apps/organizations/urls.py",
+        "view": "apps.organizations.views.MyMembershipsView"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "A learner's own memberships and pending requests.\n\nScoped to `request.user` by construction; there is no id to supply and\ntherefore nothing to tamper with.",
+      "domain": "organizations",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_my_memberships_list",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_my_memberships_list",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/my/memberships/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "items": {
+              "$ref": "#/resources/MyMembership/schema"
             },
             "type": "array"
           }
@@ -15046,6 +15401,16 @@
         "other"
       ]
     },
+    "JoinRequestStatusEnum": {
+      "nullable": false,
+      "type": "string",
+      "values": [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled"
+      ]
+    },
     "LocaleEnum": {
       "nullable": false,
       "type": "string",
@@ -18580,6 +18945,334 @@
         "type": "string"
       }
     },
+    "JoinPreviewRequestRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 200,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "token",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 40,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "code",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "JoinPreviewResponse": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "object",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "object",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "classroom": {
+            "additionalProperties": {},
+            "nullable": true,
+            "type": "object"
+          },
+          "organization": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "classroom",
+          "organization"
+        ],
+        "type": "object"
+      }
+    },
+    "JoinRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "public_id",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "user",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "user_email",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "user_full_name",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": "pending",
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "status",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "decided_at",
+          "nullable": true,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "created_at",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "nullable": true,
+            "readOnly": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/resources/JoinRequestStatusEnum/schema"
+              }
+            ],
+            "default": "pending",
+            "readOnly": true
+          },
+          "user": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "user_email": {
+            "format": "email",
+            "readOnly": true,
+            "type": "string"
+          },
+          "user_full_name": {
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "classroom",
+          "created_at",
+          "decided_at",
+          "organization",
+          "public_id",
+          "status",
+          "user",
+          "user_email",
+          "user_full_name"
+        ],
+        "type": "object"
+      }
+    },
+    "JoinRequestStatusEnum": {
+      "fields": [],
+      "schema": {
+        "description": "* `pending` - Pending\n* `approved` - Approved\n* `rejected` - Rejected\n* `cancelled` - Cancelled",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "cancelled"
+        ],
+        "type": "string"
+      }
+    },
     "LocaleEnum": {
       "fields": [],
       "schema": {
@@ -18650,6 +19343,103 @@
         },
         "required": [
           "message"
+        ],
+        "type": "object"
+      }
+    },
+    "MyMembership": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "object",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "object",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "status",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "joined_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "description": "What a learner sees about their own place in an organization.",
+        "properties": {
+          "classroom": {
+            "additionalProperties": {},
+            "nullable": true,
+            "type": "object"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "classroom",
+          "joined_at",
+          "organization",
+          "status"
         ],
         "type": "object"
       }
