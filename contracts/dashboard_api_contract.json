@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-19T17:37:28+00:00",
-    "generated_from_backend_commit": "47c2a4dc3d881bd0dfbaf873694ee822d34470e3",
+    "generated_at": "2026-09-19T18:08:44+00:00",
+    "generated_from_backend_commit": "7e364cba72bb81cb89282b56bead44d4be9ee4be",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -14475,10 +14475,32 @@
           "required": true,
           "type": "object",
           "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "allowed_apps",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
         }
       ],
       "schema": {
         "properties": {
+          "allowed_apps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "allowed_sections": {
             "additionalProperties": {
               "type": "boolean"
@@ -14518,6 +14540,7 @@
           }
         },
         "required": [
+          "allowed_apps",
           "allowed_sections",
           "email",
           "full_name",

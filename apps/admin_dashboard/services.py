@@ -253,11 +253,43 @@ def user_is_admin_dashboard_user(user):
         return True
     if getattr(user, 'role', None) == get_user_model().Roles.STUDENT:
         return False
+    # Deliberately NOT `or user.is_staff`. User.save() sets is_staff for any
+    # account whose role is admin/support/super_admin, so that clause let an
+    # account with zero role assignments -- and therefore zero permissions --
+    # through the dashboard gate. Access follows an explicit, revocable
+    # assignment; is_superuser is handled above and keeps its global override.
     return AdminUserRole.objects.filter(
         user=user,
         is_active=True,
         role__is_active=True,
-    ).exists() or user.is_staff
+    ).exists()
+
+
+#: The applications an authenticated account may enter. Backend-authoritative:
+#: a client renders what this says, it does not decide it. Kept as plain
+#: identifiers with no resource/organization ids in them, so the later
+#: organization phase can add *scope* ("on whose data") without having to
+#: redesign what an app-level grant means.
+APP_STUDENT_WEB = 'student_web'
+APP_DASHBOARD = 'dashboard'
+
+
+def get_allowed_apps(user):
+    """Which front-end applications this account may enter.
+
+    Student Web is available to every active account -- that is today's
+    behaviour (no student-side endpoint checks role) and narrowing it would
+    lock staff out of their own study data. Dashboard follows the same
+    explicit role assignment the dashboard gate enforces, so this list can
+    never promise more than the API itself allows.
+    """
+
+    if not user or not getattr(user, 'is_authenticated', False) or not user.is_active:
+        return []
+    apps = [APP_STUDENT_WEB]
+    if user_is_admin_dashboard_user(user):
+        apps.append(APP_DASHBOARD)
+    return apps
 
 
 def is_super_admin_user(user):

@@ -15,6 +15,7 @@ from apps.study_plans.models import StudyPlan, StudyTask
 from .models import AdminPermission, AdminRole, AdminUserRole, AuditLog
 from .services import (
     SECTION_PERMISSIONS,
+    get_allowed_apps,
     get_user_admin_permissions,
     is_super_admin_user,
 )
@@ -307,6 +308,8 @@ class AdminMeSerializer(serializers.Serializer):
     is_superuser = serializers.BooleanField()
     is_staff = serializers.BooleanField()
     allowed_sections = serializers.DictField(child=serializers.BooleanField())
+    #: Backend-authoritative app access; see services.get_allowed_apps.
+    allowed_apps = serializers.ListField(child=serializers.CharField())
 
 
 class AdminOverviewSerializer(serializers.Serializer):
@@ -609,6 +612,7 @@ def build_admin_me_payload(user):
             section: permission in permission_set
             for section, permission in SECTION_PERMISSIONS.items()
         },
+        'allowed_apps': get_allowed_apps(user),
     }
 
 

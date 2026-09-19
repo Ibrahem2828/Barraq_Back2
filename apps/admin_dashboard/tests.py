@@ -1,6 +1,7 @@
 import tempfile
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
@@ -317,3 +318,157 @@ class AdminDashboardAPITestCase(APITestCase):
         characters = {row['character']: row for row in response.data['by_character']}
         self.assertEqual(characters['fahes']['job_count'], 2)
         self.assertEqual(float(characters['kholasa']['cost_usd']), 0.025)
+
+
+class ApplicationAccessAndAuthorizationTests(APITestCase):
+    """Phase 1 authorization matrix, exercised through the API rather than
+    through navigation: hiding a route is not the security mechanism."""
+
+    def setUp(self):
+        cache.clear()
+        _, self.roles = seed_default_rbac()
+        self.student = User.objects.create_user(
+            email='student@example.com', password='StrongPass123', full_name='Student'
+        )
+        self.super_admin = User.objects.create_user(
+            email='root@example.com',
+            password='StrongPass123',
+            full_name='Root',
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        # A limited admin: support role only, so `support.view` but not
+        # `roles.view`/`system.view`.
+        self.limited_admin = User.objects.create_user(
+            email='support@example.com',
+            password='StrongPass123',
+            full_name='Support',
+            role=User.Roles.SUPPORT,
+        )
+        assign_roles_to_user(self.limited_admin, [self.roles['support']])
+        # An account flagged is_staff by User.save() but never assigned a
+        # role -- the case the old `or user.is_staff` gate let through.
+        self.unassigned_admin = User.objects.create_user(
+            email='unassigned@example.com',
+            password='StrongPass123',
+            full_name='Unassigned',
+            role=User.Roles.ADMIN,
+        )
+
+    # -- anonymous ---------------------------------------------------------
+    def test_anonymous_cannot_reach_admin_or_student_apis(self):
+        for url in (reverse('admin-me'), reverse('student-source-list')):
+            with self.subTest(url=url):
+                self.assertEqual(
+                    self.client.get(url).status_code, status.HTTP_401_UNAUTHORIZED
+                )
+
+    # -- student -----------------------------------------------------------
+    def test_student_is_granted_student_web_only(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get(reverse('user-me'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['allowed_apps'], ['student_web'])
+
+    def test_student_cannot_reach_the_dashboard_api(self):
+        self.client.force_authenticate(self.student)
+        self.assertEqual(
+            self.client.get(reverse('admin-me')).status_code, status.HTTP_403_FORBIDDEN
+        )
+
+    # -- is_staff without an assignment ------------------------------------
+    def test_a_staff_flag_alone_does_not_grant_dashboard_access(self):
+        """is_staff is set by User.save() for any admin-ish role, so it must
+        not be an access grant on its own -- access follows an explicit,
+        revocable role assignment."""
+        self.assertTrue(self.unassigned_admin.is_staff)
+        self.client.force_authenticate(self.unassigned_admin)
+
+        self.assertEqual(
+            self.client.get(reverse('admin-me')).status_code, status.HTTP_403_FORBIDDEN
+        )
+
+    def test_an_unassigned_admin_is_not_offered_the_dashboard_app(self):
+        self.client.force_authenticate(self.unassigned_admin)
+        response = self.client.get(reverse('user-me'))
+        self.assertNotIn('dashboard', response.data['allowed_apps'])
+
+    # -- limited admin -----------------------------------------------------
+    def test_limited_admin_reaches_a_granted_section(self):
+        self.client.force_authenticate(self.limited_admin)
+
+        response = self.client.get(reverse('admin-me'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('dashboard', response.data['allowed_apps'])
+        self.assertIn('student_web', response.data['allowed_apps'])
+        self.assertTrue(response.data['allowed_sections']['support'])
+
+    def test_limited_admin_is_denied_a_section_it_was_not_granted(self):
+        """The section flag and the endpoint must agree -- and the endpoint is
+        what actually protects the data."""
+        self.client.force_authenticate(self.limited_admin)
+
+        me = self.client.get(reverse('admin-me'))
+        self.assertFalse(me.data['allowed_sections']['roles'])
+
+        # A direct API call, not a hidden nav item.
+        response = self.client.get(reverse('admin-role-list'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_view_permission_does_not_imply_a_write_action(self):
+        """users.view must not carry users.suspend."""
+        self.client.force_authenticate(self.limited_admin)
+        permissions_held = set(get_user_admin_permissions(self.limited_admin))
+
+        if 'users.view' in permissions_held:
+            self.assertNotIn(
+                'users.suspend',
+                permissions_held,
+                'the support role should not carry a suspend grant',
+            )
+            response = self.client.post(
+                reverse('admin-managed-user-suspend', args=[self.student.pk])
+            )
+            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    # -- super admin -------------------------------------------------------
+    def test_super_admin_keeps_every_section_and_both_apps(self):
+        """Guards against the RBAC tightening silently demoting the owner."""
+        self.client.force_authenticate(self.super_admin)
+
+        response = self.client.get(reverse('admin-me'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_superuser'])
+        self.assertEqual(
+            sorted(response.data['allowed_apps']), ['dashboard', 'student_web']
+        )
+        self.assertTrue(
+            all(response.data['allowed_sections'].values()),
+            'super admin lost a section',
+        )
+
+    def test_super_admin_reaches_the_sections_a_limited_admin_cannot(self):
+        self.client.force_authenticate(self.super_admin)
+        self.assertEqual(
+            self.client.get(reverse('admin-role-list')).status_code, status.HTTP_200_OK
+        )
+
+    # -- fail-closed default ----------------------------------------------
+    def test_the_permission_class_denies_when_no_permission_is_declared(self):
+        """A view that forgets to declare its permission must not be open."""
+        from apps.admin_dashboard.permissions import HasAdminPermission
+
+        class ViewWithoutPermission:
+            required_permission = None
+
+            def get_required_permission(self):
+                return None
+
+        request = type('R', (), {'user': self.super_admin})()
+        self.assertFalse(
+            HasAdminPermission().has_permission(request, ViewWithoutPermission())
+        )

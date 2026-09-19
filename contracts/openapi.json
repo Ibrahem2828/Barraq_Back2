@@ -856,6 +856,12 @@
       },
       "AdminMe": {
         "properties": {
+          "allowed_apps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "allowed_sections": {
             "additionalProperties": {
               "type": "boolean"
@@ -895,6 +901,7 @@
           }
         },
         "required": [
+          "allowed_apps",
           "allowed_sections",
           "email",
           "full_name",
@@ -8358,6 +8365,13 @@
       },
       "User": {
         "properties": {
+          "allowed_apps": {
+            "items": {
+              "type": "string"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "readOnly": true,
@@ -8396,6 +8410,7 @@
           }
         },
         "required": [
+          "allowed_apps",
           "created_at",
           "email",
           "full_name",

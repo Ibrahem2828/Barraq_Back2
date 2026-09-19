@@ -21,7 +21,13 @@ class HasAdminPermission(permissions.BasePermission):
         if required_permission is None and hasattr(view, 'get_required_permission'):
             required_permission = view.get_required_permission()
         if required_permission is None:
-            return True
+            # Fail closed. A view reached through this class without declaring
+            # a permission is a mistake, and defaulting to "allow" turns that
+            # mistake into an open admin endpoint for anyone who clears the
+            # dashboard gate. Views that intentionally need no permission
+            # (AdminMeView, AdminApiRootView) use IsAdminDashboardUser alone
+            # and never reach here.
+            return False
         return user_has_admin_permission(request.user, required_permission)
 
 

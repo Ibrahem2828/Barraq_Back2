@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -10,6 +11,13 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    # Backend-authoritative application access, so a client renders what it is
+    # allowed rather than inferring it from the `role` string. Additive: `role`
+    # is unchanged for existing clients. Imported lazily inside the method --
+    # apps.admin_dashboard already imports apps.users, so a module-level
+    # import here would close the cycle.
+    allowed_apps = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
@@ -18,6 +26,7 @@ class UserSerializer(serializers.ModelSerializer):
             'full_name',
             'phone_number',
             'role',
+            'allowed_apps',
             'created_at',
             'updated_at',
         )
@@ -25,9 +34,16 @@ class UserSerializer(serializers.ModelSerializer):
             'id',
             'email',
             'role',
+            'allowed_apps',
             'created_at',
             'updated_at',
         )
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_allowed_apps(self, obj):
+        from apps.admin_dashboard.services import get_allowed_apps
+
+        return get_allowed_apps(obj)
 
 
 class RegisterSerializer(serializers.ModelSerializer):
