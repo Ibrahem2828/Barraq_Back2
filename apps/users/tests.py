@@ -1,5 +1,7 @@
+from unittest import mock
 from unittest.mock import patch
 
+from celery.exceptions import Retry
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -333,3 +335,64 @@ class CeleryQueueRoutingTests(TestCase):
 
         self.assertEqual(app.amqp.router.route({}, 'ai_integration.dispatch_job')['queue'].name, 'default')
         self.assertEqual(app.amqp.router.route({}, 'sources.process_source')['queue'].name, 'default')
+
+
+class OtpDeliveryHandoffTests(TestCase):
+    """The SMTP handoff boundary.
+
+    Real mailbox delivery cannot be proven from here -- it needs production
+    SMTP credentials and outbound network -- so everything up to and
+    including the handoff is proven, and delivery itself is an RC gate.
+    """
+
+    def test_a_refused_message_is_a_failure_not_a_silent_success(self):
+        """send_mail returning 0 means the backend accepted nothing.
+
+        That used to be returned verbatim, so Celery marked the task done and
+        a student waited for a code that was never sent.
+        """
+        from apps.users.tasks import send_email_otp
+
+        with (
+            mock.patch('apps.users.tasks.send_mail', return_value=0),
+            mock.patch.object(send_email_otp, 'retry', side_effect=Retry()) as retry,
+            self.assertRaises(Retry),
+        ):
+            send_email_otp('student@example.com', '123456')
+
+        self.assertEqual(retry.call_count, 1)
+
+    def test_an_accepted_message_reports_success(self):
+        from apps.users.tasks import send_email_otp
+
+        with mock.patch('apps.users.tasks.send_mail', return_value=1) as send:
+            result = send_email_otp('student@example.com', '123456')
+
+        self.assertEqual(result, 1)
+        self.assertEqual(send.call_count, 1)
+
+    def test_the_otp_code_never_reaches_the_logs(self):
+        """A code in a log file is a code an operator can use."""
+        from apps.users.tasks import send_email_otp
+
+        with (
+            mock.patch('apps.users.tasks.send_mail', return_value=1),
+            self.assertLogs('apps.users.tasks', level='DEBUG') as captured,
+        ):
+            send_email_otp('student@example.com', '987654')
+
+        joined = '\n'.join(captured.output)
+        self.assertNotIn('987654', joined)
+        self.assertNotIn('student@example.com', joined)
+
+    def test_the_message_body_carries_the_code_to_the_recipient(self):
+        """The counterpart: the code must actually be in what we hand SMTP,
+        so a passing 'no code in logs' test cannot mean 'no code anywhere'."""
+        from apps.users.tasks import send_email_otp
+
+        with mock.patch('apps.users.tasks.send_mail', return_value=1) as send:
+            send_email_otp('student@example.com', '987654')
+
+        _subject, body, _from_email, recipients = send.call_args.args
+        self.assertIn('987654', body)
+        self.assertEqual(recipients, ['student@example.com'])
