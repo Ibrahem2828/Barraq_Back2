@@ -1504,3 +1504,40 @@ class JobProgressContractTests(APITestCase):
         self.client.force_authenticate(self.user)
         response = self.client.get(reverse('ai-job-detail', args=[str(self.job.public_id)]))
         self.assertEqual(response.data['progress_stage'], 'queued')
+
+    @patch('apps.ai_integration.views.complete_job')
+    @patch('apps.ai_integration.views.fail_job')
+    @patch('apps.ai_integration.views.AIServiceClient.get_job')
+    def test_refresh_only_reads_remote_state_and_is_idempotent(self, get_job, fail, complete):
+        get_job.return_value = Mock(data={'status': 'retrieving', 'output': None})
+        self.client.force_authenticate(self.user)
+        endpoint = reverse('ai-job-refresh', args=[str(self.job.public_id)])
+
+        first = self.client.post(endpoint, format='json')
+        second = self.client.post(endpoint, format='json')
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(first.data['progress_stage'], 'retrieving')
+        self.assertEqual(second.data['progress_stage'], 'retrieving')
+        self.assertEqual(get_job.call_count, 2)
+        get_job.assert_called_with(self.job.external_job_id, user_id=self.user.id)
+        complete.assert_not_called()
+        fail.assert_not_called()
+        self.assertEqual(AIJob.objects.count(), 1)
+
+    @patch('apps.ai_integration.views.AIServiceClient.get_job')
+    def test_refresh_never_contacts_ai_for_a_terminal_job(self, get_job):
+        self.job.status = AIJob.Status.FAILED
+        self.job.error_code = ErrorCode.PROVIDER_TIMEOUT
+        self.job.error_message = 'The AI provider timed out.'
+        self.job.save(update_fields=['status', 'error_code', 'error_message'])
+        self.client.force_authenticate(self.user)
+
+        response = self.client.post(
+            reverse('ai-job-refresh', args=[str(self.job.public_id)]), format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], AIJob.Status.FAILED)
+        get_job.assert_not_called()
