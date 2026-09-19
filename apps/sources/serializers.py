@@ -10,6 +10,7 @@ from apps.quizzes.serializers import QuizListSerializer
 from apps.study_plans.serializers import StudyPlanListSerializer
 from apps.subjects.models import Subject
 from apps.subjects.serializers import SubjectSerializer
+from apps.subscriptions.services import get_user_features
 
 from .capabilities import (
     get_collection_character_capabilities,
@@ -17,6 +18,31 @@ from .capabilities import (
 )
 from .models import StudentSource, StudentSourceCollection, StudentSourceInteraction
 from .validators import validate_student_source_file
+
+
+class _CapabilityFeaturesMixin:
+    """Resolve subscription features once per serialization.
+
+    The four capability call sites below used to omit `features` entirely,
+    so a list or detail response advertised Kholasa and Sada to a Free user
+    while `/capabilities/` -- the endpoint written for exactly this question,
+    and which does pass them -- said the opposite on the same page load.
+
+    Cached on the serializer context so a list of N sources performs one
+    subscription lookup rather than N.
+    """
+
+    def _features(self):
+        context = self.context
+        if 'capability_features' not in context:
+            request = context.get('request')
+            user = getattr(request, 'user', None)
+            context['capability_features'] = (
+                get_user_features(user)
+                if user is not None and getattr(user, 'is_authenticated', False)
+                else None
+            )
+        return context['capability_features']
 
 
 class StudentSourceInteractionSerializer(serializers.ModelSerializer):
@@ -97,7 +123,7 @@ class StudentSourceCollectionListSerializer(serializers.ModelSerializer):
         )
 
 
-class StudentSourceCollectionDetailSerializer(StudentSourceCollectionListSerializer):
+class StudentSourceCollectionDetailSerializer(_CapabilityFeaturesMixin, StudentSourceCollectionListSerializer):
     sources = StudentSourceBriefSerializer(many=True, read_only=True)
     capabilities = serializers.SerializerMethodField()
     characters_summary = serializers.SerializerMethodField()
@@ -111,11 +137,11 @@ class StudentSourceCollectionDetailSerializer(StudentSourceCollectionListSeriali
 
     @extend_schema_field(serializers.DictField())
     def get_capabilities(self, obj):
-        return get_collection_character_capabilities(obj)
+        return get_collection_character_capabilities(obj, features=self._features())
 
     @extend_schema_field(serializers.DictField())
     def get_characters_summary(self, obj):
-        capabilities = get_collection_character_capabilities(obj)
+        capabilities = get_collection_character_capabilities(obj, features=self._features())
         return {
             key: {
                 'available': value['available'],
@@ -174,7 +200,7 @@ class StudentSourceCollectionCreateUpdateSerializer(serializers.ModelSerializer)
         )
 
 
-class StudentSourceListSerializer(serializers.ModelSerializer):
+class StudentSourceListSerializer(_CapabilityFeaturesMixin, serializers.ModelSerializer):
     subject = SubjectSerializer(read_only=True)
     subject_name = serializers.CharField(source='subject.name', read_only=True)
     collection_name = serializers.CharField(source='collection.name', read_only=True)
@@ -210,7 +236,7 @@ class StudentSourceListSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.DictField())
     def get_capabilities(self, obj):
-        capabilities = get_source_character_capabilities(obj)
+        capabilities = get_source_character_capabilities(obj, features=self._features())
         return {
             key: {
                 'available': value['available'],
@@ -254,7 +280,7 @@ class StudentSourceDetailSerializer(StudentSourceListSerializer):
 
     @extend_schema_field(serializers.DictField())
     def get_capabilities(self, obj):
-        return get_source_character_capabilities(obj)
+        return get_source_character_capabilities(obj, features=self._features())
 
 
 class StudentSourceCreateSerializer(serializers.ModelSerializer):

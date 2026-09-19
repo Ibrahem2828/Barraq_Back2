@@ -16,6 +16,7 @@ from rest_framework.test import APITestCase
 from apps.ai_integration.models import AIJob
 from apps.projects.models import Project
 from apps.subjects.models import EducationStage, Subject
+from apps.subscriptions.services import ensure_default_plans, get_or_create_user_subscription
 
 from .capabilities import get_source_character_capabilities
 from .models import StudentSource, StudentSourceCollection, StudentSourceInteraction
@@ -789,3 +790,108 @@ class SourceProcessingRetryTests(APITestCase):
             send_email_otp('student@example.com', '123456')
 
         self.assertEqual(retry.call_count, 1)
+
+
+class CapabilityCoherenceTests(APITestCase):
+    """One answer to "can this user use character X with source Y".
+
+    The list and detail serializers resolved capabilities without the
+    subscription, so a Free user's source list advertised Kholasa and Sada
+    while /capabilities/ -- the endpoint written for exactly that question --
+    said the opposite on the same page load.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.media_root = tempfile.mkdtemp()
+        self.override = override_settings(MEDIA_ROOT=self.media_root)
+        self.override.enable()
+        self.user = User.objects.create_user(
+            email='caps@example.com', password='StrongPass123', full_name='Caps'
+        )
+        self.stage = EducationStage.objects.create(name='Secondary', description='s', order=1)
+        self.subject = Subject.objects.create(
+            name='Maths', education_stage=self.stage, grade_level='12', description='d'
+        )
+        self.project = Project.objects.create(owner=self.user, title='Caps Project')
+        ensure_default_plans()
+        get_or_create_user_subscription(self.user)
+        self.source = StudentSource.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            title='Notes',
+            source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile('n.txt', b'text', content_type='text/plain'),
+            original_filename='n.txt',
+            file_size=4,
+            mime_type='text/plain',
+            extension='txt',
+            status=StudentSource.Status.READY,
+        )
+        self.client.force_authenticate(self.user)
+
+    def tearDown(self):
+        self.override.disable()
+        shutil.rmtree(self.media_root, ignore_errors=True)
+
+    def _endpoint_caps(self):
+        return self.client.get(
+            reverse('student-source-capabilities', args=[self.source.id])
+        ).data
+
+    def test_the_list_agrees_with_the_capabilities_endpoint(self):
+        listed = self.client.get(reverse('student-source-list')).data['results'][0]
+        endpoint = self._endpoint_caps()
+
+        for character in ('khota', 'fahes', 'rasheed', 'kholasa', 'sada'):
+            with self.subTest(character=character):
+                self.assertEqual(
+                    listed['capabilities'][character]['available'],
+                    endpoint[character]['available'],
+                    f'list and /capabilities/ disagree about {character}',
+                )
+
+    def test_the_detail_agrees_with_the_capabilities_endpoint(self):
+        detail = self.client.get(
+            reverse('student-source-detail', args=[self.source.id])
+        ).data
+        endpoint = self._endpoint_caps()
+
+        for character in ('khota', 'fahes', 'rasheed', 'kholasa', 'sada'):
+            with self.subTest(character=character):
+                self.assertEqual(
+                    detail['capabilities'][character]['available'],
+                    endpoint[character]['available'],
+                )
+
+    def test_a_plan_gated_character_is_withheld_everywhere(self):
+        """Free plan excludes Kholasa and Sada. No surface may offer them."""
+        listed = self.client.get(reverse('student-source-list')).data['results'][0]
+        detail = self.client.get(
+            reverse('student-source-detail', args=[self.source.id])
+        ).data
+
+        for payload in (listed['capabilities'], detail['capabilities'], self._endpoint_caps()):
+            self.assertFalse(payload['kholasa']['available'])
+            self.assertFalse(payload['sada']['available'])
+        # ...and the request layer refuses it too, which is what actually
+        # protects the entitlement.
+        response = self.client.post(
+            reverse('student-source-use-with-kholasa', args=[self.source.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_collection_capabilities_also_respect_the_plan(self):
+        collection = StudentSourceCollection.objects.create(
+            user=self.user, project=self.project, name='Folder'
+        )
+        self.source.collection = collection
+        self.source.save(update_fields=['collection'])
+
+        detail = self.client.get(
+            reverse('student-source-collection-detail', args=[collection.id])
+        ).data
+
+        self.assertFalse(detail['capabilities']['kholasa']['available'])
+        self.assertFalse(detail['characters_summary']['kholasa']['available'])
