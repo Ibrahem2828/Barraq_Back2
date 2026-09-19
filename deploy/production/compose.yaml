@@ -1,0 +1,577 @@
+name: baraq-production
+
+x-backend-environment: &backend-environment
+  ENVIRONMENT: production
+  DEBUG: "False"
+  SECRET_KEY: ${BACKEND_SECRET_KEY:?BACKEND_SECRET_KEY is required}
+  ALLOWED_HOSTS: api.baraqapp.com,backend,localhost,127.0.0.1
+  PUBLIC_API_BASE_URL: https://api.baraqapp.com
+  CORS_ALLOWED_ORIGINS: https://baraqapp.com,https://www.baraqapp.com,https://dashboard.baraqapp.com,https://web.baraqapp.com
+  CSRF_TRUSTED_ORIGINS: https://api.baraqapp.com,https://baraqapp.com,https://www.baraqapp.com,https://dashboard.baraqapp.com,https://web.baraqapp.com
+  CORS_ALLOW_CREDENTIALS: "False"
+  FRONTEND_PASSWORD_RESET_URL: https://web.baraqapp.com/ar/reset-password
+  TIME_ZONE: Asia/Damascus
+  DATABASE_URL: postgresql://baraq_backend:${BACKEND_DB_PASSWORD:?BACKEND_DB_PASSWORD is required}@backend-db:5432/baraq_backend
+  DATABASE_CONN_MAX_AGE: "60"
+  DATABASE_CONN_HEALTH_CHECKS: "True"
+  DATABASE_CONNECT_TIMEOUT: "10"
+  DATABASE_STATEMENT_TIMEOUT_MS: "30000"
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
+  CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/1
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/2
+  AI_SERVICE_ENABLED: "True"
+  AI_SERVICE_BASE_URL: http://ai-api:8000
+  AI_SERVICE_JOBS_PATH: /api/ai/v1/jobs
+  AI_SERVICE_FEEDBACK_PATH: /api/ai/v1/feedback
+  AI_SERVICE_HEALTH_PATH: /api/ai/v1/health/ready
+  AI_SERVICE_VERIFY_SSL: "False"
+  AI_SERVICE_ALLOW_INSECURE_HTTP: "True"
+  AI_SERVICE_TIMEOUT_SECONDS: "300"
+  AI_DATASET_CONSENT_VERSION: "2026-07-01"
+  BARAQ_SERVICE_ID: baraq-django
+  BARAQ_HMAC_CURRENT_KEY_ID: ${HMAC_KEY_ID:?HMAC_KEY_ID is required}
+  BARAQ_HMAC_KEYS_JSON: '{"${HMAC_KEY_ID}":"${HMAC_SHARED_SECRET}"}'
+  BARAQ_HMAC_ALLOWED_SERVICES: baraq-ai-service
+  BARAQ_HMAC_MAX_CLOCK_SKEW_SECONDS: "300"
+  BARAQ_HMAC_NONCE_TTL_SECONDS: "600"
+  SECURE_SSL_REDIRECT: "True"
+  SECURE_HSTS_SECONDS: "31536000"
+  SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+  SECURE_HSTS_PRELOAD: "False"
+  API_DOCS_PUBLIC: "False"
+  PORT: "8000"
+  APP_PORT: "8000"
+  GUNICORN_WORKERS: "2"
+  GUNICORN_THREADS: "2"
+  GUNICORN_TIMEOUT: "60"
+  CELERY_WORKER_CONCURRENCY: "1"
+  MEDIA_ROOT: /app/media
+  MEDIA_URL: /media/
+  USE_S3_STORAGE: "False"
+  EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+  EMAIL_HOST: ${EMAIL_HOST:?EMAIL_HOST is required for registration OTP delivery}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+  EMAIL_USE_SSL: ${EMAIL_USE_SSL:-False}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:?EMAIL_HOST_USER is required for registration OTP delivery}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:?EMAIL_HOST_PASSWORD is required for registration OTP delivery}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?DEFAULT_FROM_EMAIL is required for registration OTP delivery}
+  LOG_LEVEL: INFO
+  APP_LOG_LEVEL: INFO
+  SENTRY_DSN: ${SENTRY_DSN:-}
+
+x-ai-environment: &ai-environment
+  APP_ENV: production
+  APP_NAME: Baraq AI Service
+  APP_VERSION: ${AI_VERSION:?AI_VERSION is required}
+  DEBUG: "false"
+  LOG_LEVEL: INFO
+  PUBLIC_API_PREFIX: /api/ai/v1
+  INTERNAL_API_PREFIX: /internal/v1
+  ALLOWED_HOSTS: ai-api,localhost,127.0.0.1
+  CORS_ORIGINS: ""
+  BARAQ_RUNTIME_MODE: service
+  ENABLE_AI_LAB: "false"
+  PROVIDER_MODE: live
+  DATABASE_URL: postgresql+asyncpg://baraq_ai:${AI_DB_PASSWORD:?AI_DB_PASSWORD is required}@ai-db:5432/baraq_ai
+  DATABASE_SYNC_URL: postgresql+psycopg://baraq_ai:${AI_DB_PASSWORD:?AI_DB_PASSWORD is required}@ai-db:5432/baraq_ai
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/3
+  CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/4
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/5
+  # AI and Django communicate only over Docker's private network.  Do not
+  # route signed callbacks through the public gateway.
+  BARAQ_BACKEND_BASE_URL: http://backend:8000
+  BARAQ_BACKEND_ALLOW_INSECURE_HTTP: "true"
+  BARAQ_SERVICE_ID: baraq-ai-service
+  BARAQ_DJANGO_SERVICE_ID: baraq-django
+  BARAQ_HMAC_CURRENT_KEY_ID: ${HMAC_KEY_ID:?HMAC_KEY_ID is required}
+  BARAQ_HMAC_KEYS_JSON: '{"${HMAC_KEY_ID}":"${HMAC_SHARED_SECRET}"}'
+  HMAC_MAX_CLOCK_SKEW_SECONDS: "300"
+  HMAC_NONCE_TTL_SECONDS: "600"
+  HMAC_V1_COMPAT_ENABLED: "false"
+  OPENAI_PRIMARY_ENABLED: "true"
+  OPENAI_PRIMARY_API_KEY: ${OPENAI_PRIMARY_API_KEY:?OPENAI_PRIMARY_API_KEY is required}
+  OPENAI_STORE_RESPONSES: "false"
+  OPENAI_REQUEST_TIMEOUT_SECONDS: "300"
+  PROVIDER_MAX_RETRIES: "2"
+  PROVIDER_COOLDOWN_SECONDS: "90"
+  AI_REQUESTS_PER_MINUTE: "20"
+  TRAINING_CONSENT_REQUIRED: "true"
+  PROMETHEUS_ENABLED: "true"
+  SENTRY_DSN: ${SENTRY_DSN:-}
+
+services:
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${HOST_PORT:-11001}:8080"
+      - "127.0.0.1:11002:8080"
+      - "127.0.0.1:11003:8080"
+      - "127.0.0.1:11004:8080"
+      - "127.0.0.1:11005:8084"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks: [edge]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs:
+      - /config
+      - /data
+    mem_limit: 128m
+    mem_reservation: 32m
+    pids_limit: 100
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  website:
+    build:
+      context: ../source/website
+      dockerfile: ../../app/docker/website.Dockerfile
+    image: baraq/website:${WEBSITE_IMAGE_TAG:-initial}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "4173"
+      BARAQ_WAITLIST_FILE: /data/waitlist.json
+      WAITLIST_ADMIN_USERNAME: ${WAITLIST_ADMIN_USERNAME:?WAITLIST_ADMIN_USERNAME is required}
+      WAITLIST_ADMIN_PASSWORD: ${WAITLIST_ADMIN_PASSWORD:?WAITLIST_ADMIN_PASSWORD is required}
+    expose: ["4173"]
+    volumes:
+      - website_waitlist:/data
+    networks: [edge]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 192m
+    mem_reservation: 64m
+    pids_limit: 100
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1:4173/]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging: *default-logging
+
+  dashboard:
+    build:
+      context: ../source/dashboard
+      dockerfile: Dockerfile
+    image: baraq/dashboard:${DASHBOARD_IMAGE_TAG:-initial}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      BACKEND_API_URL: http://backend:8000/api/v1
+      BACKEND_API_TIMEOUT_MS: "15000"
+      BFF_MAX_BODY_BYTES: "57671680"
+      API_BINDING_ENABLED: "true"
+      NEXT_PUBLIC_API_BINDING_ENABLED: "true"
+      NEXT_PUBLIC_APP_NAME: لوحة تحكم برّاق
+      NEXT_PUBLIC_DEFAULT_LOCALE: ar
+      NEXT_PUBLIC_DASHBOARD_VERSION: ${DASHBOARD_IMAGE_TAG:-initial}
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_COOKIE_DOMAIN: ""
+    expose: ["3000"]
+    networks: [edge]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    mem_reservation: 128m
+    pids_limit: 150
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1:3000/api/health]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    logging: *default-logging
+
+  web:
+    build:
+      context: ../source/web
+      dockerfile: Dockerfile
+    image: baraq/web:${WEB_VERSION:?WEB_VERSION is required}
+    restart: unless-stopped
+    init: true
+    environment:
+      APP_ENV: production
+      BACKEND_API_URL: http://backend:8000
+      BACKEND_API_TIMEOUT_MS: "20000"
+      BFF_MAX_BODY_BYTES: "57671680"
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_COOKIE_DOMAIN: ""
+      FRONTEND_PASSWORD_RESET_URL: https://web.baraqapp.com/ar/reset-password
+      NEXT_PUBLIC_APP_NAME: برّاق
+      NEXT_PUBLIC_SITE_URL: https://web.baraqapp.com
+      NEXT_PUBLIC_DEFAULT_LOCALE: ar
+      NEXT_PUBLIC_APP_VERSION: ${WEB_VERSION:?WEB_VERSION is required}
+      NEXT_PUBLIC_FEATURE_KHOLASA: "false"
+      NEXT_PUBLIC_FEATURE_SADA: "false"
+      SENTRY_DSN: ${WEB_SENTRY_DSN:-}
+    expose: ["3000"]
+    networks: [edge]
+    depends_on:
+      backend:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    mem_reservation: 128m
+    pids_limit: 150
+    stop_grace_period: 30s
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1:3000/api/health]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    logging: *default-logging
+
+  backend-migrate:
+    build: &backend-build
+      context: ../source/backend
+      dockerfile: Dockerfile
+    image: baraq/backend:${BACKEND_VERSION:?BACKEND_VERSION is required}
+    restart: "no"
+    environment:
+      <<: *backend-environment
+      DJANGO_WAIT_FOR_DATABASE: "1"
+      DJANGO_RUN_MIGRATIONS: "1"
+      DJANGO_COLLECTSTATIC: "1"
+    command: [python, manage.py, check, --deploy]
+    volumes:
+      - backend_static:/app/staticfiles
+      - backend_media:/app/media
+    networks: [private]
+    depends_on:
+      backend-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    mem_reservation: 128m
+    pids_limit: 150
+    logging: *default-logging
+
+  backend:
+    build: *backend-build
+    image: baraq/backend:${BACKEND_VERSION:?BACKEND_VERSION is required}
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      DJANGO_WAIT_FOR_DATABASE: "1"
+      DJANGO_RUN_MIGRATIONS: "0"
+      DJANGO_COLLECTSTATIC: "0"
+    expose: ["8000"]
+    volumes:
+      - backend_static:/app/staticfiles
+      - backend_media:/app/media
+    networks: [edge, private]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 768m
+    mem_reservation: 256m
+    pids_limit: 200
+    stop_grace_period: 45s
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:8000/api/v1/health/live/]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    logging: *default-logging
+
+  backend-worker:
+    build: *backend-build
+    image: baraq/backend:${BACKEND_VERSION:?BACKEND_VERSION is required}
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      DJANGO_WAIT_FOR_DATABASE: "1"
+      DJANGO_RUN_MIGRATIONS: "0"
+      DJANGO_COLLECTSTATIC: "0"
+    command: [celery, -A, config, worker, --loglevel=INFO, --concurrency=1, --max-tasks-per-child=500, "--queues=default"]
+    volumes:
+      - backend_media:/app/media
+    networks: [private]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    mem_reservation: 128m
+    pids_limit: 160
+    stop_grace_period: 60s
+    healthcheck:
+      test: [CMD-SHELL, "celery -A config inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong"]
+      interval: 60s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    logging: *default-logging
+
+  # Dedicated worker for latency-sensitive user-facing email (registration
+  # OTP, password reset) on the `critical` queue -- see
+  # CELERY_TASK_ROUTES in config/settings.py. Kept separate from
+  # `backend-worker` so a burst of AI-dispatch/source-processing tasks on the
+  # `default` queue can never delay a time-sensitive OTP email.
+  backend-worker-critical:
+    build: *backend-build
+    image: baraq/backend:${BACKEND_VERSION:?BACKEND_VERSION is required}
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      DJANGO_WAIT_FOR_DATABASE: "1"
+      DJANGO_RUN_MIGRATIONS: "0"
+      DJANGO_COLLECTSTATIC: "0"
+    command: [celery, -A, config, worker, --loglevel=INFO, --concurrency=1, --max-tasks-per-child=500, "--queues=critical"]
+    # Keep internal access to Redis/DB while granting outbound-only connectivity
+    # for SMTP delivery (for example smtp.gmail.com). No ports are published.
+    networks: [private, backend-egress]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 256m
+    mem_reservation: 64m
+    pids_limit: 100
+    stop_grace_period: 30s
+    healthcheck:
+      test: [CMD-SHELL, "celery -A config inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong"]
+      interval: 60s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    logging: *default-logging
+
+  backend-beat:
+    build: *backend-build
+    image: baraq/backend:${BACKEND_VERSION:?BACKEND_VERSION is required}
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      DJANGO_WAIT_FOR_DATABASE: "1"
+      DJANGO_RUN_MIGRATIONS: "0"
+      DJANGO_COLLECTSTATIC: "0"
+    command: [celery, -A, config, beat, --loglevel=INFO]
+    networks: [private]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 192m
+    mem_reservation: 64m
+    pids_limit: 100
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  backend-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: baraq_backend
+      POSTGRES_USER: baraq_backend
+      POSTGRES_PASSWORD: ${BACKEND_DB_PASSWORD:?BACKEND_DB_PASSWORD is required}
+    volumes:
+      - backend_postgres:/var/lib/postgresql/data
+    networks: [private]
+    shm_size: 128m
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U baraq_backend -d baraq_backend]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    mem_reservation: 256m
+    pids_limit: 150
+    stop_grace_period: 60s
+    logging: *default-logging
+
+  ai-migrate:
+    build: &ai-build
+      context: ../source/ai
+      dockerfile: Dockerfile
+    image: baraq/ai:${AI_VERSION:?AI_VERSION is required}
+    restart: "no"
+    environment: *ai-environment
+    command: [alembic, upgrade, head]
+    networks: [private]
+    depends_on:
+      ai-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    mem_reservation: 128m
+    pids_limit: 150
+    logging: *default-logging
+
+  ai-api:
+    build: *ai-build
+    image: baraq/ai:${AI_VERSION:?AI_VERSION is required}
+    restart: unless-stopped
+    init: true
+    environment: *ai-environment
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, "8000", --no-server-header]
+    expose: ["8000"]
+    networks: [private]
+    depends_on:
+      ai-migrate:
+        condition: service_completed_successfully
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 768m
+    mem_reservation: 256m
+    pids_limit: 200
+    stop_grace_period: 45s
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:8000/api/ai/v1/health/live]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    logging: *default-logging
+
+  ai-worker:
+    build: *ai-build
+    image: baraq/ai:${AI_VERSION:?AI_VERSION is required}
+    restart: unless-stopped
+    init: true
+    environment: *ai-environment
+    command: [celery, -A, app.workers.celery_app:celery_app, worker, --loglevel=INFO, --concurrency=1, "--queues=ai_interactive,ai_audio,ai_ingestion,ai_background"]
+    # Private service access plus outbound-only provider access.  No ports are
+    # published and this network is not connected to the public gateway.
+    networks: [private, provider-egress]
+    depends_on:
+      ai-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 1024m
+    mem_reservation: 256m
+    pids_limit: 200
+    stop_grace_period: 90s
+    healthcheck:
+      test: [CMD-SHELL, "celery -A app.workers.celery_app:celery_app inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong"]
+      interval: 60s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging: *default-logging
+
+  ai-beat:
+    build: *ai-build
+    image: baraq/ai:${AI_VERSION:?AI_VERSION is required}
+    restart: unless-stopped
+    init: true
+    environment: *ai-environment
+    command: [celery, -A, app.workers.celery_app:celery_app, beat, --loglevel=INFO]
+    healthcheck:
+      disable: true
+    networks: [private]
+    depends_on:
+      ai-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 192m
+    mem_reservation: 64m
+    pids_limit: 100
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  ai-db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: baraq_ai
+      POSTGRES_USER: baraq_ai
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:?AI_DB_PASSWORD is required}
+    volumes:
+      - ai_postgres:/var/lib/postgresql/data
+    networks: [private]
+    shm_size: 128m
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U baraq_ai -d baraq_ai]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1024m
+    mem_reservation: 256m
+    pids_limit: 150
+    stop_grace_period: 60s
+    logging: *default-logging
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    user: redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy noeviction --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    networks: [private]
+    healthcheck:
+      test: [CMD-SHELL, "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 320m
+    mem_reservation: 64m
+    pids_limit: 100
+    stop_grace_period: 30s
+    logging: *default-logging
+
+networks:
+  edge:
+  provider-egress:
+  # Outbound-only bridge for backend jobs that must reach external services
+  # such as SMTP. It is intentionally separate from the public edge network.
+  backend-egress:
+    driver: bridge
+  private:
+    internal: true
+
+volumes:
+  backend_postgres:
+  ai_postgres:
+  redis_data:
+  backend_static:
+  backend_media:
+  website_waitlist:

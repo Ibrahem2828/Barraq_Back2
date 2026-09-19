@@ -22,6 +22,10 @@ from apps.common.env_config import (
 # ``tests.py`` module. Import the generated-contract surface sweep here so it
 # is part of every unlabeled CI/test run as well as direct targeted runs.
 from apps.common.test_api_surface import OpenAPISurfaceTests  # noqa: F401
+from apps.common.test_deployment_config import (  # noqa: F401
+    ProductionComposeTests,
+    UploadSizeChainTests,
+)
 from apps.quizzes.models import Quiz
 from apps.study_plans.models import StudyPlan
 from apps.subjects.models import EducationStage, Subject

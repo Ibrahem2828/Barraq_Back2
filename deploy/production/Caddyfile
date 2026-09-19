@@ -1,0 +1,62 @@
+:8080 {
+    encode zstd gzip
+    request_body {
+        max_size 64MB
+    }
+    header {
+        -Server
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-Frame-Options "DENY"
+    }
+
+    @website host baraqapp.com
+    handle @website {
+        reverse_proxy website:4173 {
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host {host}
+            header_down -Server
+        }
+    }
+
+    @www host www.baraqapp.com
+    handle @www {
+        redir https://baraqapp.com{uri} permanent
+    }
+
+    @api host api.baraqapp.com
+    handle @api {
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host {host}
+            header_down -Server
+        }
+    }
+
+    @dashboard host dashboard.baraqapp.com
+    handle @dashboard {
+        reverse_proxy dashboard:3000 {
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host {host}
+            header_down -Server
+        }
+    }
+
+    respond "Unknown Baraq host" 404
+}
+
+:8084 {
+    encode zstd gzip
+    request_body {
+        max_size 64MB
+    }
+    header -Server
+
+    reverse_proxy web:3000 {
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Host {host}
+        header_down -Server
+    }
+}
