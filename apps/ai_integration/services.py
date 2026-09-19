@@ -115,26 +115,121 @@ def _boolean(value, field_name, *, default):
     return value
 
 
+#: The most sources one AI job may operate on. Previously applied as a silent
+#: `[:10]` slice during resolution, so selecting eleven sources quietly
+#: generated a quiz from ten of them and the learner was never told which.
+MAX_SOURCES_PER_JOB = 10
+
+
+class AIRequestError(ValidationError):
+    """A validation error carrying a stable, branchable domain code.
+
+    apps.common.exceptions.domain_error_code promotes `domain_code` to the top
+    level of the error envelope, so the client can distinguish "too many
+    sources" from any other 400 instead of showing a generic message.
+    """
+
+    def __init__(self, detail, *, code):
+        self.domain_code = code
+        super().__init__(detail)
+
+
 def _resolve_sources(*, source=None, collection=None):
-    """The exact source set a job actually operates on -- shared by the
-    per-task input builders (input.source_ids) and build_service_payload()
-    (top-level source_ids/source_versions), so both always agree."""
+    """The exact source set a job operates on, at *creation* time.
+
+    Shared by the per-task input builders so `input.source_ids` records the
+    selection. Dispatch does not call this -- it replays the recorded
+    selection through resolve_job_sources() instead, so a later library edit
+    cannot change what an already-created job meant.
+    """
     if source is not None:
         return [source]
     if collection is None:
         return []
-    sources = list(
-        collection.sources.filter(
-            status__in=[StudentSource.Status.UPLOADED, StudentSource.Status.READY]
-        ).order_by("id")[:10]
-    )
-    if not sources:
+    usable = collection.sources.filter(
+        status__in=StudentSource.AI_USABLE_STATUSES
+    ).order_by("id")
+    count = usable.count()
+    if not count:
         raise ValidationError({"source": "At least one usable source is required."})
-    return sources
+    if count > MAX_SOURCES_PER_JOB:
+        # Explicit refusal rather than a silent slice: the learner picked
+        # these sources deliberately and must know the request was not honoured.
+        raise AIRequestError(
+            {
+                "source": (
+                    f"لا يمكن استخدام أكثر من {MAX_SOURCES_PER_JOB} مصادر في طلب واحد. "
+                    f"المجلد يحتوي على {count}."
+                ),
+                "limit": MAX_SOURCES_PER_JOB,
+                "selected": count,
+            },
+            code="too_many_sources",
+        )
+    return list(usable)
 
 
 def _source_ids(*, source=None, collection=None):
     return [str(item.id) for item in _resolve_sources(source=source, collection=collection)]
+
+
+def resolve_job_sources(job):
+    """The sources a job was created against, replayed from its own record.
+
+    `input_payload["source_ids"]` is written once at creation and is the job's
+    immutable scope. Re-deriving it from `job.collection` at dispatch -- which
+    is what used to happen -- meant moving a source between folders silently
+    changed what an accepted job would operate on, and a job could even
+    dispatch against material the learner had since removed.
+
+    Scoped to `job.user`, so a recorded id can never widen access beyond the
+    owner even if the payload were tampered with.
+    """
+    recorded = (job.input_payload or {}).get("source_ids") or []
+    if not recorded:
+        # Two legitimate cases, neither of which records a list:
+        #  - Sada, whose input carries a singular `source_id`;
+        #  - jobs created before this scope record existed.
+        # A single-source job's scope *is* its FK, and that FK is already
+        # immutable, so falling back to it is both correct and keeps in-flight
+        # jobs dispatchable. Rasheed has neither and legitimately yields [].
+        return [job.source] if job.source_id else []
+    try:
+        wanted = [int(value) for value in recorded]
+    except (TypeError, ValueError) as exc:
+        raise AIRequestError(
+            {"source": "The job's recorded source scope is unreadable."},
+            code="invalid_source_scope",
+        ) from exc
+
+    by_id = {
+        item.id: item
+        for item in StudentSource.objects.filter(id__in=wanted, user_id=job.user_id)
+    }
+    missing = [value for value in wanted if value not in by_id]
+    if missing:
+        # Deleted between acceptance and dispatch. Failing loudly beats
+        # silently generating from whatever survived.
+        raise AIRequestError(
+            {"source": "A source this request was created against no longer exists."},
+            code="source_no_longer_available",
+        )
+    return [by_id[value] for value in wanted]
+
+
+def _input_source_ids(payload, *, source=None, collection=None):
+    """The `input.source_ids` for a task input.
+
+    On a replay -- build_service_payload rebuilding the input at dispatch from
+    the stored payload -- the recorded ids are authoritative and are returned
+    as-is. Re-deriving them there would let a folder edit change an accepted
+    job's scope, and would also raise `too_many_sources` at dispatch for a
+    folder that merely grew after the job was accepted.
+    """
+    recorded = payload.get("source_ids")
+    if isinstance(recorded, list) and recorded:
+        return [str(value) for value in recorded]
+    return _source_ids(source=source, collection=collection)
 
 
 def content_sha256(source):
@@ -160,7 +255,7 @@ def build_fahes_job_input(*, source=None, collection=None, subject=None, input_p
     payload = _as_mapping(input_payload, "input")
     params = _as_mapping(parameters, "parameters")
     input_data = {
-        "source_ids": _source_ids(source=source, collection=collection),
+        "source_ids": _input_source_ids(payload, source=source, collection=collection),
         "question_count": _integer(
             payload.get("question_count", params.get("question_count", params.get("questions_count"))),
             "input.question_count",
@@ -198,7 +293,7 @@ def build_kholasa_job_input(*, source=None, collection=None, input_payload=None,
     if summary_length not in {"short", "medium", "detailed"}:
         raise ValidationError({"input.summary_length": "Unsupported summary length."})
     input_data = {
-        "source_ids": _source_ids(source=source, collection=collection),
+        "source_ids": _input_source_ids(payload, source=source, collection=collection),
         "summary_length": summary_length,
         "focus_topics": _string_list(payload.get("focus_topics"), "input.focus_topics", max_length=30),
         "include_review_questions": _boolean(
@@ -259,7 +354,7 @@ def build_khota_job_input(
         if not isinstance(subject_id, str):
             raise ValidationError({"input.exam_dates": "Subject ids must be text."})
     return {
-        "source_ids": _source_ids(source=source, collection=collection),
+        "source_ids": _input_source_ids(payload, source=source, collection=collection),
         "subject_ids": subject_ids,
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
@@ -544,7 +639,11 @@ def build_service_payload(job):
     # rest of the payload, so the AI service pins exactly which source
     # content it is operating on at dispatch time -- not a separate,
     # later, out-of-band pull that could race a source being changed.
-    sources = _resolve_sources(source=job.source, collection=job.collection)
+    #
+    # Replayed from the job's own recorded scope rather than re-derived from
+    # job.collection. Re-deriving meant a folder edit between acceptance and
+    # dispatch silently changed which material the job ran on.
+    sources = resolve_job_sources(job)
     source_ids = [str(item.id) for item in sources]
     source_versions = {str(item.id): content_sha256(item) for item in sources}
     return {

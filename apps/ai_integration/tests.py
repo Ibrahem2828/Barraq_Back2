@@ -35,10 +35,13 @@ from .materializers import _create_derived_text_source, materialize_job
 from .models import AIJob, AIWebhookEvent
 from .security import InternalAuthenticationError, make_service_signature, verify_internal_request
 from .services import (
+    MAX_SOURCES_PER_JOB,
     build_khota_job_input,
     build_service_payload,
     complete_job,
     content_sha256,
+    create_ai_job,
+    resolve_job_sources,
     update_job_progress,
 )
 
@@ -889,3 +892,201 @@ class SadaDerivedSourceTests(APITestCase):
         self.assertTrue(capabilities['kholasa']['available'])
         self.assertTrue(capabilities['fahes']['available'])
         self.assertFalse(capabilities['sada']['available'])
+
+
+class JobSourceScopeTests(APITestCase):
+    """A job's source scope is decided once, at acceptance, and recorded.
+
+    Dispatch used to re-derive it from `job.collection`, so moving a source
+    between folders after the job was accepted silently changed which material
+    it ran on -- and selecting more than ten sources was quietly sliced to ten
+    with no indication that the rest were ignored.
+    """
+
+    def setUp(self):
+        self.media_override = override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        self.media_override.enable()
+        self.user = User.objects.create_user(
+            email='scope@example.com', password='StrongPass123!', full_name='Scope User'
+        )
+        stage = EducationStage.objects.create(name='Secondary', order=1)
+        self.subject = Subject.objects.create(
+            name='Chemistry', education_stage=stage, grade_level='12'
+        )
+        self.project = Project.objects.create(owner=self.user, title='Chemistry Project')
+        self.collection = StudentSourceCollection.objects.create(
+            user=self.user, project=self.project, subject=self.subject, name='Unit 1'
+        )
+        ensure_default_plans()
+        get_or_create_user_subscription(self.user)
+
+    def tearDown(self):
+        cache.clear()
+        self.media_override.disable()
+
+    def _source(self, name, *, collection=None):
+        body = f'Content of {name}'.encode()
+        return StudentSource.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            collection=collection,
+            title=name,
+            source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile(f'{name}.txt', body, content_type='text/plain'),
+            original_filename=f'{name}.txt',
+            file_size=len(body),
+            mime_type='text/plain',
+            extension='txt',
+            extracted_text=f'Content of {name}',
+            status=StudentSource.Status.READY,
+        )
+
+    def test_the_selected_set_is_recorded_on_the_job(self):
+        first = self._source('alpha', collection=self.collection)
+        second = self._source('beta', collection=self.collection)
+
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            collection=self.collection,
+        )
+
+        self.assertEqual(
+            job.input_payload['source_ids'], [str(first.id), str(second.id)]
+        )
+
+    def test_moving_a_source_out_of_the_folder_does_not_change_an_accepted_job(self):
+        """The defect this guards: dispatch re-derived scope from the folder,
+        so a library tidy-up rewrote what an in-flight job meant."""
+        first = self._source('alpha', collection=self.collection)
+        second = self._source('beta', collection=self.collection)
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            collection=self.collection,
+        )
+
+        # The learner reorganises their library after submitting.
+        second.collection = None
+        second.save(update_fields=['collection'])
+
+        payload = build_service_payload(job)
+
+        self.assertEqual(payload['source_ids'], [str(first.id), str(second.id)])
+        self.assertEqual(len(payload['source_versions']), 2)
+
+    def test_adding_a_source_to_the_folder_does_not_widen_an_accepted_job(self):
+        self._source('alpha', collection=self.collection)
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            collection=self.collection,
+        )
+
+        self._source('added-later', collection=self.collection)
+
+        self.assertEqual(len(build_service_payload(job)['source_ids']), 1)
+
+    def test_a_deleted_source_fails_loudly_rather_than_shrinking_the_job(self):
+        first = self._source('alpha', collection=self.collection)
+        self._source('beta', collection=self.collection)
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            collection=self.collection,
+        )
+        first.delete()
+
+        with self.assertRaises(ValidationError) as caught:
+            build_service_payload(job)
+
+        self.assertEqual(caught.exception.domain_code, 'source_no_longer_available')
+
+    def test_selecting_more_than_the_limit_is_refused_explicitly(self):
+        """No silent slice: the learner must be told the request was refused."""
+        for index in range(MAX_SOURCES_PER_JOB + 1):
+            self._source(f'source-{index:02d}', collection=self.collection)
+
+        with self.assertRaises(ValidationError) as caught:
+            create_ai_job(
+                user=self.user,
+                task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+                collection=self.collection,
+            )
+
+        self.assertEqual(caught.exception.domain_code, 'too_many_sources')
+        self.assertEqual(
+            int(caught.exception.detail['limit']), MAX_SOURCES_PER_JOB
+        )
+        self.assertEqual(
+            int(caught.exception.detail['selected']), MAX_SOURCES_PER_JOB + 1
+        )
+        self.assertFalse(AIJob.objects.exists(), 'a refused request must create no job')
+
+    def test_exactly_the_limit_is_accepted(self):
+        for index in range(MAX_SOURCES_PER_JOB):
+            self._source(f'source-{index:02d}', collection=self.collection)
+
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            collection=self.collection,
+        )
+
+        self.assertEqual(len(job.input_payload['source_ids']), MAX_SOURCES_PER_JOB)
+
+    def test_a_recorded_id_cannot_widen_access_beyond_the_owner(self):
+        """Defence in depth: even a tampered payload stays inside the owner."""
+        intruder = User.objects.create_user(
+            email='intruder@example.com', password='StrongPass123!', full_name='Intruder'
+        )
+        victim_project = Project.objects.create(owner=intruder, title='Private')
+        victim_source = StudentSource.objects.create(
+            user=intruder,
+            project=victim_project,
+            title='Private notes',
+            source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile('p.txt', b'secret', content_type='text/plain'),
+            original_filename='p.txt',
+            file_size=6,
+            mime_type='text/plain',
+            extension='txt',
+            status=StudentSource.Status.READY,
+        )
+        mine = self._source('mine', collection=self.collection)
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            collection=self.collection,
+        )
+        job.input_payload = {
+            **job.input_payload,
+            'source_ids': [str(mine.id), str(victim_source.id)],
+        }
+        job.save(update_fields=['input_payload'])
+
+        with self.assertRaises(ValidationError) as caught:
+            build_service_payload(job)
+
+        # Filtered out by the owner scope, then reported as missing -- never
+        # silently included, and never leaked.
+        self.assertEqual(caught.exception.domain_code, 'source_no_longer_available')
+
+    def test_a_single_source_job_still_resolves_without_a_recorded_list(self):
+        """Sada records a singular `source_id`, and jobs predating the scope
+        record have no list at all. Their FK is already immutable."""
+        source = self._source('solo')
+        job = AIJob.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            character=AIJob.Character.FAHES,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            source=source,
+            idempotency_key='legacy-no-source-ids',
+            status=AIJob.Status.QUEUED,
+            input_payload={'question_count': 10},
+        )
+
+        self.assertEqual(resolve_job_sources(job), [source])
