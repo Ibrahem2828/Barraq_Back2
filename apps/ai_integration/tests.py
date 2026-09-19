@@ -1120,6 +1120,73 @@ class SadaDerivedSourceTests(APITestCase):
         self.assertIn(str(derived.id), payload['source_versions'])
         self.assertEqual(len(payload['source_versions'][str(derived.id)]), 64)
 
+    def test_completed_sada_source_materializes_fahes_and_kholasa_results(self):
+        """Deterministic product-boundary proof for the complete reuse chain.
+
+        Provider generation is intentionally replaced by validated fixture
+        output here; this test proves the real Sada materializer, stored file,
+        versioned downstream contract, and both downstream domain
+        materializers work as one transaction-safe chain.
+        """
+
+        complete_job(self.job, dict(self.result))
+        derived = StudentSource.objects.get(metadata__derived_from='sada')
+        expected_sha = content_sha256(derived)
+
+        fahes = AIJob.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            character=AIJob.Character.FAHES,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            source=derived,
+            input_payload={'source_versions': {str(derived.id): expected_sha}},
+            idempotency_key='sada-derived-fahes',
+            status=AIJob.Status.SUBMITTED,
+        )
+        kholasa = AIJob.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            character=AIJob.Character.KHOLASA,
+            task_type=AIJob.TaskType.KHOLASA_GENERATE_SUMMARY,
+            source=derived,
+            input_payload={'source_versions': {str(derived.id): expected_sha}},
+            idempotency_key='sada-derived-kholasa',
+            status=AIJob.Status.SUBMITTED,
+        )
+
+        fahes_payload = build_service_payload(fahes)
+        kholasa_payload = build_service_payload(kholasa)
+        self.assertEqual(fahes_payload['source_versions'][str(derived.id)], expected_sha)
+        self.assertEqual(kholasa_payload['source_versions'][str(derived.id)], expected_sha)
+
+        complete_job(fahes, {
+            'title': 'اختبار بروتوكول زفير',
+            'questions': [{
+                'question': 'كم عدد مراحل التحقق في بروتوكول زفير-913؟',
+                'choices': ['سبع مراحل', 'ثلاث مراحل'],
+                'correct_answer_index': 0,
+                'explanation': self.transcript,
+            }],
+        })
+        complete_job(kholasa, {
+            'title': 'خلاصة بروتوكول زفير',
+            'executive_summary': self.transcript,
+            'key_points': [self.transcript],
+            'citations': [{'source_id': str(derived.id)}],
+        })
+
+        fahes.refresh_from_db()
+        kholasa.refresh_from_db()
+        quiz = Quiz.objects.get(ai_job=fahes)
+        summary = Summary.objects.get(ai_job=kholasa)
+        self.assertEqual(fahes.status, AIJob.Status.COMPLETED)
+        self.assertEqual(kholasa.status, AIJob.Status.COMPLETED)
+        self.assertIn('سبع مراحل', quiz.questions.get().choices.get(is_correct=True).text)
+        self.assertIn('سبع مراحل', summary.short_summary)
+        self.assertEqual(summary.source_id, derived.id)
+
     def test_ownership_project_and_folder_are_preserved(self):
         self._materialize()
         derived = StudentSource.objects.get(metadata__derived_from='sada')
