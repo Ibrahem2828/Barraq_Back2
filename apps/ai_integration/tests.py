@@ -1090,3 +1090,186 @@ class JobSourceScopeTests(APITestCase):
         )
 
         self.assertEqual(resolve_job_sources(job), [source])
+
+
+class ExplicitMultiSourceScopeTests(APITestCase):
+    """Selecting several sources for one request must not reorganise the
+    learner's library.
+
+    The web client used to express "these three sources" by bulk-reassigning
+    them into a collection -- a permanent, user-visible change to their
+    folders made only to describe one temporary request.
+    """
+
+    def setUp(self):
+        self.media_override = override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        self.media_override.enable()
+        self.user = User.objects.create_user(
+            email='multi@example.com', password='StrongPass123!', full_name='Multi User'
+        )
+        self.other = User.objects.create_user(
+            email='multi-other@example.com', password='StrongPass123!', full_name='Other'
+        )
+        stage = EducationStage.objects.create(name='Secondary', order=1)
+        self.subject = Subject.objects.create(
+            name='Biology', education_stage=stage, grade_level='12'
+        )
+        self.project = Project.objects.create(owner=self.user, title='Biology Project')
+        ensure_default_plans()
+        get_or_create_user_subscription(self.user)
+        self.first = self._source('alpha')
+        self.second = self._source('beta')
+
+    def tearDown(self):
+        cache.clear()
+        self.media_override.disable()
+
+    def _source(self, name, *, owner=None, project=None):
+        owner = owner or self.user
+        body = f'Content of {name}'.encode()
+        return StudentSource.objects.create(
+            user=owner,
+            project=project or self.project,
+            subject=self.subject,
+            title=name,
+            source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile(f'{name}.txt', body, content_type='text/plain'),
+            original_filename=f'{name}.txt',
+            file_size=len(body),
+            mime_type='text/plain',
+            extension='txt',
+            extracted_text=f'Content of {name}',
+            status=StudentSource.Status.READY,
+        )
+
+    def _create(self, payload):
+        self.client.force_authenticate(self.user)
+        return self.client.post(reverse('ai-job-list'), payload, format='json')
+
+    def test_an_explicit_selection_creates_a_job_without_touching_collections(self):
+        before = StudentSourceCollection.objects.count()
+
+        response = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, self.second.id],
+            'project': str(self.project.public_id),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED, response.data)
+        self.assertEqual(StudentSourceCollection.objects.count(), before)
+        self.first.refresh_from_db()
+        self.second.refresh_from_db()
+        self.assertIsNone(self.first.collection_id)
+        self.assertIsNone(self.second.collection_id)
+
+    def test_the_exact_selection_is_recorded_and_replayed_at_dispatch(self):
+        response = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, self.second.id],
+            'project': str(self.project.public_id),
+        })
+
+        job = AIJob.objects.get(public_id=response.data['public_id'])
+        self.assertEqual(
+            job.input_payload['source_ids'], [str(self.first.id), str(self.second.id)]
+        )
+        payload = build_service_payload(job)
+        self.assertEqual(payload['source_ids'], [str(self.first.id), str(self.second.id)])
+        self.assertEqual(len(payload['source_versions']), 2)
+
+    def test_every_selected_source_is_authorized_not_just_the_first(self):
+        """The dangerous shape: a legitimate first id followed by someone
+        else's."""
+        stolen = self._source('victim', owner=self.other,
+                              project=Project.objects.create(owner=self.other, title='Theirs'))
+
+        response = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, stolen.id],
+            'project': str(self.project.public_id),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(AIJob.objects.exists())
+
+    def test_sources_from_two_projects_are_refused(self):
+        elsewhere = Project.objects.create(owner=self.user, title='Another project')
+        other_project_source = self._source('gamma', project=elsewhere)
+
+        response = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, other_project_source.id],
+            'project': str(self.project.public_id),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_a_selection_beyond_the_limit_is_refused_with_its_own_code(self):
+        selected = [self._source(f'extra-{i:02d}').id for i in range(MAX_SOURCES_PER_JOB + 1)]
+
+        response = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': selected,
+            'project': str(self.project.public_id),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['code'], 'too_many_sources')
+        self.assertFalse(AIJob.objects.exists())
+
+    def test_a_failed_source_in_the_selection_is_refused(self):
+        broken = self._source('broken')
+        StudentSource.objects.filter(pk=broken.pk).update(
+            status=StudentSource.Status.FAILED
+        )
+
+        response = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, broken.id],
+            'project': str(self.project.public_id),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['code'], 'source_not_ready')
+
+    def test_mixing_an_explicit_selection_with_a_single_source_is_refused(self):
+        response = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id],
+            'source': self.second.id,
+            'project': str(self.project.public_id),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_two_different_selections_are_two_different_jobs(self):
+        """Idempotency must key on the selection, or the second request would
+        return the first request's quiz."""
+        third = self._source('gamma')
+
+        first = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, self.second.id],
+            'project': str(self.project.public_id),
+        })
+        second = self._create({
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, third.id],
+            'project': str(self.project.public_id),
+        })
+
+        self.assertEqual(second.status_code, status.HTTP_202_ACCEPTED, second.data)
+        self.assertNotEqual(first.data['public_id'], second.data['public_id'])
+
+    def test_repeating_the_same_selection_reuses_the_same_job(self):
+        payload = {
+            'task_type': AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            'source_ids': [self.first.id, self.second.id],
+            'project': str(self.project.public_id),
+        }
+
+        first = self._create(payload)
+        second = self._create(payload)
+
+        self.assertEqual(first.data['public_id'], second.data['public_id'])
+        self.assertEqual(AIJob.objects.count(), 1)

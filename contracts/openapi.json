@@ -382,6 +382,12 @@
             "nullable": true,
             "type": "integer"
           },
+          "source_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
           "subject": {
             "nullable": true,
             "type": "integer"
@@ -415,6 +421,12 @@
           "source": {
             "nullable": true,
             "type": "integer"
+          },
+          "source_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
           },
           "subject": {
             "nullable": true,

@@ -546,6 +546,51 @@ def build_idempotency_key(user_id, task_type, project_id, source_id, collection_
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def validate_selected_sources(user, sources, *, project=None):
+    """Authorize an explicit multi-source selection.
+
+    Every source is checked -- ownership, project membership and AI
+    eligibility -- not just the first. Browser-supplied ids are never trusted:
+    a source the learner does not own, or one from another project, is
+    refused rather than filtered out silently, so a selection that was not
+    honoured can never look like one that was.
+    """
+    if not sources:
+        raise ValidationError({"source_ids": "At least one source is required."})
+    if len(sources) > MAX_SOURCES_PER_JOB:
+        raise AIRequestError(
+            {
+                "source_ids": (
+                    f"لا يمكن استخدام أكثر من {MAX_SOURCES_PER_JOB} مصادر في طلب واحد."
+                ),
+                "limit": MAX_SOURCES_PER_JOB,
+                "selected": len(sources),
+            },
+            code="too_many_sources",
+        )
+    if len({item.id for item in sources}) != len(sources):
+        raise ValidationError({"source_ids": "A source may only be selected once."})
+    for item in sources:
+        if item.user_id != user.id:
+            raise ValidationError({"source_ids": "You do not own one of the selected sources."})
+        if item.status not in StudentSource.AI_USABLE_STATUSES:
+            raise AIRequestError(
+                {"source_ids": f'"{item.title}" غير جاهز للاستخدام مع الذكاء الاصطناعي.'},
+                code="source_not_ready",
+            )
+    projects = {item.project_id for item in sources}
+    if len(projects) > 1:
+        raise ValidationError(
+            {"source_ids": "All selected sources must belong to the same project."}
+        )
+    selected_project_id = next(iter(projects))
+    if project is not None and selected_project_id and selected_project_id != project.id:
+        raise ValidationError(
+            {"source_ids": "Selected sources must belong to the requested project."}
+        )
+    return sources
+
+
 def validate_job_ownership(user, source=None, collection=None, subject=None, project=None):
     if project is None:
         # Blueprint 01_BACKEND.md §3.1/§3.3: no AI job may be created without
@@ -569,10 +614,30 @@ def validate_job_ownership(user, source=None, collection=None, subject=None, pro
 
 
 @transaction.atomic
-def create_ai_job(*, user, task_type, project=None, source=None, collection=None, subject=None, input_payload=None, parameters=None, force=False):
+def create_ai_job(*, user, task_type, project=None, source=None, collection=None, sources=None, subject=None, input_payload=None, parameters=None, force=False):
     parameters = _as_mapping(parameters, "parameters")
     build_model_policy(parameters)
     character = TASK_CHARACTER[task_type]
+    if sources:
+        # An explicit multi-source selection: an ephemeral scope that exists
+        # only on this job. The web client used to express "these three
+        # sources" by bulk-reassigning them into a collection, permanently
+        # reorganising the learner's library to describe one request.
+        if source is not None or collection is not None:
+            raise ValidationError(
+                {"source_ids": "Choose either explicit sources, one source, or one collection."}
+            )
+        sources = validate_selected_sources(user, list(sources), project=project)
+        project = project or sources[0].project
+        subject = subject or sources[0].subject
+        # Seeding the record here is what makes it authoritative: the task
+        # builders return it untouched (see _input_source_ids) and dispatch
+        # replays it (see resolve_job_sources), so no FK is needed to carry a
+        # scope the job already describes.
+        input_payload = {
+            **_as_mapping(input_payload, "input"),
+            "source_ids": [str(item.id) for item in sources],
+        }
     project = project or getattr(source, "project", None) or getattr(collection, "project", None)
     validate_job_ownership(user, source, collection, subject, project)
     input_payload = build_task_input(

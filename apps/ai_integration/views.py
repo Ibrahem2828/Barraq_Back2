@@ -105,6 +105,7 @@ class AIJobViewSet(viewsets.GenericViewSet):
             project=data.get('project'),
             source=data.get('source'),
             collection=data.get('collection'),
+            sources=data.get('source_ids'),
             subject=data.get('subject'),
             input_payload=data.get('input'),
             parameters=data.get('parameters'),

@@ -43,6 +43,16 @@ class AIJobCreateSerializer(serializers.Serializer):
         queryset=StudentSource.objects.all(), required=False, allow_null=True
     )
     collection = serializers.PrimaryKeyRelatedField(queryset=StudentSourceCollection.objects.all(), required=False, allow_null=True)
+    # An ephemeral multi-source scope. Before this existed, the web client
+    # expressed "these three sources" by bulk-reassigning them into a
+    # collection -- permanently reorganising the learner's library to describe
+    # one request. Every id is authorized server-side; ownership is never
+    # inferred from the fact that the browser sent it.
+    source_ids = serializers.ListField(
+        child=serializers.PrimaryKeyRelatedField(queryset=StudentSource.objects.all()),
+        required=False,
+        allow_empty=False,
+    )
     subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.filter(is_active=True), required=False, allow_null=True)
     input = serializers.JSONField(required=False, default=dict)
     parameters = serializers.JSONField(required=False, default=dict)
@@ -62,6 +72,20 @@ class AIJobCreateSerializer(serializers.Serializer):
         if source and collection:
             raise serializers.ValidationError('Choose either source or collection.')
         inherited_project = getattr(source, 'project', None) or getattr(collection, 'project', None)
+        selected = attrs.get('source_ids') or []
+        if selected and (source or collection):
+            raise serializers.ValidationError(
+                {'source_ids': 'Choose either explicit sources, one source, or one collection.'}
+            )
+        if selected:
+            # Authorized in full by services.validate_selected_sources; this
+            # early check keeps the project inference below honest.
+            for item in selected:
+                if item.user_id != user.id:
+                    raise serializers.ValidationError(
+                        {'source_ids': 'You do not own one of the selected sources.'}
+                    )
+            inherited_project = inherited_project or selected[0].project
         if inherited_project:
             if project and project.id != inherited_project.id:
                 raise serializers.ValidationError({'project': 'Project must match the selected source or collection.'})
@@ -75,7 +99,7 @@ class AIJobCreateSerializer(serializers.Serializer):
         if task_type in {
             AIJob.TaskType.FAHES_GENERATE_QUIZ,
             AIJob.TaskType.KHOLASA_GENERATE_SUMMARY,
-        } and not (source or collection):
+        } and not (source or collection or selected):
             raise serializers.ValidationError('This task requires a source or collection.')
         if task_type == AIJob.TaskType.SADA_TRANSCRIBE_AUDIO:
             # The upstream transcription API accepts one audio asset per job.
