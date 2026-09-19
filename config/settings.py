@@ -322,6 +322,15 @@ CORS_URLS_REGEX = r"^/api/.*$"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT") if not DEBUG else False
+# Container health probes reach the app over plain HTTP on loopback, bypassing
+# the gateway that sets X-Forwarded-Proto. Without this exemption
+# SecurityMiddleware 301s them -- and `curl --fail` treats a 301 as success,
+# so the probe passed while never reaching the application at all, and every
+# probe logged a redirect. These three endpoints expose only liveness,
+# readiness and the app version; nothing that needs transport protection.
+# Both the canonical /api/v1/ routes and the legacy /api/ aliases are served,
+# and a probe may be pointed at either.
+SECURE_REDIRECT_EXEMPT = [r"^api/(v1/)?health/(live/|ready/)?$"]
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True

@@ -268,7 +268,11 @@ class SecureProxyForwardedProtoTests(SimpleTestCase):
 
     def _run(self, **extra):
         middleware = SecurityMiddleware(lambda request: HttpResponse())
-        request = RequestFactory().get('/api/v1/health/live/', **extra)
+        # Deliberately NOT a health path: those are in SECURE_REDIRECT_EXEMPT
+        # so container probes reach the app over loopback HTTP. This test is
+        # about the X-Forwarded-Proto contract for ordinary internal calls,
+        # and must use a path the redirect actually applies to.
+        request = RequestFactory().get('/api/v1/student-sources/', **extra)
         return middleware(request)
 
     @override_settings(SECURE_SSL_REDIRECT=True)
@@ -406,3 +410,46 @@ class ErrorEnvelopeContractTests(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data['code'], 'validation_error')
+
+
+class HealthProbeTests(APITestCase):
+    """A health check must actually reach the application.
+
+    The container probes hit plain HTTP on loopback, bypassing the gateway
+    that sets X-Forwarded-Proto. With SECURE_SSL_REDIRECT on, Django answered
+    301 -- and `curl --fail` does not treat a 301 as failure, so the probe
+    reported healthy while never touching the app.
+    """
+
+    @override_settings(SECURE_SSL_REDIRECT=True, DEBUG=False)
+    def test_liveness_answers_directly_over_plain_http(self):
+        response = self.client.get(reverse('health-live'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # EnvelopeJSONRenderer wraps the payload under `data`.
+        self.assertEqual(response.data['data']['status'], 'ok')
+
+    @override_settings(SECURE_SSL_REDIRECT=True, DEBUG=False)
+    def test_readiness_answers_directly_over_plain_http(self):
+        response = self.client.get(reverse('health-ready'))
+
+        self.assertIn(
+            response.status_code,
+            (status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE),
+        )
+        self.assertNotEqual(response.status_code, status.HTTP_301_MOVED_PERMANENTLY)
+
+    def test_the_exemption_is_limited_to_the_probe_paths(self):
+        import re
+
+        from django.conf import settings as django_settings
+
+        patterns = [re.compile(p) for p in django_settings.SECURE_REDIRECT_EXEMPT]
+
+        def exempt(path):
+            return any(p.search(path.lstrip('/')) for p in patterns)
+
+        for path in ('api/health/live/', 'api/v1/health/ready/', 'api/v1/health/'):
+            self.assertTrue(exempt(path), path)
+        for path in ('api/v1/student-sources/', 'api/v1/auth/login/', 'api/v1/admin/me/'):
+            self.assertFalse(exempt(path), f'{path} must still be redirected to HTTPS')
