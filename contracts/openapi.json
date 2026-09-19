@@ -236,6 +236,10 @@
           "parameters": {
             "readOnly": true
           },
+          "progress_stage": {
+            "readOnly": true,
+            "type": "string"
+          },
           "project": {
             "format": "uuid",
             "readOnly": true,
@@ -331,6 +335,7 @@
           "output_schema_version",
           "output_tokens",
           "parameters",
+          "progress_stage",
           "project",
           "prompt_version",
           "provider_account",

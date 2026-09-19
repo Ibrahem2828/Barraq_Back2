@@ -35,12 +35,15 @@ from .materializers import _create_derived_text_source, materialize_job
 from .models import AIJob, AIWebhookEvent
 from .security import InternalAuthenticationError, make_service_signature, verify_internal_request
 from .services import (
+    AI_STAGE_MAP,
     MAX_SOURCES_PER_JOB,
     build_khota_job_input,
     build_service_payload,
     complete_job,
     content_sha256,
     create_ai_job,
+    public_progress_stage,
+    record_ai_stage,
     resolve_job_sources,
     update_job_progress,
 )
@@ -1273,3 +1276,107 @@ class ExplicitMultiSourceScopeTests(APITestCase):
 
         self.assertEqual(first.data['public_id'], second.data['public_id'])
         self.assertEqual(AIJob.objects.count(), 1)
+
+
+class JobProgressContractTests(APITestCase):
+    """Progress the learner sees must come from the job, not the client.
+
+    The web app rendered a hardcoded percentage per Django status. Django in
+    turn matched incoming progress on its *own* status names, of which the AI
+    service emits exactly one -- so a job sat at `submitted` for its entire
+    life and the bar was pure decoration.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='progress@example.com', password='StrongPass123!', full_name='Progress'
+        )
+        stage = EducationStage.objects.create(name='Secondary', order=1)
+        self.subject = Subject.objects.create(
+            name='Maths', education_stage=stage, grade_level='12'
+        )
+        self.project = Project.objects.create(owner=self.user, title='Maths Project')
+        self.job = AIJob.objects.create(
+            user=self.user,
+            project=self.project,
+            subject=self.subject,
+            character=AIJob.Character.FAHES,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            idempotency_key='progress-contract',
+            status=AIJob.Status.SUBMITTED,
+            external_job_id='ext-progress-1',
+        )
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_every_ai_stage_maps_to_a_public_stage(self):
+        """The AI service's full internal vocabulary, so a pipeline stage can
+        never arrive as 'unrecognized' and be dropped."""
+        ai_internal = {
+            'queued', 'preparing', 'retrieving', 'planning', 'generating',
+            'validating', 'repairing', 'materializing',
+        }
+        self.assertTrue(
+            ai_internal <= set(AI_STAGE_MAP),
+            f'unmapped AI stages: {sorted(ai_internal - set(AI_STAGE_MAP))}',
+        )
+
+    def test_progress_advances_through_the_real_pipeline_stages(self):
+        seen = []
+        for remote in ('preparing', 'retrieving', 'generating', 'validating'):
+            self.job = record_ai_stage(self.job, remote)
+            seen.append(public_progress_stage(self.job))
+
+        self.assertEqual(seen, ['preparing', 'retrieving', 'generating', 'validating'])
+
+    def test_progress_never_moves_backwards(self):
+        """A slow or duplicated poll must not walk the learner back."""
+        self.job = record_ai_stage(self.job, 'generating')
+        self.assertEqual(public_progress_stage(self.job), 'generating')
+
+        self.job = record_ai_stage(self.job, 'retrieving')
+
+        self.assertEqual(public_progress_stage(self.job), 'generating')
+
+    def test_an_unknown_stage_is_ignored_rather_than_applied(self):
+        self.job = record_ai_stage(self.job, 'generating')
+        self.job = record_ai_stage(self.job, 'some_future_stage')
+        self.assertEqual(public_progress_stage(self.job), 'generating')
+
+    def test_a_stale_stage_cannot_resurrect_a_completed_job(self):
+        # result_type/result_id are required by the
+        # ai_job_completed_has_materialized_result constraint -- a completed
+        # job without a materialized result cannot exist.
+        self.job.status = AIJob.Status.COMPLETED
+        self.job.result_type = 'quiz'
+        self.job.result_id = '1'
+        self.job.save(update_fields=['status', 'result_type', 'result_id'])
+
+        self.job = record_ai_stage(self.job, 'generating')
+
+        self.assertEqual(public_progress_stage(self.job), 'completed')
+        self.assertEqual(self.job.status, AIJob.Status.COMPLETED)
+
+    def test_a_failed_job_reports_the_failed_stage(self):
+        self.job.status = AIJob.Status.FAILED
+        self.job.save(update_fields=['status'])
+        self.assertEqual(public_progress_stage(self.job), 'failed')
+
+    def test_the_api_exposes_the_stage_and_no_invented_percentage(self):
+        self.job = record_ai_stage(self.job, 'retrieving')
+        self.client.force_authenticate(self.user)
+
+        response = self.client.get(reverse('ai-job-detail', args=[str(self.job.public_id)]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['progress_stage'], 'retrieving')
+        # The AI service reports progress_percent as a constant 0 because its
+        # own percentages were synthetic. Publishing one here would invent it
+        # a second time.
+        self.assertNotIn('progress_percent', response.data)
+
+    def test_a_job_the_ai_has_not_reported_on_still_has_a_stage(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get(reverse('ai-job-detail', args=[str(self.job.public_id)]))
+        self.assertEqual(response.data['progress_stage'], 'queued')

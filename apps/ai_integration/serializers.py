@@ -1,5 +1,6 @@
 import json
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.projects.models import Project
@@ -135,11 +136,17 @@ class AIJobListSerializer(serializers.ModelSerializer):
 class AIJobSerializer(serializers.ModelSerializer):
     # See AIJobCreateSerializer.project — exposed as public_id, not the pk.
     project: serializers.SlugRelatedField = serializers.SlugRelatedField(slug_field='public_id', read_only=True)
+    # The public progress vocabulary. Deliberately not the AI service's
+    # internal enum, and deliberately not a percentage: the AI service reports
+    # progress_percent as a constant 0 because its own percentages were
+    # synthetic, so a number here would be invented twice over.
+    progress_stage = serializers.SerializerMethodField()
 
     class Meta:
         model = AIJob
         fields = (
-            'public_id', 'character', 'task_type', 'status', 'source', 'collection', 'subject',
+            'public_id', 'character', 'task_type', 'status', 'progress_stage',
+            'source', 'collection', 'subject',
             'project', 'contract_version', 'request_id',
             'external_job_id', 'input_payload', 'parameters', 'result_payload', 'result_type',
             'result_id', 'error_code', 'error_message', 'credits_reserved', 'credits_committed',
@@ -149,6 +156,12 @@ class AIJobSerializer(serializers.ModelSerializer):
             'submitted_at', 'completed_at', 'created_at', 'updated_at',
         )
         read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField())
+    def get_progress_stage(self, obj):
+        from .services import public_progress_stage
+
+        return public_progress_stage(obj)
 
 
 class AIFeedbackSerializer(serializers.ModelSerializer):

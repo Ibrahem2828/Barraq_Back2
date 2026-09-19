@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-19T18:39:11+00:00",
-    "generated_from_backend_commit": "88bc7d264a9cb89f065d31510a6340eb6273442f",
+    "generated_at": "2026-09-19T18:47:25+00:00",
+    "generated_from_backend_commit": "240c85d16754b65495ee97446f24176ec2384eda",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -12576,6 +12576,22 @@
           "maximum": null,
           "min_length": null,
           "minimum": null,
+          "name": "progress_stage",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
           "name": "source",
           "nullable": true,
           "read_only": true,
@@ -13110,6 +13126,10 @@
           "parameters": {
             "readOnly": true
           },
+          "progress_stage": {
+            "readOnly": true,
+            "type": "string"
+          },
           "project": {
             "format": "uuid",
             "readOnly": true,
@@ -13205,6 +13225,7 @@
           "output_schema_version",
           "output_tokens",
           "parameters",
+          "progress_stage",
           "project",
           "prompt_version",
           "provider_account",

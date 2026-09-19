@@ -774,6 +774,122 @@ def update_job_progress(job, next_status, *, external_job_id=None, metadata=None
     return job
 
 
+#: The public progress vocabulary clients render.
+#:
+#: Deliberately its own vocabulary rather than the AI service's internal
+#: JobStatus: that enum is private, changes with pipeline internals, and
+#: distinguishes stages (planning vs generating, repairing vs validating) that
+#: mean nothing to a learner. This is the mapping layer between them.
+class ProgressStage:
+    QUEUED = "queued"
+    PREPARING = "preparing"
+    RETRIEVING = "retrieving"
+    GENERATING = "generating"
+    VALIDATING = "validating"
+    FINALIZING = "finalizing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELED = "canceled"
+
+
+#: AI-internal stage -> (public stage, the Django status it implies).
+#:
+#: The AI service reports eleven states; Django's own status vocabulary is
+#: coarser and its transition table only accepts a few of them. Before this
+#: table existed, `refresh` matched on Django's names -- of which the AI
+#: emits exactly one ("validating") -- so a job sat at `submitted` for its
+#: whole life and the web app filled the silence with a hardcoded percentage.
+AI_STAGE_MAP = {
+    "queued": (ProgressStage.QUEUED, AIJob.Status.SUBMITTED),
+    "preparing": (ProgressStage.PREPARING, AIJob.Status.PROCESSING),
+    "retrieving": (ProgressStage.RETRIEVING, AIJob.Status.PROCESSING),
+    "planning": (ProgressStage.GENERATING, AIJob.Status.PROCESSING),
+    "generating": (ProgressStage.GENERATING, AIJob.Status.PROCESSING),
+    "repairing": (ProgressStage.VALIDATING, AIJob.Status.VALIDATING),
+    "validating": (ProgressStage.VALIDATING, AIJob.Status.VALIDATING),
+    "materializing": (ProgressStage.FINALIZING, AIJob.Status.VALIDATING),
+    # Django's own status names, which the webhook accepted before this map
+    # existed. Kept so an older AI build -- or any caller still sending the
+    # previous vocabulary -- keeps reporting progress instead of being
+    # rejected as unrecognized.
+    "submitted": (ProgressStage.QUEUED, AIJob.Status.SUBMITTED),
+    "processing": (ProgressStage.GENERATING, AIJob.Status.PROCESSING),
+}
+
+#: Django status -> public stage, for a job the AI has not reported on yet.
+DJANGO_STATUS_STAGE = {
+    AIJob.Status.CREATED: ProgressStage.QUEUED,
+    AIJob.Status.QUEUED: ProgressStage.QUEUED,
+    AIJob.Status.SUBMITTED: ProgressStage.QUEUED,
+    AIJob.Status.PROCESSING: ProgressStage.GENERATING,
+    AIJob.Status.VALIDATING: ProgressStage.VALIDATING,
+    AIJob.Status.OUTPUT_READY: ProgressStage.FINALIZING,
+    AIJob.Status.MATERIALIZING: ProgressStage.FINALIZING,
+    AIJob.Status.COMPLETED: ProgressStage.COMPLETED,
+    AIJob.Status.FAILED: ProgressStage.FAILED,
+    AIJob.Status.CANCELED: ProgressStage.CANCELED,
+}
+
+#: Ordering used to reject a stage that would move backwards. A slow or
+#: duplicated poll must never walk a learner's progress back to "retrieving"
+#: after it reached "generating".
+_STAGE_ORDER = [
+    ProgressStage.QUEUED,
+    ProgressStage.PREPARING,
+    ProgressStage.RETRIEVING,
+    ProgressStage.GENERATING,
+    ProgressStage.VALIDATING,
+    ProgressStage.FINALIZING,
+]
+
+
+def public_progress_stage(job):
+    """The stage a client should render for this job.
+
+    Terminal Django statuses always win: a stale poll arriving after
+    completion cannot resurrect an in-progress stage.
+    """
+    if job.status in TERMINAL_JOB_STATUSES:
+        return DJANGO_STATUS_STAGE[job.status]
+    recorded = str((job.service_metadata or {}).get("progress_stage") or "")
+    if recorded in _STAGE_ORDER:
+        return recorded
+    return DJANGO_STATUS_STAGE.get(job.status, ProgressStage.QUEUED)
+
+
+def record_ai_stage(job, remote_stage):
+    """Advance a job's public stage from an AI-reported internal stage.
+
+    Returns the job. Unknown stages and backwards moves are ignored rather
+    than applied, so an added AI state or an out-of-order poll degrades to
+    "no change" instead of corrupting what the learner sees.
+    """
+    mapped = AI_STAGE_MAP.get(str(remote_stage or "").lower())
+    if mapped is None:
+        return job
+    stage, django_status = mapped
+    if job.status in TERMINAL_JOB_STATUSES:
+        # Completed, failed and canceled are final. A slow poll arriving
+        # afterwards must not reopen the job or rewind what the learner sees.
+        return job
+    current = public_progress_stage(job)
+    if current in _STAGE_ORDER and _STAGE_ORDER.index(stage) < _STAGE_ORDER.index(current):
+        return job
+
+    job = update_job_progress(job, django_status, metadata={"progress_stage": stage})
+    # update_job_progress returns early when the Django status is unchanged,
+    # and several stages share one: preparing, retrieving and generating are
+    # all PROCESSING. Without this the learner would sit on "preparing" for
+    # the whole run while the pipeline moved on beneath them.
+    if job.status not in TERMINAL_JOB_STATUSES and (
+        (job.service_metadata or {}).get("progress_stage") != stage
+    ):
+        job.service_metadata = {**(job.service_metadata or {}), "progress_stage": stage}
+        job.last_synced_at = timezone.now()
+        job.save(update_fields=["service_metadata", "last_synced_at", "updated_at"])
+    return job
+
+
 @transaction.atomic
 def fail_job(job, error):
     job = AIJob.objects.select_for_update().get(pk=job.pk)

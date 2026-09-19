@@ -28,7 +28,15 @@ from .error_codes import ErrorCode
 from .models import AIFeedback, AIJob, AIWebhookEvent
 from .security import HasInternalServiceKey, verify_webhook
 from .serializers import AIFeedbackSerializer, AIJobCreateSerializer, AIJobListSerializer, AIJobSerializer
-from .services import cancel_job, complete_job, content_sha256, create_ai_job, fail_job, update_job_progress
+from .services import (
+    AI_STAGE_MAP,
+    cancel_job,
+    complete_job,
+    content_sha256,
+    create_ai_job,
+    fail_job,
+    record_ai_stage,
+)
 from .tasks import forward_ai_feedback
 
 
@@ -159,8 +167,13 @@ class AIJobViewSet(viewsets.GenericViewSet):
             job = fail_job(job, _remote_failure_error(data))
         elif remote_status == AIJob.Status.CANCELED:
             job = cancel_job(job)
-        elif remote_status in {AIJob.Status.SUBMITTED, AIJob.Status.PROCESSING, AIJob.Status.VALIDATING}:
-            job = update_job_progress(job, remote_status, metadata={'last_refresh': data})
+        else:
+            # The AI service reports its own eleven-state vocabulary, of which
+            # Django's status names overlap on exactly one. Matching on
+            # Django's names left every job sitting at `submitted` for its
+            # whole life; record_ai_stage maps the real stage instead, and
+            # ignores an unknown or backwards one rather than applying it.
+            job = record_ai_stage(job, remote_status)
         return Response(AIJobSerializer(job).data)
 
     @action(detail=True, methods=['post'], url_path='feedback')
@@ -277,13 +290,12 @@ class AIWebhookView(APIView):
             event.save(update_fields=['error_message'])
             return Response({'detail': 'Unknown job.'}, status=status.HTTP_404_NOT_FOUND)
         remote_status = str(payload.get('status') or '').lower()
+        # Terminal states plus every progress stage the AI service can report.
         recognized_statuses = {
             AIJob.Status.COMPLETED,
             AIJob.Status.FAILED,
             AIJob.Status.CANCELED,
-            AIJob.Status.SUBMITTED,
-            AIJob.Status.PROCESSING,
-            AIJob.Status.VALIDATING,
+            *AI_STAGE_MAP,
         }
         if remote_status not in recognized_statuses:
             event.error_message = f'Unrecognized status "{remote_status}".'
@@ -313,7 +325,7 @@ class AIWebhookView(APIView):
             elif remote_status == AIJob.Status.CANCELED:
                 cancel_job(job)
             else:
-                update_job_progress(job, remote_status, metadata={'webhook': payload.get('metadata') or {}})
+                record_ai_stage(job, remote_status)
             event.processed = True
             event.processed_at = timezone.now()
             event.save(update_fields=['processed', 'processed_at'])
