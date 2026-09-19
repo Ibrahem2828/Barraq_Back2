@@ -63,6 +63,13 @@ def dispatch_ai_job(self, job_id):
         outbox.save(update_fields=["status", "last_error", "next_retry_at", "updated_at"])
         if getattr(exc, "retryable", False) and self.request.retries < self.max_retries:
             raise self.retry(exc=exc) from exc
+        if not getattr(exc, "retryable", False):
+            # A content-version mismatch, invalid scope, unsupported input,
+            # or another permanent rejection cannot improve on the next Beat
+            # sweep. Mark the job terminal now so reconciliation never turns
+            # a deterministic failure into a retry storm.
+            fail_job(job, exc)
+            return str(job.public_id)
         # Celery's own retries are exhausted, but the outbox row survives:
         # the Beat sweep (reconcile_stuck_ai_jobs) will keep re-dispatching
         # it up to AI_DISPATCH_MAX_ATTEMPTS before giving up for good.

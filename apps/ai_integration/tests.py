@@ -32,11 +32,12 @@ from apps.subscriptions.services import (
 from .client import AIServiceClient, AIServiceError
 from .error_codes import ErrorCode
 from .materializers import _create_derived_text_source, materialize_job
-from .models import AIJob, AIWebhookEvent
+from .models import AIJob, AIJobDispatchOutbox, AIWebhookEvent
 from .security import InternalAuthenticationError, make_service_signature, verify_internal_request
 from .services import (
     AI_STAGE_MAP,
     MAX_SOURCES_PER_JOB,
+    AIRequestError,
     build_khota_job_input,
     build_service_payload,
     complete_job,
@@ -48,6 +49,7 @@ from .services import (
     resolve_job_sources,
     update_job_progress,
 )
+from .tasks import dispatch_ai_job
 
 User = get_user_model()
 
@@ -1029,6 +1031,57 @@ class JobSourceScopeTests(APITestCase):
         self.assertEqual(
             job.input_payload['source_ids'], [str(first.id), str(second.id)]
         )
+        self.assertEqual(
+            set(job.input_payload['source_versions']), {str(first.id), str(second.id)}
+        )
+        self.assertTrue(
+            all(len(value) == 64 for value in job.input_payload['source_versions'].values())
+        )
+
+    def test_source_content_version_is_pinned_when_the_job_is_created(self):
+        source = self._source('versioned', collection=self.collection)
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            collection=self.collection,
+        )
+        accepted_sha = job.input_payload['source_versions'][str(source.id)]
+
+        source.file.save(
+            'versioned.txt',
+            SimpleUploadedFile('versioned.txt', b'new source bytes', content_type='text/plain'),
+            save=False,
+        )
+        source.file_size = len(b'new source bytes')
+        source.metadata = {}
+        source.save(update_fields=['file', 'file_size', 'metadata', 'updated_at'])
+
+        with self.assertRaises(ValidationError) as caught:
+            build_service_payload(job)
+
+        self.assertEqual(caught.exception.domain_code, ErrorCode.SOURCE_VERSION_CHANGED)
+        self.assertEqual(job.input_payload['source_versions'][str(source.id)], accepted_sha)
+
+    @patch('apps.ai_integration.tasks.submit_job_to_service')
+    def test_permanent_dispatch_failure_is_not_left_for_reconciliation(self, submit):
+        source = self._source('permanent', collection=self.collection)
+        job, _ = create_ai_job(
+            user=self.user,
+            task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ,
+            source=source,
+        )
+        submit.side_effect = AIRequestError(
+            {'source': 'changed'}, code=ErrorCode.SOURCE_VERSION_CHANGED
+        )
+
+        result = dispatch_ai_job.run(job.pk)
+
+        self.assertEqual(result, str(job.public_id))
+        job.refresh_from_db()
+        self.assertEqual(job.status, AIJob.Status.FAILED)
+        self.assertEqual(job.error_code, ErrorCode.SOURCE_VERSION_CHANGED)
+        outbox = AIJobDispatchOutbox.objects.get(job=job)
+        self.assertEqual(outbox.status, AIJobDispatchOutbox.Status.FAILED)
 
     def test_moving_a_source_out_of_the_folder_does_not_change_an_accepted_job(self):
         """The defect this guards: dispatch re-derived scope from the folder,

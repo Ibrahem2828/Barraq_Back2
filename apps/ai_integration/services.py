@@ -131,6 +131,8 @@ class AIRequestError(ValidationError):
 
     def __init__(self, detail, *, code):
         self.domain_code = code
+        self.code = code
+        self.retryable = False
         super().__init__(detail)
 
 
@@ -249,6 +251,41 @@ def content_sha256(source):
     source.metadata = {**(source.metadata or {}), "sha256": checksum}
     source.save(update_fields=["metadata", "updated_at"])
     return checksum
+
+
+def _pinned_source_versions(job, sources):
+    """Return the immutable source versions captured when the job was accepted.
+
+    Existing pre-upgrade queued jobs have no snapshot and retain the previous
+    dispatch-time behavior. New jobs always carry a snapshot, and dispatch
+    refuses to substitute newer bytes under the same source id.
+    """
+    recorded = (job.input_payload or {}).get("source_versions")
+    if not isinstance(recorded, dict):
+        return {str(item.id): content_sha256(item) for item in sources}
+
+    expected_ids = {str(item.id) for item in sources}
+    if set(recorded) != expected_ids:
+        raise AIRequestError(
+            {"source": "The job's recorded source versions do not match its source scope."},
+            code="invalid_source_scope",
+        )
+    normalized = {}
+    for item in sources:
+        source_id = str(item.id)
+        expected = str(recorded.get(source_id) or "").lower()
+        if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+            raise AIRequestError(
+                {"source": "The job's recorded source version is invalid."},
+                code="invalid_source_scope",
+            )
+        if content_sha256(item) != expected:
+            raise AIRequestError(
+                {"source": "A selected source changed after this job was created."},
+                code=ErrorCode.SOURCE_VERSION_CHANGED,
+            )
+        normalized[source_id] = expected
+    return normalized
 
 
 def build_fahes_job_input(*, source=None, collection=None, subject=None, input_payload=None, parameters=None):
@@ -650,6 +687,15 @@ def create_ai_job(*, user, task_type, project=None, source=None, collection=None
         input_payload=input_payload,
         parameters=parameters,
     )
+    scope_sources = list(sources) if sources else _resolve_sources(
+        source=source, collection=collection
+    )
+    input_payload = {
+        **input_payload,
+        "source_versions": {
+            str(item.id): content_sha256(item) for item in scope_sources
+        },
+    }
     key = build_idempotency_key(user.id, task_type, getattr(project, "id", None), getattr(source, "id", None), getattr(collection, "id", None), input_payload, parameters)
     if not force:
         existing = AIJob.objects.filter(user=user, idempotency_key=key).exclude(status__in=[AIJob.Status.FAILED, AIJob.Status.CANCELED]).first()
@@ -710,7 +756,7 @@ def build_service_payload(job):
     # dispatch silently changed which material the job ran on.
     sources = resolve_job_sources(job)
     source_ids = [str(item.id) for item in sources]
-    source_versions = {str(item.id): content_sha256(item) for item in sources}
+    source_versions = _pinned_source_versions(job, sources)
     return {
         "contract_version": job.contract_version,
         "client_job_id": str(job.public_id),
