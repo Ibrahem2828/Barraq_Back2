@@ -16,6 +16,7 @@ from apps.study_plans.models import StudyPlan, StudyTask
 from .models import AdminPermission, AdminRole, AdminUserRole, AuditLog
 from .services import (
     SECTION_PERMISSIONS,
+    SUPER_ADMIN_ROLE,
     get_allowed_apps,
     get_user_admin_permissions,
     is_super_admin_user,
@@ -141,18 +142,61 @@ class AdminUserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
+    def _assignments(self, obj):
+        """Active assignments, from the prefetch the viewset already does.
+
+        Filtering in Python rather than issuing a query: this runs once per
+        row, and the difference between the two is the difference between a
+        constant number of queries per page and one per account on it.
+        """
+        return [
+            assignment
+            for assignment in obj.admin_user_roles.all()
+            if assignment.is_active and assignment.role.is_active
+        ]
+
+    @property
+    def _all_permission_codes(self):
+        cached = getattr(self, '_permission_code_cache', None)
+        if cached is None:
+            cached = sorted(
+                AdminPermission.objects.filter(is_active=True).values_list('code', flat=True)
+            )
+            self._permission_code_cache = cached
+        return cached
+
+    @property
+    def _viewer_reach(self):
+        """Resolved once for the whole page, not once per row."""
+        if not hasattr(self, '_viewer_reach_cache'):
+            from apps.organizations.scope import viewer_scope_reach
+
+            request = self.context.get('request')
+            viewer = getattr(request, 'user', None)
+            self._viewer_reach_cache = None if viewer is None else viewer_scope_reach(viewer)
+        return self._viewer_reach_cache
+
     @extend_schema_field(AdminRoleSerializer(many=True))
     def get_roles(self, obj):
-        roles = AdminRole.objects.filter(
-            user_roles__user=obj,
-            user_roles__is_active=True,
-            is_active=True,
-        ).distinct()
-        return AdminRoleSerializer(roles, many=True).data
+        seen = {}
+        for assignment in self._assignments(obj):
+            seen[assignment.role_id] = assignment.role
+        return AdminRoleSerializer(list(seen.values()), many=True).data
 
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_permissions(self, obj):
-        return sorted(get_user_admin_permissions(obj))
+        if obj.is_superuser:
+            return self._all_permission_codes
+        codes = set()
+        for assignment in self._assignments(obj):
+            if assignment.role.code == SUPER_ADMIN_ROLE:
+                return self._all_permission_codes
+            codes.update(
+                permission.code
+                for permission in assignment.role.permissions.all()
+                if permission.is_active
+            )
+        return sorted(codes)
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_scopes(self, obj):
@@ -163,13 +207,12 @@ class AdminUserSerializer(serializers.ModelSerializer):
         organization exists. Names and public ids only -- the same compact
         shape the identity response uses.
         """
-        from apps.organizations.scope import describe_scopes, describe_scopes_for_viewer
+        from apps.organizations.scope import describe_scope_rows, reduce_scopes_to_reach
 
-        request = self.context.get('request')
-        viewer = getattr(request, 'user', None)
-        if viewer is None:
-            return describe_scopes(obj)
-        return describe_scopes_for_viewer(obj, viewer)
+        rows = [
+            scope for assignment in self._assignments(obj) for scope in assignment.scopes.all()
+        ]
+        return reduce_scopes_to_reach(describe_scope_rows(rows), self._viewer_reach)
 
 
 class RoleScopeSerializer(serializers.Serializer):

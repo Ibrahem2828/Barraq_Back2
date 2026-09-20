@@ -19,8 +19,9 @@ from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.base import ContentFile
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -1837,6 +1838,42 @@ class SupervisorManagementTestCase(APITestCase):
             "a scoped viewer was shown that this account has platform-wide reach",
         )
 
+    def test_the_directory_does_not_query_once_per_row(self):
+        """Scope display must not cost a query per admin.
+
+        Every row needs "an admin of what", and resolving that per row --
+        the viewer's own reach, then the names behind it -- turns one page
+        of the supervisors list into dozens of queries. The count is pinned
+        against row count rather than to an absolute number, so the test
+        fails on the shape of the regression rather than on incidental
+        query changes elsewhere.
+        """
+        for index in range(8):
+            extra = self._admin(f"sup-bulk-{index}@example.com")
+            self._grant(
+                extra,
+                self.roles["organization_manager"],
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": self.org_a,
+                },
+            )
+
+        self._as(self.manager_a)
+        with CaptureQueriesContext(connection) as few:
+            self.client.get(reverse("admin-user-list"), {"page_size": 2})
+        cache.clear()
+        with CaptureQueriesContext(connection) as many:
+            response = self.client.get(reverse("admin-user-list"), {"page_size": 10})
+
+        self.assertGreaterEqual(len(response.data["results"]), 8)
+        growth = len(many) - len(few)
+        self.assertLess(
+            growth,
+            len(response.data["results"]),
+            f"query count grows per row ({len(few)} -> {len(many)}); scope resolution is N+1",
+        )
+
     # -- revocation --------------------------------------------------------
     def test_revoking_removes_only_the_grants_in_the_callers_scope(self):
         """The defect this test exists for.
@@ -1986,9 +2023,7 @@ class LearnerPrivacyTestCase(APITestCase):
         assign_roles_to_user(
             self.supervisor,
             [self.roles["class_supervisor"]],
-            scopes=[
-                {"scope_type": AdminRoleScope.ScopeType.CLASS, "classroom": self.classroom}
-            ],
+            scopes=[{"scope_type": AdminRoleScope.ScopeType.CLASS, "classroom": self.classroom}],
         )
 
         # A learner of this manager's own school -- the case where the
@@ -1996,12 +2031,8 @@ class LearnerPrivacyTestCase(APITestCase):
         self.learner = User.objects.create_user(
             email="privacy-learner@example.com", password="StrongPass123", full_name="Learner"
         )
-        OrganizationMembership.objects.create(
-            organization=self.org, user=self.learner, joined_at=timezone.now()
-        )
-        ClassMembership.objects.create(
-            classroom=self.classroom, user=self.learner, joined_at=timezone.now()
-        )
+        OrganizationMembership.objects.create(organization=self.org, user=self.learner, joined_at=timezone.now())
+        ClassMembership.objects.create(classroom=self.classroom, user=self.learner, joined_at=timezone.now())
         self.source = StudentSource.objects.create(
             user=self.learner,
             title="My private notes",
@@ -2028,9 +2059,7 @@ class LearnerPrivacyTestCase(APITestCase):
         self._as(self.supervisor)
         for route in self.PRIVATE_SURFACES:
             with self.subTest(route=route):
-                self.assertEqual(
-                    self.client.get(reverse(route)).status_code, status.HTTP_403_FORBIDDEN
-                )
+                self.assertEqual(self.client.get(reverse(route)).status_code, status.HTTP_403_FORBIDDEN)
 
     def test_the_shipped_roles_hold_no_content_permission(self):
         """Stated against the roles themselves, so adding one is deliberate.
@@ -2050,9 +2079,7 @@ class LearnerPrivacyTestCase(APITestCase):
         }
         for code in ("organization_manager", "class_supervisor"):
             with self.subTest(role=code):
-                granted = set(
-                    self.roles[code].permissions.values_list("code", flat=True)
-                )
+                granted = set(self.roles[code].permissions.values_list("code", flat=True))
                 self.assertEqual(granted & forbidden, set())
 
     def test_a_manager_cannot_reach_a_learners_source_through_the_student_api(self):
@@ -2062,9 +2089,7 @@ class LearnerPrivacyTestCase(APITestCase):
         not have quietly become a second way in.
         """
         self._as(self.manager)
-        response = self.client.get(
-            reverse("student-source-detail", args=[self.source.id])
-        )
+        response = self.client.get(reverse("student-source-detail", args=[self.source.id]))
         self.assertIn(
             response.status_code,
             (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
@@ -2083,9 +2108,7 @@ class LearnerPrivacyTestCase(APITestCase):
     def test_the_learner_still_reaches_their_own_work(self):
         """Privacy that also blocks the owner is just breakage."""
         self._as(self.learner)
-        response = self.client.get(
-            reverse("student-source-detail", args=[self.source.id])
-        )
+        response = self.client.get(reverse("student-source-detail", args=[self.source.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_an_explicit_content_permission_is_still_scoped_not_global(self):
@@ -2099,9 +2122,7 @@ class LearnerPrivacyTestCase(APITestCase):
         outsider = User.objects.create_user(
             email="privacy-outsider@example.com", password="StrongPass123", full_name="Out"
         )
-        OrganizationMembership.objects.create(
-            organization=outsider_org, user=outsider, joined_at=timezone.now()
-        )
+        OrganizationMembership.objects.create(organization=outsider_org, user=outsider, joined_at=timezone.now())
         other_source = StudentSource.objects.create(
             user=outsider,
             title="Another school's notes",
@@ -2177,9 +2198,7 @@ class Phase3ClosureTestCase(APITestCase):
         self.learner = User.objects.create_user(
             email="closure-learner@example.com", password="StrongPass123", full_name="Learner"
         )
-        OrganizationMembership.objects.create(
-            organization=self.org_a, user=self.learner, joined_at=timezone.now()
-        )
+        OrganizationMembership.objects.create(organization=self.org_a, user=self.learner, joined_at=timezone.now())
         self.membership = ClassMembership.objects.create(
             classroom=self.class_a1, user=self.learner, joined_at=timezone.now()
         )
@@ -2192,9 +2211,7 @@ class Phase3ClosureTestCase(APITestCase):
 
     # -- PART T: the state machine has no back doors -----------------------
     def _pending(self, email):
-        user = User.objects.create_user(
-            email=email, password="StrongPass123", full_name=email.split("@")[0]
-        )
+        user = User.objects.create_user(email=email, password="StrongPass123", full_name=email.split("@")[0])
         return JoinRequest.objects.create(
             invitation=self.invitation,
             user=user,
@@ -2212,9 +2229,7 @@ class Phase3ClosureTestCase(APITestCase):
 
         self.assertEqual(caught.exception.domain_code, "join_request_not_pending")
         self.assertFalse(
-            OrganizationMembership.objects.filter(
-                organization=self.org_a, user=request.user, status="active"
-            ).exists()
+            OrganizationMembership.objects.filter(organization=self.org_a, user=request.user, status="active").exists()
         )
 
     def test_approving_an_approved_request_is_idempotent_not_an_error(self):
@@ -2228,9 +2243,7 @@ class Phase3ClosureTestCase(APITestCase):
         approve_join_request(join_request=request, approved_by=self.manager_a)
 
         self.assertEqual(
-            ClassMembership.objects.filter(
-                classroom=self.class_a1, user=request.user, status="active"
-            ).count(),
+            ClassMembership.objects.filter(classroom=self.class_a1, user=request.user, status="active").count(),
             1,
         )
 
@@ -2260,11 +2273,7 @@ class Phase3ClosureTestCase(APITestCase):
         self.assertEqual(self.invitation.status, Invitation.Status.REVOKED)
         # History survives: the point of archiving rather than deleting.
         self.assertTrue(ClassMembership.objects.filter(pk=self.membership.pk).exists())
-        self.assertTrue(
-            OrganizationMembership.objects.filter(
-                organization=self.org_a, user=self.learner
-            ).exists()
-        )
+        self.assertTrue(OrganizationMembership.objects.filter(organization=self.org_a, user=self.learner).exists())
 
     def test_archiving_a_class_keeps_its_membership_history(self):
         services.archive_classroom(classroom=self.class_a1)
@@ -2353,9 +2362,7 @@ class Phase3ClosureTestCase(APITestCase):
         design exists to avoid.
         """
         role = AdminRole.objects.create(code="learning_coordinator", name="Learning Coordinator")
-        role.permissions.set(
-            AdminPermission.objects.filter(code__in=["classes.view", "class_members.view"])
-        )
+        role.permissions.set(AdminPermission.objects.filter(code__in=["classes.view", "class_members.view"]))
         coordinator = User.objects.create_user(
             email="closure-coordinator@example.com",
             password="StrongPass123",

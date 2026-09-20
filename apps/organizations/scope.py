@@ -282,6 +282,87 @@ def assert_classroom_allowed(user, classroom, permission=None):
     return classroom
 
 
+def describe_scope_rows(rows):
+    """Format scope rows that are already in memory.
+
+    Split out so a list endpoint can describe a page of accounts from one
+    prefetch instead of re-querying per row, while `describe_scopes` keeps
+    doing its own lookup for the single-account case.
+    """
+    described = []
+    seen = set()
+    for row in rows:
+        key = (row.scope_type, row.organization_id, row.classroom_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        entry = {"type": row.scope_type}
+        if row.scope_type == AdminRoleScope.ScopeType.ORGANIZATION and row.organization:
+            entry["organization"] = {
+                "public_id": str(row.organization.public_id),
+                "name": row.organization.name,
+                "organization_type": row.organization.organization_type,
+            }
+        elif row.scope_type == AdminRoleScope.ScopeType.CLASS and row.classroom:
+            entry["classroom"] = {
+                "public_id": str(row.classroom.public_id),
+                "name": row.classroom.name,
+            }
+            entry["organization"] = {
+                "public_id": str(row.classroom.organization.public_id),
+                "name": row.classroom.organization.name,
+                "organization_type": row.classroom.organization.organization_type,
+            }
+        described.append(entry)
+    return described
+
+
+def viewer_scope_reach(viewer):
+    """The public ids a viewer may see, resolved once.
+
+    Every row of the admin directory needs the same answer, so resolving it
+    per row is the difference between one query and one per account on the
+    page. Returns None when the viewer reaches everything.
+    """
+    if has_global_scope(viewer):
+        return None
+    organization_ids = _normalize(accessible_organization_ids(viewer))
+    classroom_ids = _normalize(accessible_classroom_ids(viewer))
+    if is_unrestricted(organization_ids):  # pragma: no cover - defensive
+        return None
+    return {
+        "organizations": {
+            str(value)
+            for value in Organization.objects.filter(id__in=organization_ids).values_list("public_id", flat=True)
+        },
+        "classrooms": {
+            str(value)
+            for value in Classroom.objects.filter(id__in=classroom_ids or []).values_list("public_id", flat=True)
+        },
+    }
+
+
+def reduce_scopes_to_reach(described, reach):
+    """Drop the entries a viewer with `reach` is not allowed to know about."""
+    if reach is None:
+        return described
+    reduced = []
+    for entry in described:
+        # A global grant is never shown to a scoped viewer: it describes
+        # reach over every tenant, including theirs.
+        if entry.get("type") == AdminRoleScope.ScopeType.GLOBAL:
+            continue
+        classroom = entry.get("classroom") or {}
+        organization = entry.get("organization") or {}
+        if (
+            classroom
+            and classroom.get("public_id") in reach["classrooms"]
+            or organization.get("public_id") in reach["organizations"]
+        ):
+            reduced.append(entry)
+    return reduced
+
+
 def describe_scopes(user):
     """Compact scope summary for the identity response.
 
@@ -571,38 +652,13 @@ def describe_scopes_for_viewer(target, viewer):
 
     A platform operator sees everything, because they already can.
     """
-    described = describe_scopes(target)
-    if has_global_scope(viewer):
-        return described
-
-    organization_ids = _normalize(accessible_organization_ids(viewer))
-    classroom_ids = _normalize(accessible_classroom_ids(viewer))
-    if is_unrestricted(organization_ids):  # pragma: no cover - defensive
-        return described
-
-    visible_organizations = set(
-        Organization.objects.filter(id__in=organization_ids).values_list("public_id", flat=True)
-    )
-    visible_classrooms = set(Classroom.objects.filter(id__in=classroom_ids or []).values_list("public_id", flat=True))
-
-    reduced = []
-    for entry in described:
-        # A global grant is never shown to a scoped viewer: it describes
-        # reach over every tenant, including theirs.
-        if entry.get("type") == AdminRoleScope.ScopeType.GLOBAL:
-            continue
-        classroom = entry.get("classroom") or {}
-        organization = entry.get("organization") or {}
-        if (
-            classroom
-            and classroom.get("public_id") in {str(v) for v in visible_classrooms}
-            or organization.get("public_id") in {str(v) for v in visible_organizations}
-        ):
-            reduced.append(entry)
-    return reduced
+    return reduce_scopes_to_reach(describe_scopes(target), viewer_scope_reach(viewer))
 
 
 __all__ = [
+    "viewer_scope_reach",
+    "reduce_scopes_to_reach",
+    "describe_scope_rows",
     "describe_scopes_for_viewer",
     "revoke_grants_within_scope",
     "is_unrestricted",

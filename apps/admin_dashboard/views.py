@@ -351,7 +351,11 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
             Q(is_superuser=True)
             | Q(is_staff=True)
             | Q(admin_user_roles__is_active=True)
-        ).distinct().prefetch_related('admin_user_roles__role__permissions')
+        ).distinct().prefetch_related(
+            'admin_user_roles__role__permissions',
+            'admin_user_roles__scopes__organization',
+            'admin_user_roles__scopes__classroom__organization',
+        )
         role = self.request.query_params.get('role')
         if role:
             queryset = queryset.filter(admin_user_roles__role__code=role, admin_user_roles__is_active=True)
