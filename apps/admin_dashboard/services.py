@@ -219,6 +219,7 @@ SECTION_PERMISSIONS = {
     'students': 'students.view',
     'organizations': 'organizations.view',
     'classes': 'classes.view',
+    'invitations': 'invitations.view',
     'join_requests': 'join_requests.view',
     # `subjects.*` permissions existed with no section entry, so the
     # dashboard's education nav resolved to undefined and was hidden from
