@@ -32,6 +32,7 @@ from apps.sources.models import StudentSource
 from apps.subscriptions.models import UserSubscription
 from apps.support.models import SupportTicket
 
+from . import services
 from .models import (
     JOIN_CODE_ALPHABET,
     JOIN_CODE_AMBIGUOUS,
@@ -60,6 +61,7 @@ from .services import (
     reject_join_request,
     request_to_join,
     resolve_invitation,
+    transfer_class_member,
 )
 
 User = get_user_model()
@@ -2134,3 +2136,265 @@ class LearnerPrivacyTestCase(APITestCase):
         self.assertIn("My private notes", titles)
         self.assertNotIn("Another school's notes", titles)
         self.assertNotEqual(other_source.user_id, auditor.id)
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+class Phase3ClosureTestCase(APITestCase):
+    """The remaining edges: the state machine, archiving, and consistency."""
+
+    def setUp(self):
+        cache.clear()
+        _, self.roles = seed_default_rbac()
+        self.super_admin = User.objects.create_user(
+            email="root7@example.com",
+            password="StrongPass123",
+            full_name="Root",
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        self.org_a = Organization.objects.create(name="School A")
+        self.org_b = Organization.objects.create(name="School B")
+        self.class_a1 = Classroom.objects.create(organization=self.org_a, name="10-A")
+        self.class_a2 = Classroom.objects.create(organization=self.org_a, name="10-B")
+        self.class_b1 = Classroom.objects.create(organization=self.org_b, name="Networks")
+
+        self.manager_a = User.objects.create_user(
+            email="closure-mgr-a@example.com",
+            password="StrongPass123",
+            full_name="Manager A",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            self.manager_a,
+            [self.roles["organization_manager"]],
+            scopes=[
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": self.org_a,
+                }
+            ],
+        )
+        self.learner = User.objects.create_user(
+            email="closure-learner@example.com", password="StrongPass123", full_name="Learner"
+        )
+        OrganizationMembership.objects.create(
+            organization=self.org_a, user=self.learner, joined_at=timezone.now()
+        )
+        self.membership = ClassMembership.objects.create(
+            classroom=self.class_a1, user=self.learner, joined_at=timezone.now()
+        )
+        self.invitation = Invitation.objects.create(
+            organization=self.org_a, classroom=self.class_a1, created_by=self.manager_a
+        )
+
+    def _as(self, user):
+        self.client.force_authenticate(user)
+
+    # -- PART T: the state machine has no back doors -----------------------
+    def _pending(self, email):
+        user = User.objects.create_user(
+            email=email, password="StrongPass123", full_name=email.split("@")[0]
+        )
+        return JoinRequest.objects.create(
+            invitation=self.invitation,
+            user=user,
+            organization=self.org_a,
+            classroom=self.class_a1,
+        )
+
+    def test_a_rejected_request_cannot_then_be_approved(self):
+        """Otherwise a rejection is only a suggestion."""
+        request = self._pending("closure-rejected@example.com")
+        reject_join_request(join_request=request, rejected_by=self.manager_a)
+
+        with self.assertRaises(OrganizationError) as caught:
+            approve_join_request(join_request=request, approved_by=self.manager_a)
+
+        self.assertEqual(caught.exception.domain_code, "join_request_not_pending")
+        self.assertFalse(
+            OrganizationMembership.objects.filter(
+                organization=self.org_a, user=request.user, status="active"
+            ).exists()
+        )
+
+    def test_approving_an_approved_request_is_idempotent_not_an_error(self):
+        """Two managers clicking approve is not a failure, it is a race.
+
+        The second one should find the work already done rather than be told
+        off for it -- and must not produce a second membership.
+        """
+        request = self._pending("closure-double@example.com")
+        approve_join_request(join_request=request, approved_by=self.manager_a)
+        approve_join_request(join_request=request, approved_by=self.manager_a)
+
+        self.assertEqual(
+            ClassMembership.objects.filter(
+                classroom=self.class_a1, user=request.user, status="active"
+            ).count(),
+            1,
+        )
+
+    # -- PART U: archiving closes the door, keeps the record ---------------
+    def test_archiving_a_class_makes_its_invitations_unusable(self):
+        """An invitation that outlives its class is a door into a room that
+        no longer exists.
+
+        Archiving revokes them outright rather than leaving them to fail the
+        class-status check later: the credential itself stops working, so it
+        cannot be resurrected by un-archiving the class months afterwards.
+        """
+        services.archive_classroom(classroom=self.class_a1)
+
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, Invitation.Status.REVOKED)
+        with self.assertRaises(OrganizationError) as caught:
+            resolve_invitation(code=self.invitation.code)
+        self.assertEqual(caught.exception.domain_code, "invitation_revoked")
+
+    def test_archiving_an_organization_closes_its_classes_and_invitations(self):
+        services.archive_organization(organization=self.org_a, archived_by=self.super_admin)
+
+        self.class_a1.refresh_from_db()
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.class_a1.status, Classroom.Status.ARCHIVED)
+        self.assertEqual(self.invitation.status, Invitation.Status.REVOKED)
+        # History survives: the point of archiving rather than deleting.
+        self.assertTrue(ClassMembership.objects.filter(pk=self.membership.pk).exists())
+        self.assertTrue(
+            OrganizationMembership.objects.filter(
+                organization=self.org_a, user=self.learner
+            ).exists()
+        )
+
+    def test_archiving_a_class_keeps_its_membership_history(self):
+        services.archive_classroom(classroom=self.class_a1)
+
+        self.assertTrue(
+            ClassMembership.objects.filter(pk=self.membership.pk).exists(),
+            "archiving deleted membership history",
+        )
+        self.assertTrue(User.objects.filter(pk=self.learner.pk).exists())
+
+    # -- PART C/E: a class belongs to exactly one organization -------------
+    def test_a_learner_cannot_be_transferred_into_another_organizations_class(self):
+        with self.assertRaises(OrganizationError) as caught:
+            transfer_class_member(
+                membership=self.membership,
+                target_classroom=self.class_b1,
+                moved_by=self.super_admin,
+            )
+
+        self.assertEqual(caught.exception.domain_code, "cross_organization_transfer_unsupported")
+        self.membership.refresh_from_db()
+        self.assertEqual(self.membership.classroom_id, self.class_a1.id)
+        self.assertEqual(self.membership.status, ClassMembership.Status.ACTIVE)
+
+    def test_the_transfer_api_refuses_a_class_in_another_organization(self):
+        """The same rule through the door an attacker actually uses."""
+        self._as(self.super_admin)
+        response = self.client.post(
+            reverse("classroom-transfer-member", args=[str(self.class_a1.public_id)]),
+            {"membership": self.membership.id, "target_classroom": str(self.class_b1.public_id)},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "cross_organization_transfer_unsupported")
+        self.membership.refresh_from_db()
+        self.assertEqual(self.membership.classroom_id, self.class_a1.id)
+
+    def test_a_transfer_within_the_organization_moves_exactly_one_membership(self):
+        moved = transfer_class_member(
+            membership=self.membership,
+            target_classroom=self.class_a2,
+            moved_by=self.super_admin,
+        )
+
+        self.assertEqual(moved.classroom_id, self.class_a2.id)
+        self.membership.refresh_from_db()
+        self.assertEqual(self.membership.status, ClassMembership.Status.REMOVED)
+        self.assertEqual(
+            ClassMembership.objects.filter(user=self.learner, status="active").count(),
+            1,
+            "a transfer left the learner active in two classes",
+        )
+
+    # -- PART AI: hostile filters narrow, never widen ----------------------
+    def test_hostile_filters_cannot_widen_a_scoped_list(self):
+        """Every filter the API accepts, pointed at the other tenant."""
+        self._as(self.manager_a)
+        hostile = [
+            (reverse("classroom-list"), {"organization": str(self.org_b.public_id)}),
+            (reverse("join-request-list"), {"status": "pending"}),
+            (reverse("invitation-list"), {"search": "School B"}),
+            (reverse("admin-managed-user-list"), {"search": "closure-learner"}),
+        ]
+        for url, params in hostile:
+            with self.subTest(url=url, params=params):
+                response = self.client.get(url, params)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                body = str(response.data)
+                self.assertNotIn("School B", body)
+                self.assertNotIn(str(self.class_b1.public_id), body)
+
+    def test_a_forged_page_size_cannot_reach_another_tenant(self):
+        self._as(self.manager_a)
+        response = self.client.get(reverse("classroom-list"), {"page_size": 1000})
+
+        ids = {row["public_id"] for row in response.data["results"]}
+        self.assertNotIn(str(self.class_b1.public_id), ids)
+
+    # -- PART AL: behaviour follows permissions, not the role's name -------
+    def test_a_renamed_custom_role_behaves_identically(self):
+        """A role is a bag of permissions. Its label is for humans.
+
+        If renaming one changed what it can do, the name would be authority
+        -- which is exactly the hardcoded `if role == "supervisor"` this
+        design exists to avoid.
+        """
+        role = AdminRole.objects.create(code="learning_coordinator", name="Learning Coordinator")
+        role.permissions.set(
+            AdminPermission.objects.filter(code__in=["classes.view", "class_members.view"])
+        )
+        coordinator = User.objects.create_user(
+            email="closure-coordinator@example.com",
+            password="StrongPass123",
+            full_name="Coordinator",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            coordinator,
+            [role],
+            scopes=[
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": self.org_a,
+                }
+            ],
+        )
+
+        self._as(coordinator)
+        before = self.client.get(reverse("classroom-list"))
+        self.assertEqual(before.status_code, status.HTTP_200_OK)
+        before_ids = {row["public_id"] for row in before.data["results"]}
+
+        role.name = "Something Else Entirely"
+        role.code = "renamed_role"
+        role.save(update_fields=["name", "code"])
+        cache.clear()
+
+        after = self.client.get(reverse("classroom-list"))
+        self.assertEqual(after.status_code, status.HTTP_200_OK)
+        self.assertEqual({row["public_id"] for row in after.data["results"]}, before_ids)
+        self.assertIn(str(self.class_a1.public_id), before_ids)
+        self.assertNotIn(str(self.class_b1.public_id), before_ids)
+
+        # And it still cannot do what it was never granted.
+        self.assertEqual(
+            self.client.post(
+                reverse("classroom-list"),
+                {"organization": str(self.org_a.public_id), "name": "New"},
+                format="json",
+            ).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
