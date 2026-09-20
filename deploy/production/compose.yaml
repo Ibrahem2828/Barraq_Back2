@@ -113,6 +113,16 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     networks: [edge]
+    # The edge had no healthcheck: a Caddy that started, failed to bind or
+    # stopped serving looked identical to a healthy one, and every request to
+    # the platform goes through it. busybox wget ships in caddy:2-alpine and
+    # needs no write access, so this works under read_only.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/__gateway_health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
@@ -373,6 +383,20 @@ services:
       DJANGO_RUN_MIGRATIONS: "0"
       DJANGO_COLLECTSTATIC: "0"
     command: [celery, -A, config, beat, --loglevel=INFO]
+    # The backend image carries a HEALTHCHECK that curls /api/v1/health/live/.
+    # Beat is a scheduler: it serves no HTTP port, so it inherited a probe it
+    # can never pass and reported `unhealthy` for its entire lifetime -- which
+    # is worse than reporting nothing, because it teaches an operator to
+    # discount an unhealthy container. The workers override the inherited probe
+    # with a Celery ping; beat cannot, since `inspect ping` only answers on
+    # workers. So it is disabled explicitly, matching ai-beat.
+    #
+    # Beat liveness is therefore NOT covered by container health. It has to be
+    # monitored on the evidence that it is doing its job -- scheduled tasks
+    # arriving on time -- not on the process being up. See the observability
+    # notes in the Phase 5 report.
+    healthcheck:
+      disable: true
     networks: [private]
     depends_on:
       backend-migrate:

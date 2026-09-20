@@ -3,6 +3,26 @@
     request_body {
         max_size 64MB
     }
+
+    # Access logs to stdout so the json-file driver collects them with
+    # everything else. Without this, Caddy logs only errors and the edge --
+    # the one place every request is visible -- contributes nothing to an
+    # incident timeline.
+    log {
+        output stdout
+        format json
+    }
+
+    # Liveness for the container healthcheck. Declared before the host
+    # matchers so it answers regardless of Host, which is what a healthcheck
+    # dialling 127.0.0.1 inside the container needs. It reveals nothing and
+    # touches no upstream: it proves this listener is serving, not that the
+    # applications behind it are.
+    @gateway_health path /__gateway_health
+    handle @gateway_health {
+        respond "ok" 200
+    }
+
     header {
         -Server
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
@@ -53,6 +73,11 @@
         max_size 64MB
     }
     header -Server
+
+    log {
+        output stdout
+        format json
+    }
 
     reverse_proxy web:3000 {
         header_up X-Forwarded-Proto https
