@@ -1534,39 +1534,53 @@ class ScopeSemanticsTestCase(APITestCase):
 
 
 class LegacyGlobalBackfillTestCase(TestCase):
-    """Who the legacy backfill hands platform-wide reach, and who it does not.
+    """What the pair of migrations grants, and what it takes back.
 
-    This migration is the one place where authority is created rather than
-    checked, so it is tested against realistic legacy rows rather than
-    trusted. The rule it implements is not "every admin" but "every
-    assignment that already had reach": `get_user_admin_permissions` has
-    only ever read assignments that are active on a role that is active, so
-    those are exactly the rows that were global before scope existed.
+    0002 backfills every role assignment so that "no scope rows" can safely
+    start meaning "no access". 0003 then removes the part of that grant that
+    was never real: assignments that were already inactive, or sitting on a
+    role that was. Together they land on the rule
+    `get_user_admin_permissions` has always used -- active assignment,
+    active role -- and they land there whether or not 0002 had already been
+    applied somewhere.
+
+    Tested through the shipped functions rather than a copy of their logic,
+    against realistic legacy rows.
     """
 
     def setUp(self):
         cache.clear()
-        self.migration = import_module("apps.organizations.migrations.0002_backfill_global_admin_scope")
+        self.backfill = import_module("apps.organizations.migrations.0002_backfill_global_admin_scope")
+        self.correction = import_module(
+            "apps.organizations.migrations.0003_revoke_overgranted_global_scope"
+        )
 
     def _run(self):
-        """Apply the data migration against the live app registry.
+        """Apply both migrations in order, as a real deploy would.
 
-        The historical registry a real migration receives has the same shape
-        for these three models, and running it here means the assertions
-        exercise the shipped function rather than a copy of its logic.
+        The historical registry a migration receives has the same shape for
+        these models, so running them against the live one exercises the
+        functions that ship.
         """
-        self.migration.grant_global_scope_to_existing_roles(django_apps, None)
+        self.backfill.grant_global_scope_to_existing_roles(django_apps, None)
+        self.correction.revoke_overgranted_global_scope(django_apps, None)
 
     def _admin(self, email):
-        return User.objects.create_user(email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN)
+        return User.objects.create_user(
+            email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN
+        )
 
     def _role(self, code, active=True):
         return AdminRole.objects.create(code=code, name=code, is_active=active)
 
     def _scopes(self, user):
-        return list(AdminRoleScope.objects.filter(admin_user_role__user=user).values_list("scope_type", flat=True))
+        return list(
+            AdminRoleScope.objects.filter(admin_user_role__user=user).values_list(
+                "scope_type", flat=True
+            )
+        )
 
-    # -- who receives global ----------------------------------------------
+    # -- who keeps global --------------------------------------------------
     def test_an_active_assignment_keeps_the_reach_it_already_had(self):
         user = self._admin("legacy-active@example.com")
         AdminUserRole.objects.create(user=user, role=self._role("legacy_ops"), is_active=True)
@@ -1591,14 +1605,13 @@ class LegacyGlobalBackfillTestCase(TestCase):
         # And independently of any row: is_superuser is reach in itself.
         self.assertTrue(has_global_scope(root))
 
-    # -- who must not ------------------------------------------------------
-    def test_a_deactivated_assignment_receives_nothing(self):
-        """A dormant row granted no permission before this migration.
+    # -- what 0003 takes back ---------------------------------------------
+    def test_a_deactivated_assignment_ends_with_nothing(self):
+        """A dormant row granted no permission before either migration.
 
-        Handing it global would mean that re-enabling it later -- a one-click
+        Leaving it global would mean that re-enabling it later -- a one-click
         action taken to restore someone's old job -- silently returns
-        platform-wide reach instead of the scoped reach they should be
-        given.
+        platform-wide reach instead of the scoped reach they should get.
         """
         user = self._admin("legacy-dormant@example.com")
         AdminUserRole.objects.create(user=user, role=self._role("legacy_ops2"), is_active=False)
@@ -1607,14 +1620,48 @@ class LegacyGlobalBackfillTestCase(TestCase):
 
         self.assertEqual(self._scopes(user), [])
 
-    def test_an_assignment_on_a_deactivated_role_receives_nothing(self):
+    def test_an_assignment_on_a_deactivated_role_ends_with_nothing(self):
         user = self._admin("legacy-dead-role@example.com")
-        AdminUserRole.objects.create(user=user, role=self._role("retired_role", active=False), is_active=True)
+        AdminUserRole.objects.create(
+            user=user, role=self._role("retired_role", active=False), is_active=True
+        )
 
         self._run()
 
         self.assertEqual(self._scopes(user), [])
 
+    def test_the_correction_fixes_a_database_that_already_ran_the_backfill(self):
+        """The case a corrected 0002 could never reach.
+
+        Django never re-runs a migration it has recorded, so an environment
+        that already applied the original keeps its over-grant forever unless
+        something moves forward. This is that something.
+        """
+        user = self._admin("legacy-already-applied@example.com")
+        AdminUserRole.objects.create(user=user, role=self._role("legacy_applied"), is_active=False)
+        self.backfill.grant_global_scope_to_existing_roles(django_apps, None)
+        self.assertEqual(self._scopes(user), ["global"], "precondition: the over-grant exists")
+
+        self.correction.revoke_overgranted_global_scope(django_apps, None)
+
+        self.assertEqual(self._scopes(user), [])
+
+    def test_the_correction_leaves_a_deliberate_global_grant_alone(self):
+        """An operator's own platform-wide grant is not 0002's mistake."""
+        user = self._admin("legacy-deliberate@example.com")
+        assignment = AdminUserRole.objects.create(
+            user=user, role=self._role("legacy_deliberate"), is_active=True
+        )
+        AdminRoleScope.objects.create(
+            admin_user_role=assignment, scope_type=AdminRoleScope.ScopeType.GLOBAL
+        )
+
+        self.correction.revoke_overgranted_global_scope(django_apps, None)
+
+        self.assertEqual(self._scopes(user), ["global"])
+        self.assertTrue(has_global_scope(user))
+
+    # -- who never receives it --------------------------------------------
     def test_a_staff_account_with_no_role_receives_nothing(self):
         """`is_staff` has not been authority since the dynamic RBAC work.
 
@@ -1642,7 +1689,7 @@ class LegacyGlobalBackfillTestCase(TestCase):
         self.assertFalse(has_global_scope(learner))
         self.assertEqual(set(accessible_organization_ids(learner, "organizations.view")), set())
 
-    # -- PART M: idempotency and no widening -------------------------------
+    # -- idempotency and no widening --------------------------------------
     def test_an_already_scoped_assignment_is_left_alone(self):
         """The case that would silently undo an operator's work.
 
@@ -1651,7 +1698,9 @@ class LegacyGlobalBackfillTestCase(TestCase):
         """
         organization = Organization.objects.create(name="School A")
         user = self._admin("legacy-narrowed@example.com")
-        assignment = AdminUserRole.objects.create(user=user, role=self._role("legacy_scoped"), is_active=True)
+        assignment = AdminUserRole.objects.create(
+            user=user, role=self._role("legacy_scoped"), is_active=True
+        )
         AdminRoleScope.objects.create(
             admin_user_role=assignment,
             scope_type=AdminRoleScope.ScopeType.ORGANIZATION,
@@ -1663,7 +1712,7 @@ class LegacyGlobalBackfillTestCase(TestCase):
         self.assertEqual(self._scopes(user), ["organization"])
         self.assertFalse(has_global_scope(user))
 
-    def test_running_it_twice_changes_nothing(self):
+    def test_running_the_pair_twice_changes_nothing(self):
         user = self._admin("legacy-idempotent@example.com")
         AdminUserRole.objects.create(user=user, role=self._role("legacy_twice"), is_active=True)
 
@@ -1674,20 +1723,16 @@ class LegacyGlobalBackfillTestCase(TestCase):
         self.assertEqual(AdminRoleScope.objects.count(), after_first)
         self.assertEqual(self._scopes(user), ["global"])
 
-    def test_the_reverse_does_not_destroy_grants_it_did_not_create(self):
-        """Reversing must not revoke reach issued after the migration ran.
-
-        The obvious undo -- delete every global row -- cannot tell a row this
-        migration wrote from one an operator granted deliberately last week,
-        so it is a no-op rather than a silent revocation.
-        """
+    def test_reversing_the_correction_does_not_regrant_authority(self):
+        """Rolling back "remove authority that never existed" must not hand
+        it back as a side effect of stepping a migration backwards."""
         user = self._admin("legacy-reverse@example.com")
-        AdminUserRole.objects.create(user=user, role=self._role("legacy_rev"), is_active=True)
+        AdminUserRole.objects.create(user=user, role=self._role("legacy_rev"), is_active=False)
         self._run()
 
-        self.migration.drop_global_scope(django_apps, None)
+        self.correction.restore_overgranted_global_scope(django_apps, None)
 
-        self.assertEqual(self._scopes(user), ["global"])
+        self.assertEqual(self._scopes(user), [])
 
     def test_a_mixed_estate_is_sorted_correctly_in_one_pass(self):
         """All of the above together, which is what a real database is."""
@@ -1695,15 +1740,20 @@ class LegacyGlobalBackfillTestCase(TestCase):
         AdminUserRole.objects.create(user=keeps, role=self._role("mixed_live"), is_active=True)
         dormant = self._admin("mixed-dormant@example.com")
         AdminUserRole.objects.create(user=dormant, role=self._role("mixed_off"), is_active=False)
-        learner = User.objects.create_user(email="mixed-learner@example.com", password="StrongPass123", full_name="L")
+        dead_role = self._admin("mixed-dead@example.com")
+        AdminUserRole.objects.create(
+            user=dead_role, role=self._role("mixed_retired", active=False), is_active=True
+        )
+        learner = User.objects.create_user(
+            email="mixed-learner@example.com", password="StrongPass123", full_name="L"
+        )
 
         self._run()
 
         self.assertEqual(self._scopes(keeps), ["global"])
         self.assertEqual(self._scopes(dormant), [])
+        self.assertEqual(self._scopes(dead_role), [])
         self.assertEqual(self._scopes(learner), [])
-
-
 @override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
 class SupervisorManagementTestCase(APITestCase):
     """Listing supervisors, and taking a grant back.

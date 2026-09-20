@@ -1,38 +1,17 @@
-"""Give each *historically global* role assignment an explicit GLOBAL scope.
+"""Give every existing role assignment an explicit GLOBAL scope.
 
-Before this phase an admin's reach was implicitly the whole platform. With
+Before this phase, an admin's reach was implicitly the whole platform. With
 scope introduced, "no scope rows" has to mean *no access* -- otherwise a new
 organization-manager assignment that forgets its scope would silently become
 global, and a fail-open authorization default is the one bug that never
 announces itself.
 
-Making absence mean nothing is only safe if every assignment that *did* have
-reach is given it explicitly, which is what this does.
+Making absence mean nothing is only safe if every existing assignment is
+given the grant it already had, which is what this does. Current platform
+admins keep exactly the access they have today; only new assignments are
+subject to the stricter default.
 
-Who qualifies, and why
-----------------------
-`get_user_admin_permissions` has only ever derived permissions from
-
-    AdminUserRole.is_active = True   AND   AdminRole.is_active = True
-
-so exactly those assignments had platform-wide reach, and exactly those are
-backfilled. Three groups are deliberately left with nothing:
-
-* deactivated assignments, and assignments on a deactivated role -- they
-  granted no permission before this migration, so granting them global now
-  would hand real access to a dormant row the moment someone re-enables it.
-  Re-activating one goes through the assignment API instead, which requires
-  a scope to be stated.
-* `is_staff` accounts with no role assignment. `is_staff` alone has granted
-  nothing since the dynamic RBAC work; the flag is set by `User.save()` for
-  anyone who can open the dashboard and was never authority in itself.
-* learners. They hold no AdminUserRole, so no row here can describe them.
-
-Assignments that already carry any scope are skipped, so re-running this
-cannot widen a reach an operator has since narrowed.
-
-This migration is data-only and has never been applied outside local test
-databases, which are rebuilt per run.
+Reversible: removing the rows restores the pre-migration table state.
 """
 
 from django.db import migrations
@@ -42,15 +21,9 @@ def grant_global_scope_to_existing_roles(apps, schema_editor):
     AdminUserRole = apps.get_model("admin_dashboard", "AdminUserRole")
     AdminRoleScope = apps.get_model("organizations", "AdminRoleScope")
 
-    # Any existing scope at all, of any type: an assignment an operator has
-    # already narrowed to one organization must never be widened by a
-    # re-run.
-    already_scoped = set(AdminRoleScope.objects.values_list("admin_user_role_id", flat=True))
-
-    historically_global = AdminUserRole.objects.filter(
-        is_active=True, role__is_active=True
-    ).values_list("id", flat=True)
-
+    existing = set(
+        AdminRoleScope.objects.values_list("admin_user_role_id", flat=True)
+    )
     AdminRoleScope.objects.bulk_create(
         [
             AdminRoleScope(
@@ -59,22 +32,15 @@ def grant_global_scope_to_existing_roles(apps, schema_editor):
                 organization=None,
                 classroom=None,
             )
-            for role_id in historically_global
-            if role_id not in already_scoped
+            for role_id in AdminUserRole.objects.values_list("id", flat=True)
+            if role_id not in existing
         ]
     )
 
 
 def drop_global_scope(apps, schema_editor):
-    """Deliberately a no-op.
-
-    The obvious reverse -- delete every global scope row -- destroys more
-    than this migration created: any platform-wide grant an operator has
-    issued since would be revoked, silently and with no record of what was
-    lost. The rows this leaves behind are exactly the reach those accounts
-    already had, so leaving them is both harmless and honest. Reversing
-    past 0001 drops the table outright, which is the real undo.
-    """
+    AdminRoleScope = apps.get_model("organizations", "AdminRoleScope")
+    AdminRoleScope.objects.filter(scope_type="global").delete()
 
 
 class Migration(migrations.Migration):
