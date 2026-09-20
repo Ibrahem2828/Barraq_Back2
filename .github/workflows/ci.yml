@@ -113,3 +113,14 @@ jobs:
 
       - name: Package and secret hygiene scan
         run: python scripts/validate_release.py
+
+      # Nothing watched the dependency set before this. Two packages were
+      # sitting on 20 advisories, and in both cases the upper bound in
+      # base.txt was pinned below every fixed release -- so the constraint
+      # itself was what prevented the fix. This fails the build rather than
+      # reporting, because the failure mode being guarded against is precisely
+      # a known advisory going unnoticed.
+      - name: Dependency vulnerability audit
+        run: |
+          python -m pip install --quiet pip-audit
+          pip-audit -r requirements.txt --progress-spinner off
