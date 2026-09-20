@@ -219,6 +219,6 @@ class SharedCacheBackendTests(SimpleTestCase):
         """The shipped configuration, not just the validator."""
         redis_url = load_compose()["services"]["backend"]["environment"]["REDIS_URL"]
         self.assertTrue(
-            redis_url.startswith("redis://") or redis_url.startswith("rediss://"),
+            redis_url.startswith(("redis://", "rediss://")),
             f"REDIS_URL does not select a shared cache backend: {redis_url!r}",
         )

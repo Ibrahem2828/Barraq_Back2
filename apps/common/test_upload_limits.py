@@ -51,7 +51,7 @@ class RequestDataRespectsUploadLimitTests(TestCase):
         )
 
         with self.assertRaises(RequestDataTooBig):
-            request.data
+            _ = request.data
 
     @override_settings(DATA_UPLOAD_MAX_MEMORY_SIZE=LIMIT_BYTES)
     def test_oversized_form_body_is_refused(self):
@@ -67,7 +67,7 @@ class RequestDataRespectsUploadLimitTests(TestCase):
         )
 
         with self.assertRaises(RequestDataTooBig):
-            request.data
+            _ = request.data
 
     @override_settings(DATA_UPLOAD_MAX_MEMORY_SIZE=LIMIT_BYTES)
     def test_a_body_within_the_limit_still_parses(self):
