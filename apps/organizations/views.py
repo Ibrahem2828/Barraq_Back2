@@ -461,6 +461,31 @@ class MyMembershipsView(APIView):
                     }
                     for item in classes
                 ],
-                "join_requests": JoinRequestSerializer(requests, many=True).data,
+                # Named, like the two lists above it. JoinRequestSerializer
+                # addresses organizations by public_id because that is what
+                # an admin client needs; a learner looking at their own
+                # pending request needs to read the name of the school they
+                # asked to join, not its uuid.
+                "join_requests": [
+                    {
+                        "public_id": str(item.public_id),
+                        "organization": {
+                            "public_id": str(item.organization.public_id),
+                            "name": item.organization.name,
+                        },
+                        "classroom": (
+                            {
+                                "public_id": str(item.classroom.public_id),
+                                "name": item.classroom.name,
+                            }
+                            if item.classroom_id
+                            else None
+                        ),
+                        "status": item.status,
+                        "created_at": item.created_at,
+                        "decided_at": item.decided_at,
+                    }
+                    for item in requests
+                ],
             }
         )
