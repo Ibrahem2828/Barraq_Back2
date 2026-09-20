@@ -96,3 +96,25 @@ def validate_allowed_hosts(values, *, public_api_hostname=None):
         )
         if not is_covered:
             raise ValueError("ALLOWED_HOSTS must include the PUBLIC_API_BASE_URL hostname.")
+
+
+def validate_shared_cache_backend(backend_path, *, setting_name="CACHES['default']"):
+    """Reject a per-process cache in production.
+
+    DRF's throttling stores its counters in the default cache. With a local
+    memory cache each Gunicorn worker keeps its own counters, so every rate
+    limit is silently multiplied by the worker count -- 2 to 8 here. The login,
+    OTP-verify and password-reset limits are the ones that matter, and they are
+    exactly the ones an attacker benefits from loosening.
+
+    The fallback is chosen by whether REDIS_URL happens to start with "redis",
+    so an empty or malformed value degrades the cache without raising. That
+    fails open and silently, which is the combination worth refusing to start
+    over.
+    """
+    if "locmem" in str(backend_path).lower():
+        raise ValueError(
+            f"{setting_name} resolved to a local-memory cache, which is per-process. "
+            "Rate limiting would be enforced per Gunicorn worker instead of platform "
+            "wide. Set REDIS_URL to a redis:// or rediss:// URL."
+        )

@@ -14,6 +14,7 @@ from apps.common.env_config import (
     validate_origin_list,
     validate_origin_url,
     validate_secret_key,
+    validate_shared_cache_backend,
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -195,6 +196,22 @@ CACHES = {
         "KEY_PREFIX": "baraq",
     }
 }
+
+# The backend above is selected by a string check on REDIS_URL, so an empty or
+# malformed value silently yields a per-process cache -- and DRF keeps its
+# throttle counters there. Refuse to start rather than enforce the login and
+# OTP limits once per worker.
+#
+# Exempt under `manage.py test`, matching the PASSWORD_HASHERS branch below:
+# the suite runs with DEBUG=False to exercise the production validation paths,
+# and requiring a live Redis just to run tests would make a local run depend on
+# infrastructure it otherwise does not need. CI supplies a real redis:// URL,
+# so the configuration that ships is still checked there.
+if not DEBUG and "test" not in sys.argv:
+    try:
+        validate_shared_cache_backend(CACHES["default"]["BACKEND"])
+    except ValueError as exc:
+        raise ImproperlyConfigured(str(exc)) from exc
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

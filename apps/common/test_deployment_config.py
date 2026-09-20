@@ -17,6 +17,8 @@ import yaml
 from django.conf import settings
 from django.test import SimpleTestCase
 
+from .env_config import validate_shared_cache_backend
+
 DEPLOY_DIR = Path(settings.BASE_DIR) / 'deploy' / 'production'
 COMPOSE_PATH = DEPLOY_DIR / 'compose.yaml'
 CADDYFILE_PATH = DEPLOY_DIR / 'Caddyfile'
@@ -187,3 +189,36 @@ class UploadSizeChainTests(SimpleTestCase):
         the cap had stopped meaning anything."""
         django_limit = settings.STUDENT_SOURCE_MAX_UPLOAD_MB * 1024 * 1024
         self.assertLess(self._caddy_limit_bytes(), django_limit * 4)
+
+
+class SharedCacheBackendTests(SimpleTestCase):
+    """Rate limiting is only platform-wide if the cache is.
+
+    DRF keeps throttle counters in the default cache. A local-memory cache
+    gives each Gunicorn worker its own, so every limit is quietly multiplied
+    by the worker count -- and this deployment runs 2 to 8 of them. The
+    login, OTP-verify and password-reset limits are the ones that matter.
+
+    The cache backend is chosen by whether REDIS_URL starts with "redis", so
+    an empty or malformed value degrades it without raising anything. The
+    validator exists because that combination fails open and fails silently.
+    """
+
+    def test_a_local_memory_cache_is_refused(self):
+        with self.assertRaises(ValueError) as caught:
+            validate_shared_cache_backend(
+                "django.core.cache.backends.locmem.LocMemCache"
+            )
+
+        self.assertIn("per-process", str(caught.exception))
+
+    def test_a_redis_cache_is_accepted(self):
+        validate_shared_cache_backend("django.core.cache.backends.redis.RedisCache")
+
+    def test_production_compose_configures_a_shared_cache(self):
+        """The shipped configuration, not just the validator."""
+        redis_url = load_compose()["services"]["backend"]["environment"]["REDIS_URL"]
+        self.assertTrue(
+            redis_url.startswith("redis://") or redis_url.startswith("rediss://"),
+            f"REDIS_URL does not select a shared cache backend: {redis_url!r}",
+        )
