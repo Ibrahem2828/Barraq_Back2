@@ -19,7 +19,7 @@ from rest_framework.exceptions import NotFound
 
 from apps.admin_dashboard.services import get_user_admin_permissions, is_super_admin_user
 
-from .models import AdminRoleScope, Classroom
+from .models import AdminRoleScope, Classroom, Organization
 
 
 class ScopeDenied(NotFound):
@@ -522,7 +522,89 @@ def resolve_grantable_scopes(actor, raw_scopes):
     return resolved
 
 
+def revoke_grants_within_scope(target, actor):
+    """Withdraw `target`'s grants, but only the ones `actor` can reach.
+
+    An operator scoped to one organization must be able to remove a
+    supervisor from it, and must not be able to strip that person of a role
+    in someone else's. So this removes the scope rows inside the actor's
+    reach and retires an assignment only once nothing is left of it --
+    revocation is bounded by exactly the same boundary as everything else.
+
+    A platform operator reaches everything and therefore removes everything,
+    which is the behaviour that existed before scope.
+
+    Returns the number of scope rows withdrawn.
+    """
+    from apps.admin_dashboard.models import AdminUserRole
+
+    assignments = AdminUserRole.objects.filter(user=target, is_active=True)
+    rows = AdminRoleScope.objects.filter(admin_user_role__in=assignments)
+
+    if not has_global_scope(actor):
+        organization_ids = _normalize(accessible_organization_ids(actor))
+        classroom_ids = _normalize(accessible_classroom_ids(actor))
+        if is_unrestricted(organization_ids):  # pragma: no cover - defensive
+            raise ScopeDenied("scope_access_denied")
+        rows = rows.filter(Q(organization_id__in=organization_ids) | Q(classroom_id__in=classroom_ids or []))
+
+    removed = rows.count()
+    rows.delete()
+
+    # An assignment with no scope left grants nothing, so it is retired
+    # rather than kept as a row that silently means "no access".
+    for assignment in assignments:
+        if not AdminRoleScope.objects.filter(admin_user_role=assignment).exists():
+            assignment.is_active = False
+            assignment.save(update_fields=["is_active"])
+    return removed
+
+
+def describe_scopes_for_viewer(target, viewer):
+    """`target`'s scopes, reduced to the ones `viewer` is allowed to know.
+
+    The admin directory has to say what each account administers, or it
+    cannot answer "who supervises this class". But an account may work in
+    two organizations, and showing all of its grants to a manager of one of
+    them names the other -- the directory becomes a way to enumerate tenants
+    through the people who staff them.
+
+    A platform operator sees everything, because they already can.
+    """
+    described = describe_scopes(target)
+    if has_global_scope(viewer):
+        return described
+
+    organization_ids = _normalize(accessible_organization_ids(viewer))
+    classroom_ids = _normalize(accessible_classroom_ids(viewer))
+    if is_unrestricted(organization_ids):  # pragma: no cover - defensive
+        return described
+
+    visible_organizations = set(
+        Organization.objects.filter(id__in=organization_ids).values_list("public_id", flat=True)
+    )
+    visible_classrooms = set(Classroom.objects.filter(id__in=classroom_ids or []).values_list("public_id", flat=True))
+
+    reduced = []
+    for entry in described:
+        # A global grant is never shown to a scoped viewer: it describes
+        # reach over every tenant, including theirs.
+        if entry.get("type") == AdminRoleScope.ScopeType.GLOBAL:
+            continue
+        classroom = entry.get("classroom") or {}
+        organization = entry.get("organization") or {}
+        if (
+            classroom
+            and classroom.get("public_id") in {str(v) for v in visible_classrooms}
+            or organization.get("public_id") in {str(v) for v in visible_organizations}
+        ):
+            reduced.append(entry)
+    return reduced
+
+
 __all__ = [
+    "describe_scopes_for_viewer",
+    "revoke_grants_within_scope",
     "is_unrestricted",
     "NO_ACCESS",
     "UNRESTRICTED",

@@ -338,6 +338,7 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
         'partial_update': 'admins.update',
         'destroy': 'admins.delete',
         'assign_roles': 'admins.assign_roles',
+        'revoke_roles': 'admins.assign_roles',
     }
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['email', 'full_name', 'phone_number']
@@ -357,7 +358,41 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
         is_active = self.request.query_params.get('is_active')
         if is_active in {'true', 'false'}:
             queryset = queryset.filter(is_active=is_active == 'true')
-        return apply_date_filters(queryset, self.request.query_params)
+        # "Who supervises this class / this school."
+        #
+        # The filter is resolved through the caller's own scope, not merely
+        # applied alongside it. Matching a scope row directly would answer a
+        # question the caller may not ask: an account working in two schools
+        # is legitimately visible to a manager of one of them, and filtering
+        # by the other school would confirm that second grant exists.
+        organization = self.request.query_params.get('organization')
+        if organization:
+            queryset = self._filter_by_scope_target(queryset, 'organization', organization)
+        classroom = self.request.query_params.get('classroom')
+        if classroom:
+            queryset = self._filter_by_scope_target(queryset, 'classroom', classroom)
+        return apply_date_filters(queryset.distinct(), self.request.query_params)
+
+    def _filter_by_scope_target(self, queryset, kind, public_id):
+        from apps.organizations.models import Classroom, Organization
+
+        if kind == 'organization':
+            target = Organization.objects.filter(public_id=public_id).first()
+            reachable = scope_policy.accessible_organization_ids(self.request.user)
+        else:
+            target = Classroom.objects.filter(public_id=public_id).first()
+            reachable = scope_policy.accessible_classroom_ids(self.request.user)
+
+        if target is None:
+            return queryset.none()
+        if not scope_policy.is_unrestricted(reachable) and target.id not in (reachable or set()):
+            # Asking about a tenant the caller cannot reach answers nothing,
+            # rather than answering about the people they happen to share.
+            return queryset.none()
+        return queryset.filter(
+            admin_user_roles__is_active=True,
+            **{f'admin_user_roles__scopes__{kind}__public_id': public_id},
+        )
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -432,6 +467,28 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
                 'roles': [role.code for role in roles],
                 'scopes': [scope['scope_type'] for scope in scopes] if scopes else ['global'],
             },
+            request,
+        )
+        return Response(AdminUserSerializer(target, context=self.get_serializer_context()).data)
+
+    @action(detail=True, methods=['post'], url_path='revoke-roles')
+    def revoke_roles(self, request, pk=None):
+        """Withdraw this account's grants, bounded by the caller's own scope.
+
+        Removing someone from an organization must not remove them from a
+        different one. A scoped operator withdraws only the grants inside
+        their reach; a platform operator withdraws all of them, which is what
+        revocation meant before scope existed.
+        """
+        target = self.get_object()
+        if is_super_admin_user(target) and not is_super_admin_user(request.user):
+            raise ValidationError('Only Super Admin can change Super Admin roles.')
+        removed = scope_policy.revoke_grants_within_scope(target, request.user)
+        log_admin_action(
+            request.user,
+            'admin.roles_revoked',
+            target,
+            {'scopes_removed': removed},
             request,
         )
         return Response(AdminUserSerializer(target, context=self.get_serializer_context()).data)

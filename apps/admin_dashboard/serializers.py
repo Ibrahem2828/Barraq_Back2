@@ -120,6 +120,7 @@ class AdminUserRoleSerializer(serializers.ModelSerializer):
 class AdminUserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
+    scopes = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -134,6 +135,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
             'is_superuser',
             'roles',
             'permissions',
+            'scopes',
             'created_at',
             'updated_at',
         )
@@ -151,6 +153,23 @@ class AdminUserSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_permissions(self, obj):
         return sorted(get_user_admin_permissions(obj))
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_scopes(self, obj):
+        """What this account's roles apply to.
+
+        Without it the directory answers "who is an admin" but not "an admin
+        of what", which is the only question that matters once more than one
+        organization exists. Names and public ids only -- the same compact
+        shape the identity response uses.
+        """
+        from apps.organizations.scope import describe_scopes, describe_scopes_for_viewer
+
+        request = self.context.get('request')
+        viewer = getattr(request, 'user', None)
+        if viewer is None:
+            return describe_scopes(obj)
+        return describe_scopes_for_viewer(obj, viewer)
 
 
 class RoleScopeSerializer(serializers.Serializer):

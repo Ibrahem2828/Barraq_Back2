@@ -1918,6 +1918,14 @@
             "readOnly": true,
             "type": "array"
           },
+          "scopes": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
           "updated_at": {
             "format": "date-time",
             "readOnly": true,
@@ -1936,6 +1944,7 @@
           "phone_number",
           "role",
           "roles",
+          "scopes",
           "updated_at"
         ],
         "type": "object"
@@ -10006,6 +10015,42 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AssignRoles"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Admin Users"
+        ]
+      }
+    },
+    "/api/v1/admin/admin-users/{id}/revoke-roles/": {
+      "post": {
+        "description": "Withdraw this account's grants, bounded by the caller's own scope.\n\nRemoving someone from an organization must not remove them from a\ndifferent one. A scoped operator withdraws only the grants inside\ntheir reach; a platform operator withdraws all of them, which is what\nrevocation meant before scope existed.",
+        "operationId": "v1_admin_admin_users_revoke_roles_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUser"
                 }
               }
             },

@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-19T22:45:15+00:00",
-    "generated_from_backend_commit": "3a6af1f3e8b2618c51b44e49cc4f3b678d1b2a4e",
+    "generated_at": "2026-09-20T06:40:29+00:00",
+    "generated_from_backend_commit": "9dfb619ae514489f0a15d67d42ea4a52a54f8c37",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -927,6 +927,126 @@
           "description": "",
           "schema": {
             "$ref": "#/resources/AssignRoles/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
+          "admins.assign_roles"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "revoke_roles",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.admin_dashboard.serializers.AdminUserSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/admin_dashboard/urls.py",
+        "view": "apps.admin_dashboard.views.AdminUserViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "Withdraw this account's grants, bounded by the caller's own scope.\n\nRemoving someone from an organization must not remove them from a\ndifferent one. A scoped operator withdraws only the grants inside\ntheir reach; a platform operator withdraws all of them, which is what\nrevocation meant before scope existed.",
+      "domain": "admin_users",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_admin_users_revoke_roles_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_admin_admin_users_revoke_roles_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": null,
+      "path": "/api/v1/admin/admin-users/{id}/revoke-roles/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/AdminUser/schema"
           }
         }
       },
@@ -21689,6 +21809,22 @@
           "default": null,
           "description": null,
           "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "scopes",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
           "format": "date-time",
           "max_length": null,
           "maximum": null,
@@ -21778,6 +21914,14 @@
             "readOnly": true,
             "type": "array"
           },
+          "scopes": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
           "updated_at": {
             "format": "date-time",
             "readOnly": true,
@@ -21796,6 +21940,7 @@
           "phone_number",
           "role",
           "roles",
+          "scopes",
           "updated_at"
         ],
         "type": "object"

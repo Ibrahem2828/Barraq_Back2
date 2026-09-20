@@ -1541,9 +1541,7 @@ class LegacyGlobalBackfillTestCase(TestCase):
 
     def setUp(self):
         cache.clear()
-        self.migration = import_module(
-            "apps.organizations.migrations.0002_backfill_global_admin_scope"
-        )
+        self.migration = import_module("apps.organizations.migrations.0002_backfill_global_admin_scope")
 
     def _run(self):
         """Apply the data migration against the live app registry.
@@ -1555,19 +1553,13 @@ class LegacyGlobalBackfillTestCase(TestCase):
         self.migration.grant_global_scope_to_existing_roles(django_apps, None)
 
     def _admin(self, email):
-        return User.objects.create_user(
-            email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN
-        )
+        return User.objects.create_user(email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN)
 
     def _role(self, code, active=True):
         return AdminRole.objects.create(code=code, name=code, is_active=active)
 
     def _scopes(self, user):
-        return list(
-            AdminRoleScope.objects.filter(admin_user_role__user=user).values_list(
-                "scope_type", flat=True
-            )
-        )
+        return list(AdminRoleScope.objects.filter(admin_user_role__user=user).values_list("scope_type", flat=True))
 
     # -- who receives global ----------------------------------------------
     def test_an_active_assignment_keeps_the_reach_it_already_had(self):
@@ -1612,9 +1604,7 @@ class LegacyGlobalBackfillTestCase(TestCase):
 
     def test_an_assignment_on_a_deactivated_role_receives_nothing(self):
         user = self._admin("legacy-dead-role@example.com")
-        AdminUserRole.objects.create(
-            user=user, role=self._role("retired_role", active=False), is_active=True
-        )
+        AdminUserRole.objects.create(user=user, role=self._role("retired_role", active=False), is_active=True)
 
         self._run()
 
@@ -1656,9 +1646,7 @@ class LegacyGlobalBackfillTestCase(TestCase):
         """
         organization = Organization.objects.create(name="School A")
         user = self._admin("legacy-narrowed@example.com")
-        assignment = AdminUserRole.objects.create(
-            user=user, role=self._role("legacy_scoped"), is_active=True
-        )
+        assignment = AdminUserRole.objects.create(user=user, role=self._role("legacy_scoped"), is_active=True)
         AdminRoleScope.objects.create(
             admin_user_role=assignment,
             scope_type=AdminRoleScope.ScopeType.ORGANIZATION,
@@ -1702,12 +1690,231 @@ class LegacyGlobalBackfillTestCase(TestCase):
         AdminUserRole.objects.create(user=keeps, role=self._role("mixed_live"), is_active=True)
         dormant = self._admin("mixed-dormant@example.com")
         AdminUserRole.objects.create(user=dormant, role=self._role("mixed_off"), is_active=False)
-        learner = User.objects.create_user(
-            email="mixed-learner@example.com", password="StrongPass123", full_name="L"
-        )
+        learner = User.objects.create_user(email="mixed-learner@example.com", password="StrongPass123", full_name="L")
 
         self._run()
 
         self.assertEqual(self._scopes(keeps), ["global"])
         self.assertEqual(self._scopes(dormant), [])
         self.assertEqual(self._scopes(learner), [])
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+class SupervisorManagementTestCase(APITestCase):
+    """Listing supervisors, and taking a grant back.
+
+    Revocation is the mirror of assignment and needs the same boundary: an
+    operator who can remove someone from their own school must not be able
+    to remove them from a school they have nothing to do with.
+    """
+
+    def setUp(self):
+        cache.clear()
+        _, self.roles = seed_default_rbac()
+        self.super_admin = User.objects.create_user(
+            email="root6@example.com",
+            password="StrongPass123",
+            full_name="Root",
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        self.org_a = Organization.objects.create(name="School A")
+        self.org_b = Organization.objects.create(name="School B")
+        self.class_a = Classroom.objects.create(organization=self.org_a, name="10-A")
+
+        self.granter = AdminRole.objects.create(code="sup_granter", name="Granter")
+        self.granter.permissions.set(
+            AdminPermission.objects.filter(
+                code__in=[
+                    "admins.view",
+                    "admins.assign_roles",
+                    "organizations.view",
+                    "classes.view",
+                ]
+            )
+        )
+        self.manager_a = self._admin("sup-mgr-a@example.com")
+        self._grant(
+            self.manager_a,
+            self.granter,
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+
+        # Works in both schools, which is the whole point of the test.
+        self.shared = self._admin("sup-shared@example.com")
+        self._grant(
+            self.shared,
+            self.roles["organization_manager"],
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+        self._grant(
+            self.shared,
+            self.roles["class_supervisor"],
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_b},
+        )
+
+    def _admin(self, email):
+        return User.objects.create_user(email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN)
+
+    def _grant(self, user, role, scope):
+        assignment, _ = AdminUserRole.objects.update_or_create(user=user, role=role, defaults={"is_active": True})
+        AdminRoleScope.objects.create(admin_user_role=assignment, **scope)
+        return assignment
+
+    def _as(self, user):
+        self.client.force_authenticate(user)
+
+    def _scope_orgs(self, user):
+        return set(
+            AdminRoleScope.objects.filter(admin_user_role__user=user, admin_user_role__is_active=True).values_list(
+                "organization_id", flat=True
+            )
+        )
+
+    # -- listing -----------------------------------------------------------
+    def test_the_directory_says_what_each_admin_is_an_admin_of(self):
+        """ "Who is an admin" stops being useful once there are two schools."""
+        self._as(self.super_admin)
+        response = self.client.get(reverse("admin-user-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        row = next(r for r in response.data["results"] if r["email"] == self.shared.email)
+        names = {scope["organization"]["name"] for scope in row["scopes"] if scope.get("organization")}
+        self.assertEqual(names, {"School A", "School B"})
+
+    def test_supervisors_can_be_listed_for_one_organization(self):
+        self._as(self.super_admin)
+        response = self.client.get(reverse("admin-user-list"), {"organization": str(self.org_b.public_id)})
+
+        emails = {row["email"] for row in response.data["results"]}
+        self.assertIn(self.shared.email, emails)
+        self.assertNotIn(self.manager_a.email, emails)
+
+    def test_the_organization_filter_cannot_widen_a_scoped_list(self):
+        """A filter narrows what is permitted; it never reaches past it."""
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-user-list"), {"organization": str(self.org_b.public_id)})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"], [])
+
+    def test_a_manager_is_not_told_which_other_tenants_an_admin_serves(self):
+        """The directory must not become a way to enumerate tenants.
+
+        This account legitimately works in both schools, so a manager of
+        School A can see the person. Listing their School B grant alongside
+        it names an organization that manager has no business knowing
+        exists -- the leak is the second school's name, not the person.
+        """
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-user-list"))
+
+        row = next(r for r in response.data["results"] if r["email"] == self.shared.email)
+        names = {scope["organization"]["name"] for scope in row["scopes"] if scope.get("organization")}
+        self.assertEqual(names, {"School A"})
+        self.assertNotIn("School B", str(response.data))
+
+    def test_a_scoped_viewer_is_never_shown_a_platform_wide_grant(self):
+        platform = self._admin("sup-global-visible@example.com")
+        self._grant(
+            platform,
+            self.roles["organization_manager"],
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+        self._grant(platform, self.granter, {"scope_type": AdminRoleScope.ScopeType.GLOBAL})
+
+        self._as(self.manager_a)
+        response = self.client.get(reverse("admin-user-list"))
+
+        row = next(r for r in response.data["results"] if r["email"] == platform.email)
+        self.assertNotIn(
+            AdminRoleScope.ScopeType.GLOBAL,
+            {scope["type"] for scope in row["scopes"]},
+            "a scoped viewer was shown that this account has platform-wide reach",
+        )
+
+    # -- revocation --------------------------------------------------------
+    def test_revoking_removes_only_the_grants_in_the_callers_scope(self):
+        """The defect this test exists for.
+
+        Manager A can legitimately remove this person from School A. Taking
+        School B with it would be a cross-tenant mutation dressed up as an
+        administrative tidy-up.
+        """
+        self._as(self.manager_a)
+        response = self.client.post(reverse("admin-user-revoke-roles", args=[self.shared.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._scope_orgs(self.shared), {self.org_b.id})
+
+    def test_an_assignment_with_nothing_left_is_retired(self):
+        """A grant stripped of every scope grants nothing, so it should not
+        linger as a row that quietly means "no access"."""
+        only_a = self._admin("sup-only-a@example.com")
+        self._grant(
+            only_a,
+            self.roles["organization_manager"],
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_a},
+        )
+
+        self._as(self.manager_a)
+        self.client.post(reverse("admin-user-revoke-roles", args=[only_a.id]))
+
+        self.assertEqual(self._scope_orgs(only_a), set())
+        self.assertFalse(
+            AdminUserRole.objects.filter(user=only_a, is_active=True).exists(),
+            "an assignment with no scope left should be retired",
+        )
+        self.assertEqual(set(accessible_organization_ids(only_a, "organizations.view")), set())
+
+    def test_a_manager_cannot_revoke_an_admin_of_another_tenant_at_all(self):
+        outsider = self._admin("sup-outsider@example.com")
+        self._grant(
+            outsider,
+            self.roles["organization_manager"],
+            {"scope_type": AdminRoleScope.ScopeType.ORGANIZATION, "organization": self.org_b},
+        )
+
+        self._as(self.manager_a)
+        response = self.client.post(reverse("admin-user-revoke-roles", args=[outsider.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self._scope_orgs(outsider), {self.org_b.id})
+
+    def test_a_manager_cannot_reach_a_platform_admin(self):
+        """A global grant carries no organization, so a scoped manager never
+        sees the platform's own administrators -- let alone strips them."""
+        platform = self._admin("sup-platform@example.com")
+        self._grant(platform, self.roles["organization_manager"], {"scope_type": AdminRoleScope.ScopeType.GLOBAL})
+
+        self._as(self.manager_a)
+        response = self.client.post(reverse("admin-user-revoke-roles", args=[platform.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(has_global_scope(platform))
+
+    def test_a_platform_operator_revokes_everything(self):
+        self._as(self.super_admin)
+        response = self.client.post(reverse("admin-user-revoke-roles", args=[self.shared.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._scope_orgs(self.shared), set())
+        self.assertFalse(AdminUserRole.objects.filter(user=self.shared, is_active=True).exists())
+
+    def test_only_a_super_admin_can_revoke_a_super_admin(self):
+        self._as(self.super_admin)
+        other_root = User.objects.create_user(
+            email="sup-root2@example.com",
+            password="StrongPass123",
+            full_name="Root2",
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        self.client.force_authenticate(self.manager_a)
+        response = self.client.post(reverse("admin-user-revoke-roles", args=[other_root.id]))
+
+        self.assertIn(
+            response.status_code,
+            (status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
+        self.assertTrue(has_global_scope(other_root))
