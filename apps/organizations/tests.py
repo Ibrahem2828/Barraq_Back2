@@ -18,6 +18,7 @@ from importlib import import_module
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -27,6 +28,7 @@ from rest_framework.test import APITestCase
 
 from apps.admin_dashboard.models import AdminPermission, AdminRole, AdminUserRole, AuditLog
 from apps.admin_dashboard.services import assign_roles_to_user, seed_default_rbac
+from apps.sources.models import StudentSource
 from apps.subscriptions.models import UserSubscription
 from apps.support.models import SupportTicket
 
@@ -1918,3 +1920,217 @@ class SupervisorManagementTestCase(APITestCase):
             (status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
         )
         self.assertTrue(has_global_scope(other_root))
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"])
+class LearnerPrivacyTestCase(APITestCase):
+    """Administering a learner is not the same as reading their work.
+
+    An organization manager runs a school: classes, members, invitations,
+    join requests. None of that is a reason to open a student's uploaded
+    material, their AI results or their quiz answers, and the moment those
+    two ideas blur, a school administrator becomes a reader of every child's
+    private work by default.
+
+    The separation is not enforced by scope -- scope would happily narrow
+    "all sources" to "this school's sources". It is enforced by the seeded
+    roles simply not holding those permissions, which is why these tests
+    assert on the roles as shipped.
+    """
+
+    #: Everything a learner produces that an administrator has no default
+    #: business reading.
+    PRIVATE_SURFACES = [
+        "admin-source-list",
+        "admin-source-collection-list",
+        "admin-study-plan-list",
+        "admin-quiz-list",
+        "admin-quiz-attempt-list",
+        "admin-character-interaction-list",
+        "admin-ai-job-list",
+        "admin-ai-summary-list",
+        "admin-ai-transcription-list",
+        "admin-ai-recommendation-list",
+    ]
+
+    def setUp(self):
+        cache.clear()
+        _, self.roles = seed_default_rbac()
+        self.org = Organization.objects.create(name="School A")
+        self.classroom = Classroom.objects.create(organization=self.org, name="10-A")
+
+        self.manager = User.objects.create_user(
+            email="privacy-mgr@example.com",
+            password="StrongPass123",
+            full_name="Manager",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            self.manager,
+            [self.roles["organization_manager"]],
+            scopes=[
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": self.org,
+                }
+            ],
+        )
+        self.supervisor = User.objects.create_user(
+            email="privacy-sup@example.com",
+            password="StrongPass123",
+            full_name="Supervisor",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            self.supervisor,
+            [self.roles["class_supervisor"]],
+            scopes=[
+                {"scope_type": AdminRoleScope.ScopeType.CLASS, "classroom": self.classroom}
+            ],
+        )
+
+        # A learner of this manager's own school -- the case where the
+        # temptation to grant access is strongest.
+        self.learner = User.objects.create_user(
+            email="privacy-learner@example.com", password="StrongPass123", full_name="Learner"
+        )
+        OrganizationMembership.objects.create(
+            organization=self.org, user=self.learner, joined_at=timezone.now()
+        )
+        ClassMembership.objects.create(
+            classroom=self.classroom, user=self.learner, joined_at=timezone.now()
+        )
+        self.source = StudentSource.objects.create(
+            user=self.learner,
+            title="My private notes",
+            original_filename="notes.txt",
+            file=ContentFile(b"private study material", name="notes.txt"),
+        )
+
+    def _as(self, user):
+        self.client.force_authenticate(user)
+
+    # -- the rule ----------------------------------------------------------
+    def test_an_organization_manager_cannot_open_learner_content(self):
+        self._as(self.manager)
+        for route in self.PRIVATE_SURFACES:
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_403_FORBIDDEN,
+                    f"{route} answered a manager who holds no permission for it",
+                )
+
+    def test_a_class_supervisor_cannot_open_learner_content(self):
+        self._as(self.supervisor)
+        for route in self.PRIVATE_SURFACES:
+            with self.subTest(route=route):
+                self.assertEqual(
+                    self.client.get(reverse(route)).status_code, status.HTTP_403_FORBIDDEN
+                )
+
+    def test_the_shipped_roles_hold_no_content_permission(self):
+        """Stated against the roles themselves, so adding one is deliberate.
+
+        The API tests above would also pass if a route were simply broken.
+        This one fails the moment someone widens a seeded role, which is the
+        change that would actually cause the leak.
+        """
+        forbidden = {
+            "sources.view",
+            "collections.view",
+            "study_plans.view",
+            "quizzes.view",
+            "character_interactions.view",
+            "ai_jobs.view",
+            "ai_feedback.view",
+        }
+        for code in ("organization_manager", "class_supervisor"):
+            with self.subTest(role=code):
+                granted = set(
+                    self.roles[code].permissions.values_list("code", flat=True)
+                )
+                self.assertEqual(granted & forbidden, set())
+
+    def test_a_manager_cannot_reach_a_learners_source_through_the_student_api(self):
+        """The other door: the learner's own endpoints.
+
+        Phase 2 authorizes these by ownership. Organization membership must
+        not have quietly become a second way in.
+        """
+        self._as(self.manager)
+        response = self.client.get(
+            reverse("student-source-detail", args=[self.source.id])
+        )
+        self.assertIn(
+            response.status_code,
+            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
+
+    def test_a_manager_sees_no_learner_sources_in_their_own_listing(self):
+        self._as(self.manager)
+        response = self.client.get(reverse("student-source-list"))
+
+        if response.status_code == status.HTTP_200_OK:
+            results = response.data.get("results", response.data)
+            titles = {row.get("title") for row in results}
+            self.assertNotIn("My private notes", titles)
+
+    # -- what must still work ---------------------------------------------
+    def test_the_learner_still_reaches_their_own_work(self):
+        """Privacy that also blocks the owner is just breakage."""
+        self._as(self.learner)
+        response = self.client.get(
+            reverse("student-source-detail", args=[self.source.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_an_explicit_content_permission_is_still_scoped_not_global(self):
+        """If a deployment does grant content access, it stays tenant-bound.
+
+        This is the layering: the permission decides whether an account may
+        read sources at all, and scope decides whose. Neither substitutes
+        for the other.
+        """
+        outsider_org = Organization.objects.create(name="School B")
+        outsider = User.objects.create_user(
+            email="privacy-outsider@example.com", password="StrongPass123", full_name="Out"
+        )
+        OrganizationMembership.objects.create(
+            organization=outsider_org, user=outsider, joined_at=timezone.now()
+        )
+        other_source = StudentSource.objects.create(
+            user=outsider,
+            title="Another school's notes",
+            original_filename="other.txt",
+            file=ContentFile(b"other material", name="other.txt"),
+        )
+
+        reader = AdminRole.objects.create(code="content_reader", name="Content reader")
+        reader.permissions.set(AdminPermission.objects.filter(code="sources.view"))
+        auditor = User.objects.create_user(
+            email="privacy-auditor@example.com",
+            password="StrongPass123",
+            full_name="Auditor",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            auditor,
+            [reader],
+            scopes=[
+                {
+                    "scope_type": AdminRoleScope.ScopeType.ORGANIZATION,
+                    "organization": self.org,
+                }
+            ],
+        )
+
+        self._as(auditor)
+        response = self.client.get(reverse("admin-source-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = {row["title"] for row in response.data["results"]}
+        self.assertIn("My private notes", titles)
+        self.assertNotIn("Another school's notes", titles)
+        self.assertNotEqual(other_source.user_id, auditor.id)
