@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.admin_dashboard.services import assign_roles_to_user, seed_default_rbac
+from apps.projects.models import Project
 from apps.quizzes.models import (
     AttemptStatusChoices,
     Choice,
@@ -368,9 +369,11 @@ class Command(BaseCommand):
         quizzes = self._seed_quizzes(student, subjects)
         questions_count, choices_count = self._seed_questions(quizzes)
         attempt_created = self._seed_demo_attempt(student, quizzes['اختبار سريع في التفاضل'])
+        demo_project = self._seed_demo_project(student, arabic_subjects['الرياضيات'])
         demo_sources_count, demo_interactions_count = self._seed_demo_sources_and_interactions(
             student,
             arabic_subjects,
+            demo_project,
         )
 
         self.stdout.write(self.style.SUCCESS('Demo data seeded successfully.'))
@@ -550,6 +553,24 @@ class Command(BaseCommand):
         )
         self._write_upsert('student profile', profile.user.email, created)
         return profile
+
+    def _seed_demo_project(self, student, math_subject):
+        """Create the workspace required by the current source/AI contract."""
+
+        project, created = Project.objects.update_or_create(
+            owner=student,
+            title='مشروع مراجعة الرياضيات',
+            defaults={
+                'subject': math_subject,
+                'goal': 'مراجعة التفاضل والنهايات استعدادًا للاختبار.',
+                'education_context': {'demo_seed': True},
+                'status': Project.Status.ACTIVE,
+                'color': '#2563eb',
+                'icon': 'calculator',
+            },
+        )
+        self._write_upsert('student project', project.title, created)
+        return project
 
     def _seed_user_subjects(self, student, subjects):
         count = 0
@@ -810,13 +831,14 @@ class Command(BaseCommand):
         attempt.save()
         return True
 
-    def _seed_demo_sources_and_interactions(self, student, subjects):
+    def _seed_demo_sources_and_interactions(self, student, subjects, project):
         math_subject = subjects['الرياضيات']
 
         math_collection, math_collection_created = StudentSourceCollection.objects.update_or_create(
             user=student,
             name='الرياضيات',
             defaults={
+                'project': project,
                 'subject': math_subject,
                 'description': 'مصادر وملاحظات الرياضيات',
                 'color': '#2563eb',
@@ -830,6 +852,7 @@ class Command(BaseCommand):
             user=student,
             name='محاضرات الذكاء الاصطناعي',
             defaults={
+                'project': project,
                 'subject': None,
                 'description': 'محاضرات وملخصات الذكاء الاصطناعي',
                 'color': '#7c3aed',
@@ -876,6 +899,7 @@ class Command(BaseCommand):
                 user=student,
                 title=payload['title'],
                 defaults={
+                    'project': project,
                     'collection': payload['collection'],
                     'subject': payload['subject'],
                     'description': payload['description'],

@@ -52,6 +52,7 @@ Change these credentials before any production deployment.
 - 3 education stages.
 - 11 subjects across preparatory, secondary, and university stages.
 - A completed student profile for `student@baraq.app`.
+- 1 project that owns the seeded source folders and AI examples.
 - 4 selected student subjects: mathematics, physics, chemistry, and Arabic.
 - 4 study plans.
 - 15 study tasks spread across today, tomorrow, the current week, and past days.
