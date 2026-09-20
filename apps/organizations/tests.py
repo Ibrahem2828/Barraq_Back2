@@ -13,11 +13,13 @@ aggregates, each checked for both managers in both directions.
 from __future__ import annotations
 
 from datetime import timedelta
+from importlib import import_module
 
+from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
-from django.test import override_settings
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -46,6 +48,7 @@ from .scope import (
     _normalize,
     accessible_classroom_ids,
     accessible_organization_ids,
+    has_global_scope,
     is_unrestricted,
     scoped_user_ids,
 )
@@ -1523,3 +1526,188 @@ class ScopeSemanticsTestCase(APITestCase):
         manageable = accessible_classroom_ids(account, "class_members.manage")
         self.assertEqual(set(manageable), {self.class_a.id})
         self.assertNotIn(self.class_b.id, set(manageable))
+
+
+class LegacyGlobalBackfillTestCase(TestCase):
+    """Who the legacy backfill hands platform-wide reach, and who it does not.
+
+    This migration is the one place where authority is created rather than
+    checked, so it is tested against realistic legacy rows rather than
+    trusted. The rule it implements is not "every admin" but "every
+    assignment that already had reach": `get_user_admin_permissions` has
+    only ever read assignments that are active on a role that is active, so
+    those are exactly the rows that were global before scope existed.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.migration = import_module(
+            "apps.organizations.migrations.0002_backfill_global_admin_scope"
+        )
+
+    def _run(self):
+        """Apply the data migration against the live app registry.
+
+        The historical registry a real migration receives has the same shape
+        for these three models, and running it here means the assertions
+        exercise the shipped function rather than a copy of its logic.
+        """
+        self.migration.grant_global_scope_to_existing_roles(django_apps, None)
+
+    def _admin(self, email):
+        return User.objects.create_user(
+            email=email, password="StrongPass123", full_name=email, role=User.Roles.ADMIN
+        )
+
+    def _role(self, code, active=True):
+        return AdminRole.objects.create(code=code, name=code, is_active=active)
+
+    def _scopes(self, user):
+        return list(
+            AdminRoleScope.objects.filter(admin_user_role__user=user).values_list(
+                "scope_type", flat=True
+            )
+        )
+
+    # -- who receives global ----------------------------------------------
+    def test_an_active_assignment_keeps_the_reach_it_already_had(self):
+        user = self._admin("legacy-active@example.com")
+        AdminUserRole.objects.create(user=user, role=self._role("legacy_ops"), is_active=True)
+
+        self._run()
+
+        self.assertEqual(self._scopes(user), ["global"])
+
+    def test_a_super_admin_keeps_platform_reach(self):
+        root = User.objects.create_user(
+            email="legacy-root@example.com",
+            password="StrongPass123",
+            full_name="Root",
+            role=User.Roles.SUPER_ADMIN,
+            is_superuser=True,
+        )
+        AdminUserRole.objects.create(user=root, role=self._role("super_admin"), is_active=True)
+
+        self._run()
+
+        self.assertEqual(self._scopes(root), ["global"])
+        # And independently of any row: is_superuser is reach in itself.
+        self.assertTrue(has_global_scope(root))
+
+    # -- who must not ------------------------------------------------------
+    def test_a_deactivated_assignment_receives_nothing(self):
+        """A dormant row granted no permission before this migration.
+
+        Handing it global would mean that re-enabling it later -- a one-click
+        action taken to restore someone's old job -- silently returns
+        platform-wide reach instead of the scoped reach they should be
+        given.
+        """
+        user = self._admin("legacy-dormant@example.com")
+        AdminUserRole.objects.create(user=user, role=self._role("legacy_ops2"), is_active=False)
+
+        self._run()
+
+        self.assertEqual(self._scopes(user), [])
+
+    def test_an_assignment_on_a_deactivated_role_receives_nothing(self):
+        user = self._admin("legacy-dead-role@example.com")
+        AdminUserRole.objects.create(
+            user=user, role=self._role("retired_role", active=False), is_active=True
+        )
+
+        self._run()
+
+        self.assertEqual(self._scopes(user), [])
+
+    def test_a_staff_account_with_no_role_receives_nothing(self):
+        """`is_staff` has not been authority since the dynamic RBAC work.
+
+        `User.save()` sets it for anyone who can open the dashboard, so
+        treating it as historical global reach would hand the platform to
+        every account that ever logged in there.
+        """
+        staff = self._admin("legacy-staff-only@example.com")
+        staff.is_staff = True
+        staff.save(update_fields=["is_staff"])
+
+        self._run()
+
+        self.assertEqual(self._scopes(staff), [])
+        self.assertFalse(has_global_scope(staff))
+
+    def test_a_learner_never_receives_global(self):
+        learner = User.objects.create_user(
+            email="legacy-learner@example.com", password="StrongPass123", full_name="Learner"
+        )
+
+        self._run()
+
+        self.assertEqual(self._scopes(learner), [])
+        self.assertFalse(has_global_scope(learner))
+        self.assertEqual(set(accessible_organization_ids(learner, "organizations.view")), set())
+
+    # -- PART M: idempotency and no widening -------------------------------
+    def test_an_already_scoped_assignment_is_left_alone(self):
+        """The case that would silently undo an operator's work.
+
+        An assignment narrowed to one organization must not collect a global
+        row beside it -- the two together would read as platform-wide.
+        """
+        organization = Organization.objects.create(name="School A")
+        user = self._admin("legacy-narrowed@example.com")
+        assignment = AdminUserRole.objects.create(
+            user=user, role=self._role("legacy_scoped"), is_active=True
+        )
+        AdminRoleScope.objects.create(
+            admin_user_role=assignment,
+            scope_type=AdminRoleScope.ScopeType.ORGANIZATION,
+            organization=organization,
+        )
+
+        self._run()
+
+        self.assertEqual(self._scopes(user), ["organization"])
+        self.assertFalse(has_global_scope(user))
+
+    def test_running_it_twice_changes_nothing(self):
+        user = self._admin("legacy-idempotent@example.com")
+        AdminUserRole.objects.create(user=user, role=self._role("legacy_twice"), is_active=True)
+
+        self._run()
+        after_first = AdminRoleScope.objects.count()
+        self._run()
+
+        self.assertEqual(AdminRoleScope.objects.count(), after_first)
+        self.assertEqual(self._scopes(user), ["global"])
+
+    def test_the_reverse_does_not_destroy_grants_it_did_not_create(self):
+        """Reversing must not revoke reach issued after the migration ran.
+
+        The obvious undo -- delete every global row -- cannot tell a row this
+        migration wrote from one an operator granted deliberately last week,
+        so it is a no-op rather than a silent revocation.
+        """
+        user = self._admin("legacy-reverse@example.com")
+        AdminUserRole.objects.create(user=user, role=self._role("legacy_rev"), is_active=True)
+        self._run()
+
+        self.migration.drop_global_scope(django_apps, None)
+
+        self.assertEqual(self._scopes(user), ["global"])
+
+    def test_a_mixed_estate_is_sorted_correctly_in_one_pass(self):
+        """All of the above together, which is what a real database is."""
+        keeps = self._admin("mixed-keeps@example.com")
+        AdminUserRole.objects.create(user=keeps, role=self._role("mixed_live"), is_active=True)
+        dormant = self._admin("mixed-dormant@example.com")
+        AdminUserRole.objects.create(user=dormant, role=self._role("mixed_off"), is_active=False)
+        learner = User.objects.create_user(
+            email="mixed-learner@example.com", password="StrongPass123", full_name="L"
+        )
+
+        self._run()
+
+        self.assertEqual(self._scopes(keeps), ["global"])
+        self.assertEqual(self._scopes(dormant), [])
+        self.assertEqual(self._scopes(learner), [])
