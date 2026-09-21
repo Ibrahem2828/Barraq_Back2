@@ -14,6 +14,7 @@ state, so it is recorded here.
 |---|---|
 | `compose.yaml` | Full-stack production stack (`name: baraq-production`), 16 services |
 | `Caddyfile` | Edge routing and request-body limits for every public host |
+| `release/` | Release manifest, manual checklist, smoke, rollback, and audit evidence |
 
 Not to be confused with the repository root's `docker-compose.yml`
 (`name: baraq-backend`), which is the **backend-only** stack for local and
@@ -83,3 +84,12 @@ memory during ingestion. Raising it means making that path stream first.
 it could not be run where this was written (no Docker CLI). YAML validity and
 the port/network assertions above are covered by
 `apps/common/test_deployment_config.py`, which runs in the normal test suite.
+
+## Release procedure
+
+Before any manual upload, follow the version-controlled
+[`release/MANUAL_DEPLOYMENT_CHECKLIST.md`](release/MANUAL_DEPLOYMENT_CHECKLIST.md)
+and require every candidate gate in
+[`release/PRE_DEPLOY_VALIDATION_REPORT.md`](release/PRE_DEPLOY_VALIDATION_REPORT.md).
+The release material deliberately distinguishes locally proven code from
+target-environment gates; it is not permission to deploy without those gates.
