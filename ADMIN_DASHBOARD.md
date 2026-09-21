@@ -79,11 +79,11 @@ All list endpoints use DRF pagination and support `search`, `ordering`, and scop
 
 ## Demo Accounts
 
-`python manage.py seed_demo_data` ensures RBAC permissions and default roles exist, then creates or updates demo users safely:
+`python manage.py seed_demo_data --allow-demo-data` ensures RBAC permissions and default roles exist, then creates or updates demo users in an isolated non-production database. It requires non-empty `BARAQ_DEMO_*_PASSWORD` environment variables and never logs their values:
 
-- `admin@baraq.app / Admin@123456`: Super Admin.
-- `project.admin@baraq.app / ProjectAdmin@123456`: limited Admin role.
-- `student@baraq.app / Student@123456`: student.
+- `admin@baraq.app`: Super Admin.
+- `project.admin@baraq.app`: limited Admin role.
+- `student@baraq.app`: student.
 
 Existing demo passwords are not reset unless `--reset-demo-passwords` is passed.
 

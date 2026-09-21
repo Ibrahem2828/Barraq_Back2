@@ -3,49 +3,39 @@
 This file documents the local MVP demo seed for the Baraq backend.
 
 The data is Arabic, educational, non-sensitive, and intended only for local,
-staging, or demo environments. Do not use these credentials in production.
+staging, or demo environments. It must never be seeded in production.
 
 ## Run
 
 ```powershell
 python manage.py migrate
-python manage.py seed_demo_data
+$env:BARAQ_DEMO_ADMIN_PASSWORD = '<a unique local-only password>'
+$env:BARAQ_DEMO_PROJECT_ADMIN_PASSWORD = '<a unique local-only password>'
+$env:BARAQ_DEMO_STUDENT_PASSWORD = '<a unique local-only password>'
+python manage.py seed_demo_data --allow-demo-data
 ```
 
 To rebuild the demo users and their owned data before reseeding:
 
 ```powershell
-python manage.py seed_demo_data --reset-demo
+python manage.py seed_demo_data --allow-demo-data --reset-demo
 ```
 
 `--reset-demo` deletes only the users with these demo emails and data owned by
 them through normal model cascades. It does not flush the database and does not
 delete real users.
 
-## Demo Credentials
+## Demo identities
 
-Admin:
+The command requires an explicit `--allow-demo-data` acknowledgement and three
+non-empty password environment variables. It neither contains nor prints a
+default password. Use unique, temporary values in a local or isolated staging
+environment only; do not place them in committed files, terminal transcripts,
+or a production environment.
 
-```text
-admin@baraq.app
-Admin@123456
-```
-
-Project Admin:
-
-```text
-project.admin@baraq.app
-ProjectAdmin@123456
-```
-
-Student:
-
-```text
-student@baraq.app
-Student@123456
-```
-
-Change these credentials before any production deployment.
+- `admin@baraq.app`: Super Admin demo identity.
+- `project.admin@baraq.app`: limited Admin demo identity.
+- `student@baraq.app`: student demo identity.
 
 ## Seeded Content
 
@@ -99,7 +89,7 @@ Authenticated as `student@baraq.app`:
 
 - The command uses `update_or_create` and `get_or_create` where the models have
   stable natural keys.
-- Demo passwords are stored with Django password hashing.
+- Demo passwords are supplied at execution time and stored with Django password hashing.
 - Quiz detail and in-progress attempt serializers continue to hide correct
   answers; result responses expose grading details through the existing result
   endpoint.

@@ -1,10 +1,11 @@
+import os
 import sys
 from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -42,12 +43,15 @@ from apps.subscriptions.services import (
 )
 
 ADMIN_EMAIL = 'admin@baraq.app'
-ADMIN_PASSWORD = 'Admin@123456'
 PROJECT_ADMIN_EMAIL = 'project.admin@baraq.app'
-PROJECT_ADMIN_PASSWORD = 'ProjectAdmin@123456'
 STUDENT_EMAIL = 'student@baraq.app'
-STUDENT_PASSWORD = 'Student@123456'
 GRADE_LEVEL = 'الثالث الثانوي'
+
+DEMO_PASSWORD_ENVIRONMENT_VARIABLES = {
+    'admin': 'BARAQ_DEMO_ADMIN_PASSWORD',
+    'project_admin': 'BARAQ_DEMO_PROJECT_ADMIN_PASSWORD',
+    'student': 'BARAQ_DEMO_STUDENT_PASSWORD',
+}
 
 
 STAGES = [
@@ -321,6 +325,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            '--allow-demo-data',
+            action='store_true',
+            help='Acknowledge that this destructive-to-demo-only command is for a non-production environment.',
+        )
+        parser.add_argument(
             '--reset-demo',
             action='store_true',
             help='Delete only demo users and their owned demo data before reseeding.',
@@ -333,6 +342,14 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if not options['allow_demo_data']:
+            raise CommandError(
+                'Refusing to seed demo data without --allow-demo-data. '
+                'This command must never be used for a production deployment.'
+            )
+
+        self._demo_passwords = self._read_demo_passwords()
+
         if options['reset_demo']:
             self._reset_demo_data()
 
@@ -398,10 +415,28 @@ class Command(BaseCommand):
             f'Demo student subscription: {student.email} -> {student_subscription.plan.code}'
         )
         self.stdout.write('')
-        self.stdout.write(self.style.WARNING('Demo credentials only. Change them before production.'))
-        self.stdout.write(f'Admin: {admin.email} / {ADMIN_PASSWORD}')
-        self.stdout.write(f'Project admin: {project_admin.email} / {PROJECT_ADMIN_PASSWORD}')
-        self.stdout.write(f'Student: {student.email} / {STUDENT_PASSWORD}')
+        self.stdout.write(
+            self.style.WARNING(
+                'Demo identities were created with passwords supplied by environment variables; passwords are never logged.'
+            )
+        )
+
+    def _read_demo_passwords(self):
+        passwords = {
+            identity: os.environ.get(environment_variable, '')
+            for identity, environment_variable in DEMO_PASSWORD_ENVIRONMENT_VARIABLES.items()
+        }
+        missing = [
+            environment_variable
+            for identity, environment_variable in DEMO_PASSWORD_ENVIRONMENT_VARIABLES.items()
+            if not passwords[identity]
+        ]
+        if missing:
+            raise CommandError(
+                'Demo credentials were not supplied. Set the following non-empty environment variable(s): '
+                + ', '.join(missing)
+            )
+        return passwords
 
     def _reset_demo_data(self):
         demo_emails = [ADMIN_EMAIL, PROJECT_ADMIN_EMAIL, STUDENT_EMAIL]
@@ -496,7 +531,7 @@ class Command(BaseCommand):
             },
         )
         if created or reset_password:
-            admin.set_password(ADMIN_PASSWORD)
+            admin.set_password(self._demo_passwords['admin'])
             admin.save()
         assign_roles_to_user(admin, [roles['super_admin']], assigned_by=admin)
         self._write_upsert('admin user', admin.email, created)
@@ -515,7 +550,7 @@ class Command(BaseCommand):
             },
         )
         if created or reset_password:
-            project_admin.set_password(PROJECT_ADMIN_PASSWORD)
+            project_admin.set_password(self._demo_passwords['project_admin'])
             project_admin.save()
         assign_roles_to_user(project_admin, [roles['admin']], assigned_by=assigned_by)
         self._write_upsert('project admin user', project_admin.email, created)
@@ -534,7 +569,7 @@ class Command(BaseCommand):
             },
         )
         if created or reset_password:
-            student.set_password(STUDENT_PASSWORD)
+            student.set_password(self._demo_passwords['student'])
             student.save()
         self._write_upsert('student user', student.email, created)
         return student
