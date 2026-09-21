@@ -99,7 +99,30 @@ class ProductionComposeTests(SimpleTestCase):
         """The browser reaches AI through Next.js -> Django -> private AI.
         Putting ai-api on `edge` would expose the internal API directly."""
         self.assertEqual(self.services['ai-api']['networks'], ['private'])
-        self.assertNotIn('ai-api', CADDYFILE_PATH.read_text(encoding='utf-8'))
+        self.assertNotRegex(
+            CADDYFILE_PATH.read_text(encoding='utf-8'),
+            r'reverse_proxy\s+ai-api(?::\d+)?',
+        )
+
+    def test_the_former_ai_host_is_an_explicit_non_route(self):
+        """A legacy host-proxy to the loopback compatibility port must never
+        accidentally turn the private AI API into a public endpoint.
+
+        Caddy's fall-through behaviour is not a security boundary.  Keep an
+        explicit host matcher and an explicit 404 so a future public route is
+        a conscious, reviewed change rather than an omitted matcher.
+        """
+        caddyfile = CADDYFILE_PATH.read_text(encoding='utf-8')
+        self.assertIn('@private_ai host ai.baraqapp.com', caddyfile)
+        self.assertRegex(
+            caddyfile,
+            r'handle @private_ai \{\s*respond "not found" 404\s*\}',
+        )
+
+    def test_unknown_gateway_hosts_fail_closed(self):
+        """Only the named public apps may be routed by the edge gateway."""
+        caddyfile = CADDYFILE_PATH.read_text(encoding='utf-8')
+        self.assertIn('respond "Unknown Baraq host" 404', caddyfile)
 
     def test_the_critical_worker_can_still_reach_smtp(self):
         """`private` is internal, so it has no route out. Without

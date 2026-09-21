@@ -64,6 +64,15 @@
         }
     }
 
+    # `ai.baraqapp.com` used to be forwarded through a loopback compatibility
+    # port by a host-level proxy outside this repository.  The AI service is
+    # private; make that legacy host an intentional non-route instead of
+    # relying on the generic fallback or exposing ai-api on the edge network.
+    @private_ai host ai.baraqapp.com
+    handle @private_ai {
+        respond "not found" 404
+    }
+
     respond "Unknown Baraq host" 404
 }
 
