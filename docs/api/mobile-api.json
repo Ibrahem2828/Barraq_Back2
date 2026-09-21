@@ -193,6 +193,10 @@
           "parameters": {
             "readOnly": true
           },
+          "progress_stage": {
+            "readOnly": true,
+            "type": "string"
+          },
           "project": {
             "format": "uuid",
             "readOnly": true,
@@ -288,6 +292,7 @@
           "output_schema_version",
           "output_tokens",
           "parameters",
+          "progress_stage",
           "project",
           "prompt_version",
           "provider_account",
@@ -339,6 +344,12 @@
             "nullable": true,
             "type": "integer"
           },
+          "source_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
           "subject": {
             "nullable": true,
             "type": "integer"
@@ -372,6 +383,12 @@
           "source": {
             "nullable": true,
             "type": "integer"
+          },
+          "source_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
           },
           "subject": {
             "nullable": true,
@@ -813,6 +830,12 @@
       },
       "AdminMe": {
         "properties": {
+          "allowed_apps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "allowed_sections": {
             "additionalProperties": {
               "type": "boolean"
@@ -849,9 +872,17 @@
               "$ref": "#/components/schemas/AdminRole"
             },
             "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "type": "array"
           }
         },
         "required": [
+          "allowed_apps",
           "allowed_sections",
           "email",
           "full_name",
@@ -860,7 +891,8 @@
           "is_superuser",
           "permissions",
           "role",
-          "roles"
+          "roles",
+          "scopes"
         ],
         "type": "object"
       },
@@ -1843,6 +1875,14 @@
             "readOnly": true,
             "type": "array"
           },
+          "scopes": {
+            "items": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
           "updated_at": {
             "format": "date-time",
             "readOnly": true,
@@ -1861,6 +1901,7 @@
           "phone_number",
           "role",
           "roles",
+          "scopes",
           "updated_at"
         ],
         "type": "object"
@@ -1948,6 +1989,13 @@
             },
             "type": "array",
             "writeOnly": true
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/RoleScopeRequest"
+            },
+            "type": "array",
+            "writeOnly": true
           }
         },
         "required": [
@@ -1998,6 +2046,12 @@
               "type": "integer"
             },
             "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/RoleScope"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -2014,6 +2068,12 @@
           "role_ids": {
             "items": {
               "type": "integer"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/RoleScopeRequest"
             },
             "type": "array"
           }
@@ -2233,6 +2293,115 @@
         ],
         "type": "object"
       },
+      "Classroom": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "member_count": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "created_at",
+          "member_count",
+          "name",
+          "organization",
+          "public_id",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ClassroomRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ClassroomWrite": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "ClassroomWriteRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CustomTokenObtainPairRequest": {
         "properties": {
           "email": {
@@ -2349,6 +2518,199 @@
           "success"
         ],
         "type": "object"
+      },
+      "Invitation": {
+        "description": "Manager-facing view of an invitation.\n\nIncludes the code and token, because the manager is the one who has to\nhand them out. Nothing else in the API ever returns them -- the learner's\npreview deliberately echoes back neither.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "max_uses": {
+            "format": "int64",
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatusEnum"
+          },
+          "token": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "usage_count": {
+            "readOnly": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "classroom",
+          "code",
+          "created_at",
+          "id",
+          "organization",
+          "token",
+          "usage_count"
+        ],
+        "type": "object"
+      },
+      "InvitationRequest": {
+        "description": "Manager-facing view of an invitation.\n\nIncludes the code and token, because the manager is the one who has to\nhand them out. Nothing else in the API ever returns them -- the learner's\npreview deliberately echoes back neither.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "max_uses": {
+            "format": "int64",
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatusEnum"
+          }
+        },
+        "type": "object"
+      },
+      "InvitationStatusEnum": {
+        "description": "* `active` - Active\n* `revoked` - Revoked",
+        "enum": [
+          "active",
+          "revoked"
+        ],
+        "type": "string"
+      },
+      "JoinPreviewRequestRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "JoinPreviewResponse": {
+        "properties": {
+          "classroom": {
+            "additionalProperties": {},
+            "nullable": true,
+            "type": "object"
+          },
+          "organization": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "classroom",
+          "organization"
+        ],
+        "type": "object"
+      },
+      "JoinRequest": {
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "nullable": true,
+            "readOnly": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JoinRequestStatusEnum"
+              }
+            ],
+            "default": "pending",
+            "readOnly": true
+          },
+          "user": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "user_email": {
+            "format": "email",
+            "readOnly": true,
+            "type": "string"
+          },
+          "user_full_name": {
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "classroom",
+          "created_at",
+          "decided_at",
+          "organization",
+          "public_id",
+          "status",
+          "user",
+          "user_email",
+          "user_full_name"
+        ],
+        "type": "object"
+      },
+      "JoinRequestStatusEnum": {
+        "description": "* `pending` - Pending\n* `approved` - Approved\n* `rejected` - Rejected\n* `cancelled` - Cancelled",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "cancelled"
+        ],
+        "type": "string"
       },
       "LocaleEnum": {
         "description": "* `ar` - Arabic\n* `en` - English",
@@ -2501,8 +2863,41 @@
         ],
         "type": "object"
       },
+      "MyMembership": {
+        "description": "What a learner sees about their own place in an organization.",
+        "properties": {
+          "classroom": {
+            "additionalProperties": {},
+            "nullable": true,
+            "type": "object"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "classroom",
+          "joined_at",
+          "organization",
+          "status"
+        ],
+        "type": "object"
+      },
       "MySubscription": {
         "properties": {
+          "effective_limits": {
+            "additionalProperties": {},
+            "type": "object"
+          },
           "features": {
             "additionalProperties": {},
             "type": "object"
@@ -2526,6 +2921,7 @@
           }
         },
         "required": [
+          "effective_limits",
           "features",
           "limits",
           "plan",
@@ -2605,6 +3001,115 @@
           "support"
         ],
         "type": "string"
+      },
+      "Organization": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "name",
+          "public_id",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "OrganizationRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "OrganizationStatusEnum": {
+        "description": "* `active` - Active\n* `inactive` - Inactive\n* `archived` - Archived",
+        "enum": [
+          "active",
+          "inactive",
+          "archived"
+        ],
+        "type": "string"
+      },
+      "OrganizationTypeEnum": {
+        "description": "* `school` - School\n* `institute` - Institute",
+        "enum": [
+          "school",
+          "institute"
+        ],
+        "type": "string"
+      },
+      "OrganizationWrite": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "OrganizationWriteRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
       },
       "PaginatedAIFeedbackList": {
         "properties": {
@@ -3071,6 +3576,37 @@
         ],
         "type": "object"
       },
+      "PaginatedClassroomList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Classroom"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
       "PaginatedEducationStageList": {
         "properties": {
           "count": {
@@ -3092,6 +3628,68 @@
           "results": {
             "items": {
               "$ref": "#/components/schemas/EducationStage"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
+      "PaginatedInvitationList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Invitation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
+      "PaginatedJoinRequestList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/JoinRequest"
             },
             "type": "array"
           }
@@ -3154,6 +3752,37 @@
           "results": {
             "items": {
               "$ref": "#/components/schemas/Notification"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
+      "PaginatedOrganizationList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Organization"
             },
             "type": "array"
           }
@@ -3913,6 +4542,23 @@
         },
         "type": "object"
       },
+      "PatchedClassroomWriteRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          }
+        },
+        "type": "object"
+      },
       "PatchedEducationStageRequest": {
         "properties": {
           "description": {
@@ -3949,6 +4595,22 @@
             "maxLength": 20,
             "pattern": "^[0-9+\\-\\s()]{7,20}$",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchedOrganizationWriteRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_type": {
+            "$ref": "#/components/schemas/OrganizationTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationStatusEnum"
           }
         },
         "type": "object"
@@ -5751,6 +6413,59 @@
         ],
         "type": "string"
       },
+      "RoleScope": {
+        "description": "One grant: what kind of scope, and which organization or class.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeTypeEnum"
+          }
+        },
+        "required": [
+          "scope_type"
+        ],
+        "type": "object"
+      },
+      "RoleScopeRequest": {
+        "description": "One grant: what kind of scope, and which organization or class.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeTypeEnum"
+          }
+        },
+        "required": [
+          "scope_type"
+        ],
+        "type": "object"
+      },
+      "ScopeTypeEnum": {
+        "description": "* `global` - global\n* `organization` - organization\n* `class` - class",
+        "enum": [
+          "global",
+          "organization",
+          "class"
+        ],
+        "type": "string"
+      },
       "SourceCharacterResponse": {
         "properties": {
           "advice": {
@@ -5781,6 +6496,22 @@
         "required": [
           "message",
           "success"
+        ],
+        "type": "object"
+      },
+      "SourceProcessingQueuedResponse": {
+        "description": "Actual response returned by StudentSourceViewSet.process.",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/StudentSourceDetail"
+          }
+        },
+        "required": [
+          "message",
+          "source"
         ],
         "type": "object"
       },
@@ -8291,6 +9022,13 @@
       },
       "User": {
         "properties": {
+          "allowed_apps": {
+            "items": {
+              "type": "string"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "readOnly": true,
@@ -8329,6 +9067,7 @@
           }
         },
         "required": [
+          "allowed_apps",
           "created_at",
           "email",
           "full_name",
@@ -9658,6 +10397,96 @@
         ]
       }
     },
+    "/api/v1/join/confirm/": {
+      "post": {
+        "description": "The learner's explicit ask. Still creates no membership.",
+        "operationId": "v1_join_confirm_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequest"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/join/preview/": {
+      "post": {
+        "description": "What a learner sees before committing to anything.\n\nCreates no membership and no request. Throttled, because this is the one\nendpoint that takes an invitation secret from an unauthenticated-ish\nposition and says whether it is real.",
+        "operationId": "v1_join_preview_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPreviewRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinPreviewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/api/v1/meta/": {
       "get": {
         "operationId": "v1_meta_retrieve",
@@ -9678,6 +10507,35 @@
         ],
         "tags": [
           "System"
+        ]
+      }
+    },
+    "/api/v1/my/memberships/": {
+      "get": {
+        "description": "A learner's own memberships and pending requests.\n\nScoped to `request.user` by construction; there is no id to supply and\ntherefore nothing to tamper with.",
+        "operationId": "v1_my_memberships_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyMembership"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Organizations"
         ]
       }
     },
@@ -12417,15 +13275,15 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StudentSourceDetail"
+                  "$ref": "#/components/schemas/SourceProcessingQueuedResponse"
                 }
               }
             },
-            "description": ""
+            "description": "Source processing was queued or was already processing."
           }
         },
         "security": [
@@ -14477,7 +15335,7 @@
   "servers": [
     {
       "description": "Canonical production API origin",
-      "url": "https://api.barraq.xn--mgbaab0cxheq.tech"
+      "url": "https://api.baraqapp.com"
     }
   ],
   "x-baraq-contract-scope": "canonical-v1",

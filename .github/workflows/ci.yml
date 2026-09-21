@@ -93,6 +93,18 @@ jobs:
       - name: OpenAPI schema generation (drf-spectacular, --fail-on-warn)
         run: python manage.py spectacular --validate --fail-on-warn --file /tmp/schema.yml
 
+      # export_api_contracts.py has carried a --check flag since it was
+      # written, but nothing ever called it: docs/api/openapi.json (plus its
+      # mobile and dashboard derivatives) drifted 24 endpoints behind actual
+      # code -- the entire organizations/classes/invitations/join-requests
+      # admin surface was missing from it. contracts/openapi.json (generated
+      # by the separate generate_api_contracts.py, which IS what web's and
+      # dashboard's sync-django-routes.mjs actually read) stayed current, so
+      # frontend builds were never at risk -- but the docs/api/ set is
+      # published as documentation and had gone quietly wrong.
+      - name: API contract freshness (docs/api/*.json)
+        run: python scripts/export_api_contracts.py --check
+
       - name: Test suite
         run: |
           set +e
