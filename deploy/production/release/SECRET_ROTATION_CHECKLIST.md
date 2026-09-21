@@ -35,5 +35,4 @@
 - [ ] Revoke old provider/API tokens and confirm they no longer authenticate.
 - [ ] Re-run controlled SMTP, HMAC, storage, and provider smoke tests.
 - [ ] Update ownership, rotation date, expiry/next rotation, and incident
-  reference in the private secret inventory.
-
+reference in the private secret inventory.

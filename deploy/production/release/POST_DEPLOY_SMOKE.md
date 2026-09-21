@@ -45,4 +45,3 @@ OTP codes, tokens, HMAC values, or provider credentials.
 - [ ] Confirm Redis/Celery queue depth drains and beat schedules intended tasks.
 - [ ] Confirm backup job/restore sample and alerting integrations according to
   the operating runbook.
-

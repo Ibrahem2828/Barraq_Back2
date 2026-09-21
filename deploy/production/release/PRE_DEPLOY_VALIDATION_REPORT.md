@@ -66,4 +66,3 @@ Do not upload the workspace root wholesale. In particular, the recovery-code
 artifact reported in `SECRET_ROTATION_CHECKLIST.md` is outside all release
 repositories and must stay out of archives, images, copied directories, logs,
 and support bundles.
-

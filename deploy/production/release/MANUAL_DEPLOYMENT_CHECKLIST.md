@@ -64,4 +64,3 @@ environment access.
 - [ ] Capture image digests, migration IDs, smoke results, and rollback target.
 - [ ] Stop and roll back on unexpected 5xx, traceback, restart loop,
   authorization leak, or private-AI exposure.
-

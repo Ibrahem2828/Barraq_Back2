@@ -42,4 +42,3 @@ Roll back immediately on any of the following:
 - Do not delete volumes, queues, databases, or object storage to make health
   checks look green.
 - Do not disable HMAC, CSRF, authentication, tenant scope, or TLS controls.
-

@@ -77,4 +77,3 @@ The workspace contains historical copies/scratch directories and a recovery
 artifact outside all release repositories. The upload operator must package
 only the five repositories listed in `RELEASE_CANDIDATE_MANIFEST.md`; no root
 directory archive is permitted.
-

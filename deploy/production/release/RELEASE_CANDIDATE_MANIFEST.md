@@ -77,4 +77,3 @@ must not be used as a Compose or Caddy source.
 - Website: syntax check passed.
 
 See `PRE_DEPLOY_VALIDATION_REPORT.md` for scope and external gates.
-
