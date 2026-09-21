@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from celery.exceptions import Retry
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
@@ -54,6 +55,15 @@ class UserSoftDeleteTests(APITestCase):
 
 @override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
 class UserAuthTests(APITestCase):
+    # DRF's ScopedRateThrottle for 'login' persists in the cache for the
+    # whole test process (unlike the database, the cache is not reset per
+    # test). This file alone makes 9+ login calls across its classes; left
+    # uncleared, the shared counter eventually returns 429 to a later,
+    # unrelated test and fails it for a reason that has nothing to do with
+    # what that test checks.
+    def setUp(self):
+        cache.clear()
+
     @patch('apps.users.serializers.send_email_otp.delay')
     def test_registration_normalizes_email_and_creates_student_profile(self, mocked_delay):
         response = self.client.post(
@@ -133,8 +143,80 @@ class UserAuthTests(APITestCase):
 
 
 @override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+class LogoutRevocationTests(APITestCase):
+    """Historical regression: logout must revoke the refresh token server-side.
+
+    Baraq previously logged a user out by discarding cookies client-side only;
+    the backend refresh token stayed live and could mint new access tokens
+    indefinitely after a "logged out" browser closed. The fix routes the
+    refresh token through LogoutView, which blacklists it. Nothing before this
+    test proved that call actually revokes anything -- the web-side test only
+    proves the client sends the right request, not that the backend honours it.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            email="logout-regression@example.com",
+            password="A-Strong-Pass-123",
+            full_name="Logout Regression",
+            is_verified=True,
+        )
+        login = self.client.post(
+            reverse("login"),
+            {"email": self.user.email, "password": "A-Strong-Pass-123"},
+            format="json",
+        )
+        self.assertEqual(login.status_code, status.HTTP_200_OK)
+        self.access = login.data["access"]
+        self.refresh = login.data["refresh"]
+
+    def test_logout_blacklists_the_refresh_token(self):
+        response = self.client.post(
+            reverse("logout"),
+            {"refresh": self.refresh},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_a_blacklisted_refresh_token_cannot_mint_a_new_access_token(self):
+        """The actual security property: revocation, not just a 204."""
+        logout_response = self.client.post(
+            reverse("logout"),
+            {"refresh": self.refresh},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access}",
+        )
+        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        reuse_response = self.client.post(
+            reverse("token-refresh"), {"refresh": self.refresh}, format="json"
+        )
+        self.assertEqual(
+            reuse_response.status_code,
+            status.HTTP_401_UNAUTHORIZED,
+            "a refresh token survived logout and could still mint a new access token",
+        )
+
+    def test_logout_requires_authentication(self):
+        """An unauthenticated caller cannot blacklist an arbitrary refresh token."""
+        response = self.client.post(reverse("logout"), {"refresh": self.refresh}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_an_invalid_refresh_token_is_rejected_not_silently_accepted(self):
+        response = self.client.post(
+            reverse("logout"),
+            {"refresh": "not-a-real-token"},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class EmailOTPTests(APITestCase):
     def setUp(self):
+        cache.clear()
         from apps.users.services import issue_email_otp
 
         self.user = User.objects.create_user(
@@ -229,6 +311,7 @@ class AccountDeletionTests(APITestCase):
     """DELETE /api/v1/users/me/ -- authenticated self-service account deletion."""
 
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(
             email='delete-me@example.com', password='StrongPass123!', full_name='Delete Me',
         )
