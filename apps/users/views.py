@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -14,21 +16,34 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from .exceptions import RegistrationDeliveryUnavailable, RegistrationValidationError
 from .serializers import (
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    RegisterResponseSerializer,
     RegisterSerializer,
+    ResendEmailOTPResponseSerializer,
     ResendEmailOTPSerializer,
     UserSerializer,
+    VerifiedEmailOTPResponseSerializer,
     VerifyEmailOTPSerializer,
 )
-from .services import delete_user_account, issue_email_otp, resend_cooldown_remaining_seconds, verify_email_otp
+from .services import (
+    delete_user_account,
+    issue_email_otp,
+    resend_cooldown_remaining_seconds,
+    resend_pending_registration,
+    start_pending_registration,
+    verify_email_otp,
+    verify_pending_registration,
+)
 from .tasks import send_email_otp, send_password_reset_email
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 MESSAGE_RESPONSE = inline_serializer(name="MessageResponse", fields={"message": serializers.CharField()})
 
@@ -54,13 +69,38 @@ class AuthRootView(APIView):
         )
 
 
-@extend_schema(tags=["Auth"])
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
+def _enqueue_otp(email: str, code: str | None) -> None:
+    """Queue an OTP without ever putting email/code values in an application log."""
+
+    if code is None:
+        return
+    try:
+        send_email_otp.delay(email, code)
+    except Exception:  # noqa: BLE001 -- broker failures are safe, retryable client failures
+        logger.warning('registration_otp_enqueue_failed')
+        raise RegistrationDeliveryUnavailable() from None
+
+
+@extend_schema(tags=["Auth"], request=RegisterSerializer, responses={201: RegisterResponseSerializer})
+class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
     throttle_scope = "register"
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dispatch = start_pending_registration(**serializer.validated_data)
+        _enqueue_otp(dispatch.normalized_email, dispatch.code)
+        return Response(
+            {
+                'verification_required': True,
+                'email': dispatch.normalized_email,
+                'expires_in': dispatch.expires_in_seconds,
+                'resend_after_seconds': dispatch.resend_after_seconds,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 @extend_schema(tags=["Auth"])
@@ -149,7 +189,7 @@ class PasswordResetRequestView(APIView):
 @extend_schema(
     tags=["Auth"],
     request=VerifyEmailOTPSerializer,
-    responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
+    responses={200: VerifiedEmailOTPResponseSerializer, 400: OpenApiTypes.OBJECT},
     description="Verifies a registration email-OTP code and, on success, logs the user in "
     "(same response shape as /auth/login/): {access, refresh, user}.",
 )
@@ -162,16 +202,30 @@ class VerifyEmailOTPView(APIView):
     def post(self, request):
         serializer = VerifyEmailOTPSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"].strip().lower()
+        email = serializer.validated_data['email']
         code = serializer.validated_data["code"]
 
-        user = User.objects.filter(email__iexact=email, is_active=True).first()
-        if user is None:
-            raise serializers.ValidationError({"error_code": "otp_invalid"})
-
-        result = verify_email_otp(user, code)
-        if result not in {"ok", "already_verified"}:
-            raise serializers.ValidationError({"error_code": f"otp_{result}"})
+        try:
+            user = verify_pending_registration(email, code)
+        except RegistrationValidationError as error:
+            # A narrow compatibility bridge for rows created by the historical
+            # pre-verification User flow. New registration never reaches it.
+            if error.domain_code != 'pending_registration_missing':
+                raise
+            legacy_user = User.objects.filter(
+                email__iexact=email,
+                is_active=True,
+                is_verified=False,
+            ).first()
+            if legacy_user is None:
+                raise
+            result = verify_email_otp(legacy_user, code)
+            if result != 'ok':
+                raise RegistrationValidationError(
+                    {'code': ['The OTP is invalid or no longer valid.']},
+                    code=f'otp_{result}',
+                ) from error
+            user = User.objects.get(pk=legacy_user.pk)
 
         token = CustomTokenObtainPairSerializer.get_token(user)
         return Response(
@@ -186,7 +240,7 @@ class VerifyEmailOTPView(APIView):
 @extend_schema(
     tags=["Auth"],
     request=ResendEmailOTPSerializer,
-    responses={200: MESSAGE_RESPONSE, 400: OpenApiTypes.OBJECT},
+    responses={200: ResendEmailOTPResponseSerializer, 400: OpenApiTypes.OBJECT},
 )
 class ResendEmailOTPView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -197,20 +251,47 @@ class ResendEmailOTPView(APIView):
     def post(self, request):
         serializer = ResendEmailOTPSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"].strip().lower()
+        email = serializer.validated_data['email']
         # Deliberately silent for a nonexistent/already-verified account (same
-        # non-disclosure pattern as PasswordResetRequestView below) -- only a
-        # genuinely pending registration can ever see the cooldown error.
-        user = User.objects.filter(email__iexact=email, is_active=True, is_verified=False).first()
-        if user is not None:
+        # non-disclosure pattern as PasswordResetRequestView below). A genuine
+        # pending registration gets its own row-locking resend policy.
+        dispatch = resend_pending_registration(email)
+        if dispatch is not None:
+            _enqueue_otp(dispatch.normalized_email, dispatch.code)
+            return Response(
+                {
+                    'message': 'If registration is pending, a new code has been sent.',
+                    'expires_in': dispatch.expires_in_seconds,
+                    'resend_after_seconds': dispatch.resend_after_seconds,
+                }
+            )
+        else:
+            # Legacy rows are retained only to finish registrations started
+            # before PendingRegistration shipped. They never service new signups.
+            user = User.objects.filter(email__iexact=email, is_active=True, is_verified=False).first()
+            if user is None:
+                return Response(
+                    {
+                        'message': 'If registration is pending, a new code has been sent.',
+                        'expires_in': 0,
+                        'resend_after_seconds': 0,
+                    }
+                )
             remaining = resend_cooldown_remaining_seconds(user)
             if remaining > 0:
-                raise serializers.ValidationError(
-                    {"error_code": "otp_resend_cooldown", "retry_after_seconds": remaining}
+                raise RegistrationValidationError(
+                    {'retry_after_seconds': [str(remaining)]},
+                    code='otp_resend_cooldown',
                 )
             code = issue_email_otp(user)
-            send_email_otp.delay(user.email, code)
-        return Response({"message": "If the account exists and is unverified, a new code has been sent."})
+            _enqueue_otp(user.email, code)
+            return Response(
+                {
+                    'message': 'If registration is pending, a new code has been sent.',
+                    'expires_in': 600,
+                    'resend_after_seconds': 60,
+                }
+            )
 
 
 @extend_schema(

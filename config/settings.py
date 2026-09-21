@@ -229,6 +229,25 @@ if "test" in sys.argv:
 AUTH_USER_MODEL = "users.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Registration is deliberately split from permanent account creation. These
+# values drive the temporary PendingRegistration boundary and are all enforced
+# by Django, not only by the browser countdown.
+OTP_TTL_MINUTES = env.int("OTP_TTL_MINUTES", default=10)
+OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
+OTP_RESEND_COOLDOWN_SECONDS = env.int("OTP_RESEND_COOLDOWN_SECONDS", default=60)
+OTP_MAX_SENDS_PER_WINDOW = env.int("OTP_MAX_SENDS_PER_WINDOW", default=5)
+OTP_SEND_WINDOW_MINUTES = env.int("OTP_SEND_WINDOW_MINUTES", default=60)
+PENDING_REGISTRATION_RETENTION_HOURS = env.int("PENDING_REGISTRATION_RETENTION_HOURS", default=24)
+if (
+    OTP_TTL_MINUTES < 5
+    or OTP_MAX_ATTEMPTS < 1
+    or OTP_RESEND_COOLDOWN_SECONDS < 1
+    or OTP_MAX_SENDS_PER_WINDOW < 1
+    or OTP_SEND_WINDOW_MINUTES < 1
+    or PENDING_REGISTRATION_RETENTION_HOURS < 1
+):
+    raise ImproperlyConfigured("OTP and pending-registration limits must be positive and OTP TTL at least 5 minutes.")
+
 LANGUAGE_CODE = "ar"
 LANGUAGES = [("ar", "العربية"), ("en", "English")]
 TIME_ZONE = env("TIME_ZONE")
@@ -409,6 +428,10 @@ CELERY_TASK_ROUTES = {
 # Durable-dispatch safety net (spec: "Accepted job loss: 0"). Requires a
 # `celery beat` process running alongside the worker(s) in every deployment.
 CELERY_BEAT_SCHEDULE = {
+    "users-cleanup-expired-pending-registrations": {
+        "task": "users.cleanup_expired_pending_registrations",
+        "schedule": env.int("PENDING_REGISTRATION_CLEANUP_INTERVAL_SECONDS", default=3600),
+    },
     "ai-integration-reconcile-stuck-jobs": {
         "task": "ai_integration.reconcile_stuck_jobs",
         "schedule": env.int("AI_RECONCILE_INTERVAL_SECONDS", default=60),

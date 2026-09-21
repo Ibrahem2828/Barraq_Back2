@@ -398,6 +398,10 @@ def throttle_for(path: str, method: str) -> dict[str, Any]:
         scope = "register"
     elif path == "/api/v1/auth/login/" and method == "POST":
         scope = "login"
+    elif path == "/api/v1/auth/verify-email/" and method == "POST":
+        scope = "email_otp_verify"
+    elif path == "/api/v1/auth/resend-otp/" and method == "POST":
+        scope = "email_otp_resend"
     elif path in {"/api/v1/auth/password-reset/", "/api/v1/auth/password-reset/confirm/"} and method == "POST":
         scope = "password_reset"
     elif path.startswith("/api/v1/ai/jobs/") and path == "/api/v1/ai/jobs/" and method == "POST":
@@ -417,6 +421,8 @@ def throttle_for(path: str, method: str) -> dict[str, Any]:
             "register": "10/hour",
             "login": "10/minute",
             "password_reset": "5/hour",
+            "email_otp_verify": "20/hour",
+            "email_otp_resend": "5/hour",
             "uploads": "30/hour",
             "ai_requests": "100/day",
         },

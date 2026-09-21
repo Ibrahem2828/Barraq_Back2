@@ -4,6 +4,8 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
+from .services import cleanup_expired_pending_registrations
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,9 +47,18 @@ def send_email_otp(self, email: str, code: str):
     try:
         return _dispatch(
             "رمز تحقق برّاق",
-            f"رمز التحقق الخاص بك هو: {code}\nصالح لمدة 10 دقائق ولا تشاركه مع أحد.",
+            f"رمز التحقق الخاص بك هو: {code}\nصالح لمدة {settings.OTP_TTL_MINUTES} دقائق ولا تشاركه مع أحد.",
             email,
             kind="otp",
         )
     except Exception as exc:  # noqa: BLE001 -- any send failure should retry, not crash the worker
         raise self.retry(exc=exc) from exc
+
+
+@shared_task(name="users.cleanup_expired_pending_registrations")
+def cleanup_expired_pending_registrations_task():
+    """Remove only stale temporary registration data on the normal queue."""
+
+    deleted = cleanup_expired_pending_registrations()
+    logger.info('expired_pending_registrations_cleaned', extra={'deleted_count': deleted})
+    return deleted

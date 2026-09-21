@@ -4,8 +4,8 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .services import issue_email_otp
-from .tasks import send_email_otp
+from .identity import normalize_email
+from .models import phone_number_validator
 
 User = get_user_model()
 
@@ -46,27 +46,20 @@ class UserSerializer(serializers.ModelSerializer):
         return get_allowed_apps(obj)
 
 
-class RegisterSerializer(serializers.ModelSerializer):
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    full_name = serializers.CharField(max_length=255)
+    phone_number = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        validators=[phone_number_validator],
+    )
     password = serializers.CharField(write_only=True, min_length=10)
     password_confirm = serializers.CharField(write_only=True)
 
-    class Meta:
-        model = User
-        fields = (
-            'id',
-            'email',
-            'full_name',
-            'phone_number',
-            'password',
-            'password_confirm',
-        )
-        read_only_fields = ('id',)
-
     def validate_email(self, value):
-        normalized = User.objects.normalize_email(value).strip().lower()
-        if User.objects.filter(email__iexact=normalized).exists():
-            raise serializers.ValidationError('A user with this email already exists.')
-        return normalized
+        return normalize_email(value)
 
     def validate(self, attrs):
         from django.contrib.auth.password_validation import validate_password
@@ -81,22 +74,26 @@ class RegisterSerializer(serializers.ModelSerializer):
         attrs.pop('password_confirm')
         return attrs
 
-    def create(self, validated_data):
-        password = validated_data.pop('password')
-        user = User.objects.create_user(
-            password=password,
-            role=User.Roles.STUDENT,
-            is_verified=False,
-            **validated_data,
-        )
 
-        from apps.students.models import StudentProfile
+class RegisterResponseSerializer(serializers.Serializer):
+    verification_required = serializers.BooleanField()
+    email = serializers.EmailField()
+    expires_in = serializers.IntegerField(min_value=0)
+    resend_after_seconds = serializers.IntegerField(min_value=0)
 
-        StudentProfile.objects.get_or_create(user=user)
 
-        code = issue_email_otp(user)
-        send_email_otp.delay(user.email, code)
-        return user
+class ResendEmailOTPResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    expires_in = serializers.IntegerField(min_value=0)
+    resend_after_seconds = serializers.IntegerField(min_value=0)
+
+
+class VerifiedEmailOTPResponseSerializer(serializers.Serializer):
+    """Session payload returned only after a pending registration is verified."""
+
+    refresh = serializers.CharField()
+    access = serializers.CharField()
+    user = UserSerializer()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -153,8 +150,14 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 class VerifyEmailOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    code = serializers.CharField(min_length=6, max_length=6)
+    code = serializers.RegexField(r'^\d{6}$')
+
+    def validate_email(self, value):
+        return normalize_email(value)
 
 
 class ResendEmailOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
+    def validate_email(self, value):
+        return normalize_email(value)

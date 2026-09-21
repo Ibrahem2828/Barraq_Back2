@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.common.models import BaseModel, SoftDeleteModel
 
+from .identity import normalize_email
 from .managers import UserManager
 
 phone_number_validator = RegexValidator(
@@ -37,10 +38,9 @@ class User(SoftDeleteModel, AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     # Default True so the migration backfills every existing account as
-    # already verified -- only `RegisterSerializer.create()` explicitly
-    # passes `is_verified=False` for brand-new registrations, which then must
-    # complete email-OTP verification (see EmailOTP below) before login
-    # succeeds (see CustomTokenObtainPairSerializer.validate()).
+    # already verified. New registrations live in PendingRegistration and a
+    # permanent User is created only after its OTP succeeds. False is retained
+    # solely for legacy registrations created before that flow was introduced.
     is_verified = models.BooleanField(default=True)
 
     USERNAME_FIELD = 'email'
@@ -69,7 +69,7 @@ class User(SoftDeleteModel, AbstractBaseUser, PermissionsMixin):
         return self.full_name.split(' ')[0] if self.full_name else self.email
 
     def save(self, *args, **kwargs):
-        self.email = self.__class__.objects.normalize_email(self.email).strip().lower()
+        self.email = normalize_email(self.email)
         if self.is_superuser:
             self.role = self.Roles.SUPER_ADMIN
         self.is_staff = (
@@ -80,10 +80,13 @@ class User(SoftDeleteModel, AbstractBaseUser, PermissionsMixin):
 
 
 class EmailOTP(BaseModel):
-    """A one-time email-verification code issued at registration. The plain
-    code is never stored -- only its SHA-256 hash -- and is emailed once via
-    `apps.users.tasks.send_email_otp`. See `apps/users/services.py` for the
-    issue/verify logic this table backs."""
+    """Compatibility OTP for accounts created by the legacy registration flow.
+
+    New registrations never use this model: they use ``PendingRegistration``
+    and create a permanent ``User`` only after OTP verification.  Keeping the
+    table avoids stranding historic unverified rows during a non-destructive
+    rollout.  It can be retired after the documented compatibility window.
+    """
 
     user = models.ForeignKey(
         'users.User',
@@ -100,3 +103,42 @@ class EmailOTP(BaseModel):
 
     def __str__(self):
         return f"EmailOTP for {self.user_id} (consumed={bool(self.consumed_at)})"
+
+
+class PendingRegistration(BaseModel):
+    """Minimal, short-lived data needed to create a verified student account.
+
+    Neither a raw password nor a raw OTP is ever persisted.  ``normalized_email``
+    is the registration identity and is protected by both an exact and a
+    case-insensitive database uniqueness constraint.
+    """
+
+    normalized_email = models.EmailField(unique=True)
+    full_name = models.CharField(max_length=255)
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        validators=[phone_number_validator],
+    )
+    password_hash = models.CharField(max_length=128)
+    otp_hash = models.CharField(max_length=128)
+    otp_expires_at = models.DateTimeField()
+    otp_attempt_count = models.PositiveSmallIntegerField(default=0)
+    otp_send_count = models.PositiveSmallIntegerField(default=0)
+    otp_send_window_started_at = models.DateTimeField()
+    last_otp_sent_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                Lower('normalized_email'),
+                name='unique_pending_registration_email_case_insensitive',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['otp_expires_at'], name='pending_reg_expiry_idx'),
+            models.Index(fields=['updated_at'], name='pending_reg_cleanup_idx'),
+        ]
+
+    def __str__(self):
+        return f"Pending registration for {self.normalized_email}"

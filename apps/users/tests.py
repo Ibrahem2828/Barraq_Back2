@@ -8,13 +8,17 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework.throttling import ScopedRateThrottle
 
 User = get_user_model()
 
 
 def error_code(response):
-    """DRF wraps a raised `serializers.ValidationError({'error_code': ...})`'s
-    value in a list (standard field-error shape) -- unwrap it for assertions."""
+    """Return a stable domain code while keeping legacy assertions readable."""
+
+    domain_code = response.data.get('code')
+    if domain_code and domain_code != 'validation_error':
+        return str(domain_code)
     value = response.data.get('error_code')
     return str(value[0]) if isinstance(value, list) else value
 
@@ -64,8 +68,10 @@ class UserAuthTests(APITestCase):
     def setUp(self):
         cache.clear()
 
-    @patch('apps.users.serializers.send_email_otp.delay')
-    def test_registration_normalizes_email_and_creates_student_profile(self, mocked_delay):
+    @patch('apps.users.views.send_email_otp.delay')
+    def test_registration_normalizes_email_and_creates_pending_registration(self, mocked_delay):
+        from apps.users.models import PendingRegistration
+
         response = self.client.post(
             reverse('register'),
             {
@@ -77,15 +83,14 @@ class UserAuthTests(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        user = User.objects.get(email='student@example.com')
-        self.assertTrue(hasattr(user, 'student_profile'))
-        # A freshly registered account is unverified until it completes the
-        # email-OTP flow -- this is exactly what email-OTP-at-registration
-        # means (see EmailOTP / VerifyEmailOTPView).
-        self.assertFalse(user.is_verified)
+        self.assertFalse(User.objects.filter(email='student@example.com').exists())
+        pending = PendingRegistration.objects.get(normalized_email='student@example.com')
+        self.assertTrue(pending.password_hash)
+        self.assertTrue(pending.otp_hash)
+        self.assertTrue(response.data['verification_required'])
         mocked_delay.assert_called_once()
 
-    @patch('apps.users.serializers.send_email_otp.delay')
+    @patch('apps.users.views.send_email_otp.delay')
     def test_email_uniqueness_is_case_insensitive(self, mocked_delay):
         User.objects.create_user(email='student@example.com', password='StrongPass123!', full_name='Student')
         response = self.client.post(
@@ -99,6 +104,37 @@ class UserAuthTests(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(error_code(response), 'email_already_registered')
+
+    @patch('apps.users.views.RegisterView.throttle_classes', [ScopedRateThrottle])
+    @patch.object(ScopedRateThrottle, 'THROTTLE_RATES', {'register': '1/minute'})
+    @patch('apps.users.views.send_email_otp.delay')
+    def test_register_applies_server_side_scoped_rate_limit(self, mocked_delay):
+        first = self.client.post(
+            reverse('register'),
+            {
+                'email': 'first@example.com',
+                'full_name': 'First Student',
+                'password': 'StrongPass123!',
+                'password_confirm': 'StrongPass123!',
+            },
+            format='json',
+        )
+        second = self.client.post(
+            reverse('register'),
+            {
+                'email': 'second@example.com',
+                'full_name': 'Second Student',
+                'password': 'StrongPass123!',
+                'password_confirm': 'StrongPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(error_code(second), 'rate_limited')
+        self.assertEqual(mocked_delay.call_count, 1)
 
     def test_login_returns_tokens_and_user(self):
         # Directly created via create_user() (not the register endpoint), so
@@ -242,8 +278,9 @@ class EmailOTPTests(APITestCase):
         self.assertEqual(login.status_code, status.HTTP_200_OK)
 
     def test_wrong_code_is_rejected_and_does_not_verify(self):
+        wrong_code = '999999' if self.code != '999999' else '888888'
         response = self.client.post(
-            reverse('verify-email'), {'email': self.user.email, 'code': '000000'}, format='json',
+            reverse('verify-email'), {'email': self.user.email, 'code': wrong_code}, format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(error_code(response), 'otp_invalid')
@@ -266,8 +303,9 @@ class EmailOTPTests(APITestCase):
         self.assertEqual(error_code(response), 'otp_expired')
 
     def test_too_many_wrong_attempts_locks_the_code(self):
+        wrong_code = '999999' if self.code != '999999' else '888888'
         for _ in range(5):
-            self.client.post(reverse('verify-email'), {'email': self.user.email, 'code': '000000'}, format='json')
+            self.client.post(reverse('verify-email'), {'email': self.user.email, 'code': wrong_code}, format='json')
 
         response = self.client.post(
             reverse('verify-email'), {'email': self.user.email, 'code': self.code}, format='json',

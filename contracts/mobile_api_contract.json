@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-20T09:26:26+00:00",
-    "generated_from_backend_commit": "cd4901887e7bc7960626f4050e2c470b98bf18e1",
+    "generated_at": "2026-09-21T16:17:07+00:00",
+    "generated_from_backend_commit": "bd9cfdc507cede251ab4d95a7bdc21fb7b535b9c",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -121,6 +121,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -260,6 +262,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -385,6 +389,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -496,6 +502,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -607,6 +615,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -751,6 +761,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -862,6 +874,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -987,6 +1001,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1101,6 +1117,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1232,6 +1250,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1350,6 +1370,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1478,6 +1500,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1601,6 +1625,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1633,7 +1659,7 @@
         "permission": [
           "rest_framework.permissions.AllowAny"
         ],
-        "serializer": "apps.users.serializers.RegisterSerializer",
+        "serializer": null,
         "url_file": "config/urls.py; config/api_urls.py; apps/users/urls.py",
         "view": "apps.users.views.RegisterView"
       },
@@ -1710,7 +1736,7 @@
           ],
           "description": "",
           "schema": {
-            "$ref": "#/resources/Register/schema"
+            "$ref": "#/resources/RegisterResponse/schema"
           }
         }
       },
@@ -1719,6 +1745,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1828,7 +1856,7 @@
           ],
           "description": "",
           "schema": {
-            "$ref": "#/resources/MessageResponse/schema"
+            "$ref": "#/resources/ResendEmailOTPResponse/schema"
           }
         },
         "400": {
@@ -1847,6 +1875,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1860,7 +1890,7 @@
         ],
         "known": true,
         "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
-        "scope": null
+        "scope": "email_otp_resend"
       }
     },
     {
@@ -1956,8 +1986,7 @@
           ],
           "description": "",
           "schema": {
-            "additionalProperties": {},
-            "type": "object"
+            "$ref": "#/resources/VerifiedEmailOTPResponse/schema"
           }
         },
         "400": {
@@ -1976,6 +2005,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -1989,7 +2020,7 @@
         ],
         "known": true,
         "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
-        "scope": null
+        "scope": "email_otp_verify"
       }
     },
     {
@@ -2095,6 +2126,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -2193,6 +2226,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -2318,6 +2353,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -2443,6 +2480,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -2548,6 +2587,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -2687,6 +2728,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -2789,6 +2832,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -2891,6 +2936,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3002,6 +3049,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3113,6 +3162,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3244,6 +3295,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3369,6 +3422,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3471,6 +3526,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3582,6 +3639,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3716,6 +3775,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3827,6 +3888,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -3961,6 +4024,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -4095,6 +4160,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -4253,6 +4320,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -4367,6 +4436,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -4533,6 +4604,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -4647,6 +4720,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -4784,6 +4859,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -4921,6 +4998,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5035,6 +5114,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5172,6 +5253,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5303,6 +5386,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5428,6 +5513,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5530,6 +5617,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5641,6 +5730,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5775,6 +5866,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -5981,6 +6074,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6109,6 +6204,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6214,6 +6311,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6328,6 +6427,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6465,6 +6566,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6602,6 +6705,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6739,6 +6844,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6853,6 +6960,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -6984,6 +7093,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7095,6 +7206,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7206,6 +7319,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7377,6 +7492,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7502,6 +7619,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7604,6 +7723,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7715,6 +7836,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7849,6 +7972,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -7961,6 +8086,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8117,6 +8244,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8251,6 +8380,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8362,6 +8493,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8473,6 +8606,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8584,6 +8719,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8695,6 +8832,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8806,6 +8945,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -8993,6 +9134,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9118,6 +9261,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9220,6 +9365,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9331,6 +9478,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9465,6 +9614,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9577,6 +9728,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9689,6 +9842,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9823,6 +9978,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -9957,6 +10114,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10068,6 +10227,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10179,6 +10340,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10290,6 +10453,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10401,6 +10566,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10512,6 +10679,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10614,6 +10783,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10739,6 +10910,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -10864,6 +11037,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11070,6 +11245,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11198,6 +11375,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11303,6 +11482,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11417,6 +11598,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11522,6 +11705,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11636,6 +11821,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11773,6 +11960,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -11932,6 +12121,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12069,6 +12260,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12174,6 +12367,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12288,6 +12483,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12425,6 +12622,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12539,6 +12738,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12653,6 +12854,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12767,6 +12970,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -12915,6 +13120,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13017,6 +13224,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13157,6 +13366,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13261,6 +13472,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13392,6 +13605,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13503,6 +13718,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13650,6 +13867,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13775,6 +13994,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -13886,6 +14107,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14020,6 +14243,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14154,6 +14379,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14285,6 +14512,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14396,6 +14625,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14498,6 +14729,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14600,6 +14833,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14725,6 +14960,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14856,6 +15093,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -14981,6 +15220,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -15083,6 +15324,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -15201,6 +15444,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -15296,6 +15541,8 @@
         "configured_default_rates": {
           "ai_requests": "100/day",
           "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
           "login": "10/minute",
           "password_reset": "5/hour",
           "register": "10/hour",
@@ -28039,102 +28286,6 @@
         "type": "string"
       }
     },
-    "Register": {
-      "fields": [
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "id",
-          "nullable": false,
-          "read_only": true,
-          "required": true,
-          "type": "integer",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": "email",
-          "max_length": 254,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "email",
-          "nullable": false,
-          "read_only": false,
-          "required": true,
-          "type": "string",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": 255,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "full_name",
-          "nullable": false,
-          "read_only": false,
-          "required": true,
-          "type": "string",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": 20,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "phone_number",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "string",
-          "write_only": false
-        }
-      ],
-      "schema": {
-        "properties": {
-          "email": {
-            "format": "email",
-            "maxLength": 254,
-            "type": "string"
-          },
-          "full_name": {
-            "maxLength": 255,
-            "type": "string"
-          },
-          "id": {
-            "readOnly": true,
-            "type": "integer"
-          },
-          "phone_number": {
-            "maxLength": 20,
-            "pattern": "^[0-9+\\-\\s()]{7,20}$",
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "full_name",
-          "id"
-        ],
-        "type": "object"
-      }
-    },
     "RegisterRequest": {
       "fields": [
         {
@@ -28142,7 +28293,7 @@
           "description": null,
           "enum": null,
           "format": "email",
-          "max_length": 254,
+          "max_length": null,
           "maximum": null,
           "min_length": 1,
           "minimum": null,
@@ -28222,7 +28373,6 @@
         "properties": {
           "email": {
             "format": "email",
-            "maxLength": 254,
             "minLength": 1,
             "type": "string"
           },
@@ -28256,6 +28406,100 @@
         "type": "object"
       }
     },
+    "RegisterResponse": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "verification_required",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "boolean",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": 0,
+          "name": "expires_in",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": 0,
+          "name": "resend_after_seconds",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "expires_in": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resend_after_seconds": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "verification_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email",
+          "expires_in",
+          "resend_after_seconds",
+          "verification_required"
+        ],
+        "type": "object"
+      }
+    },
     "ResendEmailOTPRequest": {
       "fields": [
         {
@@ -28285,6 +28529,79 @@
         },
         "required": [
           "email"
+        ],
+        "type": "object"
+      }
+    },
+    "ResendEmailOTPResponse": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "message",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": 0,
+          "name": "expires_in",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": 0,
+          "name": "resend_after_seconds",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "expires_in": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "resend_after_seconds": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expires_in",
+          "message",
+          "resend_after_seconds"
         ],
         "type": "object"
       }
@@ -37945,6 +38262,79 @@
         "type": "string"
       }
     },
+    "VerifiedEmailOTPResponse": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "refresh",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "access",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "user",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "schema_ref": "#/resources/User/schema",
+          "type": "object",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "description": "Session payload returned only after a pending registration is verified.",
+        "properties": {
+          "access": {
+            "type": "string"
+          },
+          "refresh": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/resources/User/schema"
+          }
+        },
+        "required": [
+          "access",
+          "refresh",
+          "user"
+        ],
+        "type": "object"
+      }
+    },
     "VerifyEmailOTPRequest": {
       "fields": [
         {
@@ -37968,9 +38358,9 @@
           "description": null,
           "enum": null,
           "format": null,
-          "max_length": 6,
+          "max_length": null,
           "maximum": null,
-          "min_length": 6,
+          "min_length": 1,
           "minimum": null,
           "name": "code",
           "nullable": false,
@@ -37983,8 +38373,8 @@
       "schema": {
         "properties": {
           "code": {
-            "maxLength": 6,
-            "minLength": 6,
+            "minLength": 1,
+            "pattern": "^\\d{6}$",
             "type": "string"
           },
           "email": {

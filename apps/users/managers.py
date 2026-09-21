@@ -3,6 +3,8 @@ from django.core.exceptions import FieldDoesNotExist
 
 from apps.common.models import SoftDeleteQuerySet
 
+from .identity import normalize_email
+
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
@@ -22,12 +24,17 @@ class UserManager(BaseUserManager):
         if not email:
             raise ValueError('The email address must be provided.')
 
-        email = self.normalize_email(email).strip().lower()
+        email = normalize_email(email)
         extra_fields.setdefault('is_active', True)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
+
+    def get_by_natural_key(self, username):
+        """Authenticate against the same canonical identity used at signup."""
+
+        return self.get(**{self.model.USERNAME_FIELD: normalize_email(username)})
 
     def create_superuser(self, email, password, **extra_fields):
         extra_fields.setdefault('role', self.model.Roles.SUPER_ADMIN)

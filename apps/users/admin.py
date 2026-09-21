@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .forms import CustomUserChangeForm, CustomUserCreationForm
-from .models import User
+from .models import PendingRegistration, User
 
 
 @admin.register(User)
@@ -43,6 +43,7 @@ class UserAdmin(BaseUserAdmin):
     def restore_selected_users(self, request, queryset):
         updated = queryset.filter(is_deleted=True).update(is_deleted=False, deleted_at=None)
         self.message_user(request, f'Restored {updated} user(s).')
+
     filter_horizontal = ('groups', 'user_permissions')
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
@@ -79,3 +80,31 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
+
+
+@admin.register(PendingRegistration)
+class PendingRegistrationAdmin(admin.ModelAdmin):
+    """Operational visibility without exposing password or OTP hashes."""
+
+    list_display = (
+        'normalized_email',
+        'otp_expires_at',
+        'otp_attempt_count',
+        'otp_send_count',
+        'last_otp_sent_at',
+        'created_at',
+    )
+    search_fields = ('normalized_email',)
+    readonly_fields = (
+        'normalized_email',
+        'full_name',
+        'phone_number',
+        'otp_expires_at',
+        'otp_attempt_count',
+        'otp_send_count',
+        'otp_send_window_started_at',
+        'last_otp_sent_at',
+        'created_at',
+        'updated_at',
+    )
+    exclude = ('password_hash', 'otp_hash')

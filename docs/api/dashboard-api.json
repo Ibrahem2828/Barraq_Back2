@@ -6325,39 +6325,10 @@
         ],
         "type": "string"
       },
-      "Register": {
-        "properties": {
-          "email": {
-            "format": "email",
-            "maxLength": 254,
-            "type": "string"
-          },
-          "full_name": {
-            "maxLength": 255,
-            "type": "string"
-          },
-          "id": {
-            "readOnly": true,
-            "type": "integer"
-          },
-          "phone_number": {
-            "maxLength": 20,
-            "pattern": "^[0-9+\\-\\s()]{7,20}$",
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "full_name",
-          "id"
-        ],
-        "type": "object"
-      },
       "RegisterRequest": {
         "properties": {
           "email": {
             "format": "email",
-            "maxLength": 254,
             "minLength": 1,
             "type": "string"
           },
@@ -6390,6 +6361,32 @@
         ],
         "type": "object"
       },
+      "RegisterResponse": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "expires_in": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resend_after_seconds": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "verification_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email",
+          "expires_in",
+          "resend_after_seconds",
+          "verification_required"
+        ],
+        "type": "object"
+      },
       "ResendEmailOTPRequest": {
         "properties": {
           "email": {
@@ -6400,6 +6397,27 @@
         },
         "required": [
           "email"
+        ],
+        "type": "object"
+      },
+      "ResendEmailOTPResponse": {
+        "properties": {
+          "expires_in": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "resend_after_seconds": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expires_in",
+          "message",
+          "resend_after_seconds"
         ],
         "type": "object"
       },
@@ -9305,11 +9323,31 @@
         },
         "type": "object"
       },
+      "VerifiedEmailOTPResponse": {
+        "description": "Session payload returned only after a pending registration is verified.",
+        "properties": {
+          "access": {
+            "type": "string"
+          },
+          "refresh": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "access",
+          "refresh",
+          "user"
+        ],
+        "type": "object"
+      },
       "VerifyEmailOTPRequest": {
         "properties": {
           "code": {
-            "maxLength": 6,
-            "minLength": 6,
+            "minLength": 1,
+            "pattern": "^\\d{6}$",
             "type": "string"
           },
           "email": {
@@ -14308,7 +14346,7 @@
   "servers": [
     {
       "description": "Canonical production API origin",
-      "url": "https://api.baraqapp.com"
+      "url": "https://api.barraq.xn--mgbaab0cxheq.tech"
     }
   ],
   "x-baraq-contract-scope": "canonical-v1",
