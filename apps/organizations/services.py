@@ -203,7 +203,14 @@ def _consume_invitation(invitation_id):
     redemptions both observe the last seat as free. The lock is what makes
     max_uses mean anything.
     """
-    invitation = Invitation.objects.select_for_update().get(pk=invitation_id)
+    invitation = Invitation.objects.select_for_update().select_related("organization", "classroom").get(pk=invitation_id)
+    # The learner-facing preview/confirm check happened before this
+    # transaction. Recheck under the lock so a revocation, expiry or final
+    # seat consumed by another approval cannot be bypassed by an older pending
+    # request. Raising rolls back the membership work in approve_join_request.
+    reason = invitation.is_usable(now=timezone.now())
+    if reason:
+        raise OrganizationError({"invitation": INVITATION_MESSAGES[reason]}, code=reason)
     invitation.usage_count += 1
     invitation.save(update_fields=["usage_count", "updated_at"])
 

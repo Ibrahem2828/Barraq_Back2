@@ -14,11 +14,13 @@ from __future__ import annotations
 
 from datetime import timedelta
 from importlib import import_module
+from io import StringIO
 
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -157,6 +159,91 @@ class TenantIsolationTestCase(APITestCase):
         self.client.force_authenticate(user)
 
     # -- list isolation ---------------------------------------------------
+    def test_legacy_student_classification_uses_its_active_rbac_assignment(self):
+        """Regression for the incident's shared dashboard 403 gate.
+
+        Before the fix, ``user_is_admin_dashboard_user`` rejected this user
+        solely because the legacy account classification was ``student``.  The
+        active organization-manager assignment, its permissions, and its
+        explicit GLOBAL scope were never evaluated, so all four routes failed
+        identically.
+        """
+        legacy_admin = self._plain_user("legacy-assigned@example.com")
+        self.assertEqual(legacy_admin.role, User.Roles.STUDENT)
+        assign_roles_to_user(
+            legacy_admin,
+            [self.roles["organization_manager"]],
+            scopes=[{"scope_type": AdminRoleScope.ScopeType.GLOBAL}],
+        )
+        self._as(legacy_admin)
+
+        for route in ("organization-list", "classroom-list", "invitation-list", "join-request-list"):
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse(route)).status_code, status.HTTP_200_OK)
+
+    def test_read_only_admin_role_is_denied_the_incident_routes_despite_global_scope(self):
+        """Scope cannot substitute for the endpoint's named permission."""
+        read_only_admin = User.objects.create_user(
+            email="read-only@example.com",
+            password="StrongPass123",
+            full_name="Read only",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            read_only_admin,
+            [self.roles["admin"]],
+            scopes=[{"scope_type": AdminRoleScope.ScopeType.GLOBAL}],
+        )
+        self._as(read_only_admin)
+
+        for route in ("organization-list", "classroom-list", "invitation-list", "join-request-list"):
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse(route)).status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_class_scope_does_not_widen_to_organization_invitations_or_requests(self):
+        """A class grant reaches direct class records, never school-wide ones."""
+        class_reader = AdminRole.objects.create(code="class_reader", name="Class reader")
+        class_reader.permissions.set(
+            AdminPermission.objects.filter(
+                code__in=["classes.view", "organizations.view", "invitations.view", "join_requests.view", "users.view"]
+            )
+        )
+        supervisor = User.objects.create_user(
+            email="narrow-supervisor@example.com",
+            password="StrongPass123",
+            full_name="Narrow supervisor",
+            role=User.Roles.ADMIN,
+        )
+        assign_roles_to_user(
+            supervisor,
+            [class_reader],
+            scopes=[{"scope_type": AdminRoleScope.ScopeType.CLASS, "classroom": self.class_a}],
+        )
+        organization_invitation = Invitation.objects.create(organization=self.org_a, created_by=self.super_admin)
+        JoinRequest.objects.create(
+            invitation=organization_invitation,
+            user=self._plain_user("organization-joiner@example.com"),
+            organization=self.org_a,
+        )
+        self._as(supervisor)
+
+        # Parent organization endpoints carry organization-wide members and
+        # counts, so a class grant is rejected before any data is queried.
+        self.assertEqual(self.client.get(reverse("organization-list")).status_code, status.HTTP_403_FORBIDDEN)
+
+        invitations = self.client.get(reverse("invitation-list"))
+        self.assertEqual(invitations.status_code, status.HTTP_200_OK)
+        self.assertEqual({row["id"] for row in invitations.data["results"]}, {self.invitation_a.id})
+
+        requests = self.client.get(reverse("join-request-list"))
+        self.assertEqual(requests.status_code, status.HTTP_200_OK)
+        self.assertEqual({row["public_id"] for row in requests.data["results"]}, {str(self.request_a.public_id)})
+
+        users = self.client.get(reverse("admin-managed-user-list"))
+        self.assertEqual(users.status_code, status.HTTP_200_OK)
+        self.assertIn(self.student_a.email, {row["email"] for row in users.data["results"]})
+        self.assertNotIn(self.student_b.email, {row["email"] for row in users.data["results"]})
+
     def test_manager_lists_only_their_own_organization(self):
         self._as(self.manager_a)
         response = self.client.get(reverse("organization-list"))
@@ -373,6 +460,17 @@ class TenantIsolationTestCase(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+    def test_rbac_audit_command_reports_aggregate_counts_without_identities(self):
+        output = StringIO()
+
+        call_command("audit_admin_rbac", stdout=output)
+
+        report = output.getvalue()
+        self.assertIn("ACTIVE_ASSIGNMENTS =", report)
+        self.assertIn("GLOBAL_SCOPES =", report)
+        self.assertIn("INVALID_SCOPE_SHAPES =", report)
+        self.assertNotIn(self.super_admin.email, report)
 
     # -- students ---------------------------------------------------------
     def test_a_student_cannot_reach_the_admin_surface(self):
@@ -609,6 +707,33 @@ class JoinFlowTestCase(APITestCase):
         self.invitation.refresh_from_db()
         self.assertEqual(self.invitation.usage_count, 1)
 
+    def test_approval_refuses_an_invitation_revoked_after_the_request(self):
+        join_request, _ = request_to_join(user=self.student, invitation=self.invitation)
+        self.invitation.status = Invitation.Status.REVOKED
+        self.invitation.save(update_fields=["status", "updated_at"])
+
+        with self.assertRaises(OrganizationError) as caught:
+            approve_join_request(join_request=join_request, approved_by=self.manager)
+
+        self.assertEqual(caught.exception.domain_code, "invitation_revoked")
+        self.assertFalse(
+            ClassMembership.objects.filter(classroom=self.classroom, user=self.student, status="active").exists()
+        )
+
+    def test_approval_refuses_an_invitation_exhausted_after_the_request(self):
+        join_request, _ = request_to_join(user=self.student, invitation=self.invitation)
+        self.invitation.max_uses = 1
+        self.invitation.usage_count = 1
+        self.invitation.save(update_fields=["max_uses", "usage_count", "updated_at"])
+
+        with self.assertRaises(OrganizationError) as caught:
+            approve_join_request(join_request=join_request, approved_by=self.manager)
+
+        self.assertEqual(caught.exception.domain_code, "invitation_exhausted")
+        self.assertFalse(
+            OrganizationMembership.objects.filter(organization=self.org, user=self.student, status="active").exists()
+        )
+
     def test_an_already_active_member_is_told_rather_than_re_queued(self):
         join_request, _ = request_to_join(user=self.student, invitation=self.invitation)
         approve_join_request(join_request=join_request, approved_by=self.manager)
@@ -759,29 +884,33 @@ class DynamicRoleAndMultiScopeTestCase(APITestCase):
             full_name="Unscoped",
             role=User.Roles.ADMIN,
         )
-        assign_roles_to_user(user, [self.roles["organization_manager"]])
-        AdminRoleScope.objects.filter(admin_user_role__user=user).delete()
+        assign_roles_to_user(user, [self.roles["organization_manager"]], scopes=[])
         self._as(user)
 
-        # Every scoped list, not just one: an empty scope that fails closed
-        # for classes but open for organizations is still a leak, and a
-        # single-route assertion would not notice.
+        # Every scoped list, not just one: an empty scope is a 403 rather than
+        # a successful-looking empty response.  The caller has an identity,
+        # but no authority over any tenant.
         for route in ("classroom-list", "organization-list", "invitation-list", "join-request-list"):
             with self.subTest(route=route):
                 response = self.client.get(reverse(route))
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertEqual(response.data["results"], [])
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_the_default_assignment_stays_global_for_existing_callers(self):
-        """Every caller before this phase meant "global". Changing that
-        silently would have quietly demoted every existing admin."""
+    def test_new_assignments_require_an_explicit_scope(self):
+        """Runtime code must never reintroduce migration-only implicit GLOBAL."""
         user = User.objects.create_user(
             email="legacy@example.com",
             password="StrongPass123",
             full_name="Legacy",
             role=User.Roles.ADMIN,
         )
-        assign_roles_to_user(user, [self.roles["organization_manager"]])
+        with self.assertRaises(ValueError):
+            assign_roles_to_user(user, [self.roles["organization_manager"]])
+
+        assign_roles_to_user(
+            user,
+            [self.roles["organization_manager"]],
+            scopes=[{"scope_type": AdminRoleScope.ScopeType.GLOBAL}],
+        )
 
         scopes = AdminRoleScope.objects.filter(admin_user_role__user=user)
         self.assertEqual(scopes.count(), 1)
@@ -894,6 +1023,7 @@ class AdminSurfaceScopingTestCase(APITestCase):
                     "quizzes.view",
                     "analytics.view",
                     "support.view",
+                    "support.manage",
                     "audit_logs.view",
                     "subscriptions.view",
                     "roles.view",
@@ -966,6 +1096,18 @@ class AdminSurfaceScopingTestCase(APITestCase):
         response = self.client.get(reverse("admin-support-ticket-detail", args=[self.ticket_b.id]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_support_assignment_requires_an_assignee_with_the_same_tenant_reach(self):
+        self._as(self.manager_a)
+        response = self.client.patch(
+            reverse("admin-support-ticket-detail", args=[self.ticket_a.id]),
+            {"assigned_to": self.manager_b.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.ticket_a.refresh_from_db()
+        self.assertIsNone(self.ticket_a.assigned_to_id)
+
     def test_subscriptions_are_scoped(self):
         self._as(self.manager_a)
         response = self.client.get(reverse("admin-user-subscription-list"))
@@ -989,13 +1131,13 @@ class AdminSurfaceScopingTestCase(APITestCase):
         """A count describes the shape of every tenant it covers."""
         self._as(self.manager_a)
         response = self.client.get(reverse("admin-overview"))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data["code"], "global_scope_required")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["code"], "insufficient_scope")
 
     def test_platform_ai_usage_is_refused_to_a_scoped_account(self):
         self._as(self.manager_a)
         response = self.client.get(reverse("admin-ai-usage"))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_the_super_admin_still_sees_platform_totals(self):
         self._as(self.super_admin)
@@ -1223,6 +1365,32 @@ class ScopeGrantTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self._unchanged(self.colleague, before)
 
+    def test_global_role_delegation_cannot_combine_permissions_from_a_tenant_role(self):
+        """A caller's permissions and scopes must stay on the same grant.
+
+        The caller legitimately holds ``admins.assign_roles`` globally, but
+        the permissions of ``organization_manager`` only for organization A.
+        Their union is enough to pass a naive "has permission AND has global
+        scope" check, but it is not authority to grant that role globally.
+        """
+        global_delegator = AdminRole.objects.create(code="global_delegator", name="Global delegator")
+        global_delegator.permissions.add(AdminPermission.objects.get(code="admins.assign_roles"))
+        global_assignment = AdminUserRole.objects.create(user=self.manager_a, role=global_delegator, is_active=True)
+        AdminRoleScope.objects.create(
+            admin_user_role=global_assignment,
+            scope_type=AdminRoleScope.ScopeType.GLOBAL,
+        )
+
+        before = self._scopes_of(self.colleague)
+        self._as(self.manager_a)
+        response = self._assign(
+            self.colleague,
+            {"role_codes": ["organization_manager"], "scopes": [{"scope_type": "global"}]},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self._unchanged(self.colleague, before)
+
     # -- what must still work ---------------------------------------------
     def test_a_scoped_operator_can_grant_their_own_organization(self):
         self._as(self.manager_a)
@@ -1257,12 +1425,21 @@ class ScopeGrantTestCase(APITestCase):
             self.org_b.id,
         )
 
-    def test_the_super_admin_still_gets_global_by_omission(self):
-        """Existing callers keep working: an omitted scope from a platform
-        admin still means what it always meant."""
+    def test_even_super_admins_must_state_global_explicitly(self):
+        """GLOBAL is a deliberate grant, never an omitted-field default."""
         self._as(self.super_admin)
         response = self._assign(self.colleague, {"role_codes": ["organization_manager"]})
 
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            self._scopes_of(self.colleague),
+            {(AdminRoleScope.ScopeType.ORGANIZATION, self.org_a.id, None)},
+        )
+
+        response = self._assign(
+            self.colleague,
+            {"role_codes": ["organization_manager"], "scopes": [{"scope_type": "global"}]},
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             {row[0] for row in self._scopes_of(self.colleague)},

@@ -40,5 +40,10 @@ class Command(BaseCommand):
         user.is_active = True
         user.role = User.Roles.SUPER_ADMIN
         user.save()
-        assign_roles_to_user(user, [roles["super_admin"]], assigned_by=user)
+        assign_roles_to_user(
+            user,
+            [roles["super_admin"]],
+            assigned_by=user,
+            scopes=[{"scope_type": "global"}],
+        )
         self.stdout.write(self.style.SUCCESS(f"Super admin ready: {email}."))

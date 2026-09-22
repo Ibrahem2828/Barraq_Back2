@@ -119,6 +119,7 @@ class AdminMeView(APIView):
 class AdminOverviewView(APIView):
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = 'dashboard.view'
+    required_scope_types = ('global',)
 
     @extend_schema(responses=AdminOverviewSerializer)
     def get(self, request):
@@ -126,7 +127,6 @@ class AdminOverviewView(APIView):
         # own numbers from /admin/organizations/<id>/overview/ instead: a
         # count describes the shape of every tenant it covers, so handing a
         # global one to a scoped account leaks exactly what scoping hides.
-        scope_policy.assert_global_scope(request.user)
         today = timezone.localdate()
         week_start = today - timezone.timedelta(days=today.weekday())
         payload = {
@@ -182,12 +182,12 @@ class AdminAIUsageView(APIView):
 
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = 'analytics.view'
+    required_scope_types = ('global',)
 
     @extend_schema(responses=AdminAIUsageSerializer)
     def get(self, request):
         # Same reasoning as the overview: platform-wide AI usage is not a
         # scoped account's to read.
-        scope_policy.assert_global_scope(request.user)
         try:
             range_days = int(request.query_params.get('days', 30))
         except (TypeError, ValueError):
@@ -311,15 +311,32 @@ class AdminRoleViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
     def get_queryset(self):
         return AdminRole.objects.prefetch_related('permissions')
 
+    def get_required_scope_types(self):
+        # Definitions may be read by a scoped operator selecting a role, but
+        # writing one changes platform policy and is GLOBAL-only.
+        if self.action in {'create', 'partial_update', 'destroy'}:
+            return ('global',)
+        return None
+
+    def _assert_platform_role_administrator(self):
+        # Role definitions are shared platform policy.  Allowing a scoped
+        # manager to alter one would let them change the permissions later
+        # assigned in another tenant, even if the write looked local.
+        if not is_super_admin_user(self.request.user):
+            raise PermissionDenied('Only Super Admin can manage role definitions.')
+
     def perform_create(self, serializer):
+        self._assert_platform_role_administrator()
         role = serializer.save()
         log_admin_action(self.request.user, 'role.created', role, request=self.request)
 
     def perform_update(self, serializer):
+        self._assert_platform_role_administrator()
         role = serializer.save()
         log_admin_action(self.request.user, 'role.updated', role, request=self.request)
 
     def destroy(self, request, *args, **kwargs):
+        self._assert_platform_role_administrator()
         role = self.get_object()
         if role.is_system or role.code == 'super_admin':
             raise ValidationError('System roles cannot be deleted.')
@@ -349,8 +366,7 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
     def get_queryset(self):
         queryset = User.objects.filter(
             Q(is_superuser=True)
-            | Q(is_staff=True)
-            | Q(admin_user_roles__is_active=True)
+            | Q(admin_user_roles__is_active=True, admin_user_roles__role__is_active=True)
         ).distinct().prefetch_related(
             'admin_user_roles__role__permissions',
             'admin_user_roles__scopes__organization',
@@ -413,14 +429,12 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
         data = serializer.validated_data
         roles = data.pop('role_ids', None) or data.pop('role_codes', [])
         password = data.pop('password')
-        is_superuser = data.pop('is_superuser', False)
         # Popped so they never reach create_user as model fields; the
         # serializer already refused any scope the operator cannot grant.
-        resolved_scopes = data.pop('resolved_scopes', None)
+        resolved_scopes = data.pop('resolved_scopes')
         data.pop('scopes', None)
-        data.setdefault('is_staff', True)
-        data['role'] = User.Roles.SUPER_ADMIN if is_superuser else User.Roles.ADMIN
-        user = User.objects.create_user(password=password, is_superuser=is_superuser, **data)
+        data['role'] = User.Roles.ADMIN
+        user = User.objects.create_user(password=password, **data)
         assign_roles_to_user(user, roles, assigned_by=request.user, scopes=resolved_scopes)
         log_admin_action(
             request.user,
@@ -456,20 +470,19 @@ class AdminUserViewSet(AdminPermissionMixin, viewsets.ModelViewSet):  # type: ig
         serializer = self.get_serializer(data=request.data, context={**self.get_serializer_context(), 'target_user': target})
         serializer.is_valid(raise_exception=True)
         roles = serializer.validated_data['roles']
-        # The serializer already refused any scope this operator cannot
-        # grant; None means global, which is what it always meant.
-        scopes = serializer.validated_data.get('scopes')
+        # The serializer requires and resolves explicit scopes before any
+        # grant is persisted.
+        scopes = serializer.validated_data['scopes']
         assign_roles_to_user(target, roles, assigned_by=request.user, scopes=scopes)
         target.role = User.Roles.SUPER_ADMIN if any(role.code == 'super_admin' for role in roles) else User.Roles.ADMIN
-        target.is_staff = True
-        target.save(update_fields=['role', 'is_staff', 'updated_at'])
+        target.save(update_fields=['role', 'updated_at'])
         log_admin_action(
             request.user,
             'admin.role_assigned',
             target,
             {
                 'roles': [role.code for role in roles],
-                'scopes': [scope['scope_type'] for scope in scopes] if scopes else ['global'],
+                'scopes': [scope['scope_type'] for scope in scopes],
             },
             request,
         )
@@ -773,6 +786,7 @@ class AuditLogViewSet(AdminReadOnlyViewSet):
 class SystemHealthView(APIView):
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     required_permission = 'system.health'
+    required_scope_types = ('global',)
 
     @extend_schema(responses=SystemHealthSerializer)
     def get(self, request):

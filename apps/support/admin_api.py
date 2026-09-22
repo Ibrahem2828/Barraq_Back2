@@ -1,9 +1,11 @@
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import filters, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.admin_dashboard.permissions import HasAdminPermission, IsAdminDashboardUser
+from apps.admin_dashboard.services import user_has_admin_permission
 from apps.organizations import scope as scope_policy
 
 from .models import SupportMessage, SupportTicket
@@ -32,8 +34,25 @@ class AdminSupportTicketSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "user", "user_email", "assigned_to_email", "messages", "created_at", "updated_at")
 
     def validate_assigned_to(self, value):
-        if value is not None and not (value.is_staff or value.role in {value.Roles.SUPPORT, value.Roles.ADMIN, value.Roles.SUPER_ADMIN}):
-            raise serializers.ValidationError("Tickets may be assigned only to staff or support users.")
+        if value is None:
+            return value
+        # `is_staff` and `User.role` are Django/site and display
+        # classifications, respectively; neither proves this account can
+        # access support data.  Assignment must never become an indirect way
+        # to hand a tenant ticket to an unscoped user.
+        if not (
+            value.is_active
+            and user_has_admin_permission(value, "support.manage")
+            and scope_policy.has_scope(value, "support.manage")
+        ):
+            raise serializers.ValidationError("Tickets may be assigned only to an active scoped support administrator.")
+        if self.instance is not None and not scope_policy.scope_by_user_field(
+            value,
+            get_user_model().objects.filter(pk=self.instance.user_id),
+            "support.manage",
+            field="id",
+        ).exists():
+            raise serializers.ValidationError("The assignee cannot access this ticket's tenant.")
         return value
 
     def validate(self, attrs):

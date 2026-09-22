@@ -71,6 +71,11 @@ class ScopedAdminViewSet(
     permission_classes = [IsAdminDashboardUser, HasAdminPermission]
     permission_map: dict[str, str] = {}
     required_permission: str | None = None
+    required_scope_types: tuple[str, ...] = (
+        "global",
+        "organization",
+        "class",
+    )
     lookup_field = "public_id"
 
     def get_required_permission(self):
@@ -90,6 +95,15 @@ class OrganizationViewSet(ScopedAdminViewSet):
         "archive": "organizations.archive",
     }
     http_method_names = ["get", "post", "patch", "head", "options"]
+    # A class grant is not permission to administer its parent organization.
+    required_scope_types = ("global", "organization")
+
+    def get_required_scope_types(self):
+        # Creating a tenant is platform policy.  A local organization scope
+        # only authorizes actions on that existing tenant.
+        if self.action == "create":
+            return ("global",)
+        return self.required_scope_types
 
     def get_queryset(self):
         return scope_policy.scope_organizations(
@@ -108,7 +122,7 @@ class OrganizationViewSet(ScopedAdminViewSet):
         # a manager scoped to one school must not be able to conjure a second
         # one and become its manager. `organizations.create` is deliberately
         # absent from the seeded organization_manager role.
-        if not scope_policy.has_global_scope(request.user):
+        if not scope_policy.has_global_scope(request.user, "organizations.create"):
             raise scope_policy.ScopeDenied("organization_access_denied")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -170,6 +184,13 @@ class ClassroomViewSet(ScopedAdminViewSet):
         "archive": "classes.archive",
     }
     http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_required_scope_types(self):
+        # A new classroom is addressed by its parent organization, so class A
+        # scope cannot be used to create a sibling class in that organization.
+        if self.action == "create":
+            return ("global", "organization")
+        return self.required_scope_types
 
     def get_queryset(self):
         queryset = Classroom.objects.select_related("organization").annotate(
@@ -282,10 +303,17 @@ class InvitationViewSet(ScopedAdminViewSet):
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
-        return scope_policy.scope_by_organization_field(
-            self.request.user,
-            Invitation.objects.select_related("organization", "classroom"),
-            self.get_required_permission(),
+        permission = self.get_required_permission()
+        queryset = Invitation.objects.select_related("organization", "classroom")
+        organization_ids = scope_policy.accessible_organization_ids(self.request.user, permission)
+        if scope_policy.is_unrestricted(organization_ids):
+            return queryset.order_by("-created_at")
+        classroom_ids = scope_policy.accessible_classroom_ids(self.request.user, permission)
+        # An organization grant reaches its invitations and every class below
+        # it.  A class grant reaches only that class's invitations; it cannot
+        # read an organization-wide credential or a sibling class's link.
+        return queryset.filter(
+            Q(organization_id__in=organization_ids) | Q(classroom_id__in=classroom_ids or [])
         ).order_by("-created_at")
 
     @action(detail=True, methods=["post"])
@@ -319,7 +347,9 @@ class JoinRequestViewSet(ScopedAdminViewSet):
             return queryset.none()
         # A class-scoped supervisor sees their class's requests; an
         # organization-scoped manager sees the organization's. The union is
-        # what a holder of both should see, and nothing wider.
+        # what a holder of both should see, and nothing wider.  In particular,
+        # ``organization_ids`` excludes parent ids inferred from class grants,
+        # so an organization-wide request is not leaked to a class supervisor.
         queryset = queryset.filter(
             Q(classroom_id__in=classroom_ids or []) | Q(organization_id__in=organization_ids, classroom__isnull=True)
         )

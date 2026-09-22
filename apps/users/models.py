@@ -72,10 +72,11 @@ class User(SoftDeleteModel, AbstractBaseUser, PermissionsMixin):
         self.email = normalize_email(self.email)
         if self.is_superuser:
             self.role = self.Roles.SUPER_ADMIN
-        self.is_staff = (
-            self.role in {self.Roles.ADMIN, self.Roles.SUPPORT, self.Roles.SUPER_ADMIN}
-            or self.is_superuser
-        )
+            # ``is_staff`` governs Django's built-in admin-site admission; it
+            # is not Baraq dashboard authority.  Keep the invariant Django
+            # expects for real superusers without turning a mutable business
+            # classification into an authentication/authorization bypass.
+            self.is_staff = True
         super().save(*args, **kwargs)
 
 

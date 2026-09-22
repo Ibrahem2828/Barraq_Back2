@@ -388,13 +388,31 @@ class AdminRoleScope(BaseModel):
                 condition=(
                     Q(scope_type="global", organization__isnull=True, classroom__isnull=True)
                     | Q(scope_type="organization", organization__isnull=False, classroom__isnull=True)
-                    | Q(scope_type="class", classroom__isnull=False)
+                    | Q(scope_type="class", organization__isnull=True, classroom__isnull=False)
                 ),
                 name="admin_role_scope_shape_is_valid",
             ),
             models.UniqueConstraint(
                 fields=("admin_user_role", "scope_type", "organization", "classroom"),
                 name="unique_admin_role_scope",
+            ),
+            # SQL UNIQUE permits multiple NULL tuples on PostgreSQL.  These
+            # partial constraints make duplicate GLOBAL and CLASS grants
+            # impossible instead of merely harmless at query time.
+            models.UniqueConstraint(
+                fields=("admin_user_role",),
+                condition=Q(scope_type="global"),
+                name="unique_admin_role_global_scope",
+            ),
+            models.UniqueConstraint(
+                fields=("admin_user_role", "organization"),
+                condition=Q(scope_type="organization"),
+                name="unique_admin_role_organization_scope",
+            ),
+            models.UniqueConstraint(
+                fields=("admin_user_role", "classroom"),
+                condition=Q(scope_type="class"),
+                name="unique_admin_role_class_scope",
             ),
         ]
         indexes = [

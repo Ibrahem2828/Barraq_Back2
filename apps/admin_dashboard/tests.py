@@ -20,6 +20,7 @@ from .services import (
 )
 
 User = get_user_model()
+GLOBAL_SCOPES = [{'scope_type': 'global'}]
 
 
 @override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
@@ -34,7 +35,7 @@ class AdminDashboardAPITestCase(APITestCase):
             password='StrongPass123',
             full_name='Super Admin',
         )
-        assign_roles_to_user(self.super_admin, [self.roles['super_admin']], self.super_admin)
+        assign_roles_to_user(self.super_admin, [self.roles['super_admin']], self.super_admin, scopes=GLOBAL_SCOPES)
         self.project_admin = User.objects.create_user(
             email='project@example.com',
             password='StrongPass123',
@@ -42,7 +43,7 @@ class AdminDashboardAPITestCase(APITestCase):
             role=User.Roles.ADMIN,
             is_staff=True,
         )
-        assign_roles_to_user(self.project_admin, [self.roles['admin']], self.super_admin)
+        assign_roles_to_user(self.project_admin, [self.roles['admin']], self.super_admin, scopes=GLOBAL_SCOPES)
         self.student = User.objects.create_user(
             email='student-admin-tests@example.com',
             password='StrongPass123',
@@ -60,7 +61,7 @@ class AdminDashboardAPITestCase(APITestCase):
             role=User.Roles.ADMIN,
             is_staff=True,
         )
-        assign_roles_to_user(self.limited_admin, [self.empty_role], self.super_admin)
+        assign_roles_to_user(self.limited_admin, [self.empty_role], self.super_admin, scopes=GLOBAL_SCOPES)
 
     def tearDown(self):
         self.override.disable()
@@ -126,6 +127,7 @@ class AdminDashboardAPITestCase(APITestCase):
                 'full_name': 'Created Admin',
                 'password': 'StrongPass123',
                 'role_codes': ['support'],
+                'scopes': GLOBAL_SCOPES,
             },
             format='json',
         )
@@ -159,7 +161,7 @@ class AdminDashboardAPITestCase(APITestCase):
             role=User.Roles.ADMIN,
             is_staff=True,
         )
-        assign_roles_to_user(creator, [creator_role], self.super_admin)
+        assign_roles_to_user(creator, [creator_role], self.super_admin, scopes=GLOBAL_SCOPES)
         self.authenticate(creator)
 
         response = self.client.post(
@@ -187,7 +189,7 @@ class AdminDashboardAPITestCase(APITestCase):
             password='StrongPass123',
             full_name='Other Super',
         )
-        assign_roles_to_user(other_super, [self.roles['super_admin']], self.super_admin)
+        assign_roles_to_user(other_super, [self.roles['super_admin']], self.super_admin, scopes=GLOBAL_SCOPES)
         self.authenticate(self.super_admin)
         response = self.client.delete(reverse('admin-user-detail', args=[self.super_admin.id]))
 
@@ -197,7 +199,7 @@ class AdminDashboardAPITestCase(APITestCase):
         self.authenticate(self.super_admin)
         response = self.client.post(
             reverse('admin-user-assign-roles', args=[self.project_admin.id]),
-            {'role_codes': ['support']},
+            {'role_codes': ['support'], 'scopes': GLOBAL_SCOPES},
             format='json',
         )
 
@@ -345,9 +347,9 @@ class ApplicationAccessAndAuthorizationTests(APITestCase):
             full_name='Support',
             role=User.Roles.SUPPORT,
         )
-        assign_roles_to_user(self.limited_admin, [self.roles['support']])
-        # An account flagged is_staff by User.save() but never assigned a
-        # role -- the case the old `or user.is_staff` gate let through.
+        assign_roles_to_user(self.limited_admin, [self.roles['support']], scopes=GLOBAL_SCOPES)
+        # A business-role classification with no RBAC assignment must never
+        # grant dashboard access.
         self.unassigned_admin = User.objects.create_user(
             email='unassigned@example.com',
             password='StrongPass123',
@@ -380,10 +382,10 @@ class ApplicationAccessAndAuthorizationTests(APITestCase):
 
     # -- is_staff without an assignment ------------------------------------
     def test_a_staff_flag_alone_does_not_grant_dashboard_access(self):
-        """is_staff is set by User.save() for any admin-ish role, so it must
-        not be an access grant on its own -- access follows an explicit,
-        revocable role assignment."""
-        self.assertTrue(self.unassigned_admin.is_staff)
+        """Django admin-site admission is not Baraq dashboard authority."""
+        self.assertFalse(self.unassigned_admin.is_staff)
+        self.unassigned_admin.is_staff = True
+        self.unassigned_admin.save(update_fields=['is_staff'])
         self.client.force_authenticate(self.unassigned_admin)
 
         self.assertEqual(

@@ -280,7 +280,7 @@ def seed_default_rbac():
 def get_user_admin_permissions(user):
     if not user or not user.is_authenticated or not user.is_active:
         return set()
-    if user.is_superuser:
+    if is_super_admin_user(user):
         return set(AdminPermission.objects.filter(is_active=True).values_list('code', flat=True))
 
     active_roles = AdminRole.objects.filter(
@@ -288,8 +288,10 @@ def get_user_admin_permissions(user):
         user_roles__is_active=True,
         is_active=True,
     )
-    if active_roles.filter(code=SUPER_ADMIN_ROLE).exists():
-        return set(AdminPermission.objects.filter(is_active=True).values_list('code', flat=True))
+    # A malformed legacy super_admin assignment without its required GLOBAL
+    # scope must not retain the role's many-to-many permission set.  A valid
+    # platform administrator was handled above; everything else fails closed.
+    active_roles = active_roles.exclude(code=SUPER_ADMIN_ROLE)
     return set(
         AdminPermission.objects.filter(
             roles__in=active_roles,
@@ -314,17 +316,20 @@ def user_is_admin_dashboard_user(user):
         return False
     if user.is_superuser:
         return True
-    if getattr(user, 'role', None) == get_user_model().Roles.STUDENT:
-        return False
-    # Deliberately NOT `or user.is_staff`. User.save() sets is_staff for any
-    # account whose role is admin/support/super_admin, so that clause let an
-    # account with zero role assignments -- and therefore zero permissions --
-    # through the dashboard gate. Access follows an explicit, revocable
-    # assignment; is_superuser is handled above and keeps its global override.
+    # `User.role` is an account classification, not an authorization grant or
+    # denial.  In particular, a legacy account may have been created as a
+    # student and later granted an explicit administrative assignment.  Using
+    # the legacy string as a deny-list meant that valid RBAC grants were never
+    # evaluated and every dashboard endpoint returned the same 403.
+    #
+    # Deliberately NOT `or user.is_staff`: User.save() historically marks
+    # admin-ish account classifications as staff. Access follows an explicit,
+    # revocable assignment with an explicit scope.
     return AdminUserRole.objects.filter(
         user=user,
         is_active=True,
         role__is_active=True,
+        scopes__isnull=False,
     ).exists()
 
 
@@ -363,16 +368,22 @@ def is_super_admin_user(user):
         is_active=True,
         role__is_active=True,
         role__code=SUPER_ADMIN_ROLE,
+        scopes__scope_type="global",
     ).exists()
 
 
-def assign_roles_to_user(user, roles, assigned_by=None, scopes=None):
+_SCOPES_UNSET = object()
+
+
+def assign_roles_to_user(user, roles, assigned_by=None, scopes=_SCOPES_UNSET):
     """Assign roles, and the data scope each one applies to.
 
-    `scopes` defaults to a single GLOBAL grant, which is exactly what every
-    assignment meant before scope existed -- so existing callers keep working
-    unchanged. A scoped assignment (an organization manager, a class
-    supervisor) passes its own list.
+    A caller must state scopes explicitly.  The historical implicit GLOBAL
+    default was safe only during the one-time data migration; retaining it in
+    runtime code lets a future endpoint accidentally mint platform access.
+    Pass ``[{"scope_type": "global"}]`` deliberately for a platform grant,
+    or ``[]`` when creating an intentionally unscoped (and therefore
+    ineffective) assignment for a controlled remediation workflow.
 
     Scope rows are replaced rather than merged: re-assigning a role is how an
     operator narrows or moves someone's reach, and merging would make
@@ -380,32 +391,52 @@ def assign_roles_to_user(user, roles, assigned_by=None, scopes=None):
     """
     from apps.organizations.models import AdminRoleScope
 
-    role_ids = [role.id for role in roles]
-    AdminUserRole.objects.filter(user=user).exclude(role_id__in=role_ids).update(is_active=False)
-    assignments = []
-    for role in roles:
-        assignment, _ = AdminUserRole.objects.update_or_create(
-            user=user,
-            role=role,
-            defaults={'assigned_by': assigned_by, 'is_active': True},
-        )
-        AdminRoleScope.objects.filter(admin_user_role=assignment).delete()
-        for scope in scopes or [{'scope_type': AdminRoleScope.ScopeType.GLOBAL}]:
-            AdminRoleScope.objects.create(
-                admin_user_role=assignment,
-                scope_type=scope.get('scope_type', AdminRoleScope.ScopeType.GLOBAL),
-                organization=scope.get('organization'),
-                classroom=scope.get('classroom'),
-                granted_by=assigned_by,
+    if scopes is _SCOPES_UNSET:
+        raise ValueError("Explicit role scopes are required.")
+
+    roles = list(roles)
+    normalized_scopes = list(scopes)
+    if any(role.code == SUPER_ADMIN_ROLE for role in roles) and normalized_scopes != [
+        {"scope_type": AdminRoleScope.ScopeType.GLOBAL}
+    ]:
+        raise ValueError("The super_admin role requires exactly one explicit GLOBAL scope.")
+
+    # Replacement is a security boundary: a malformed request must not first
+    # deactivate the old assignments and then fail halfway through creating
+    # its replacement.  Concurrent assignment writers likewise see one
+    # complete grant set, never a transient empty or over-broad one.
+    with transaction.atomic():
+        role_ids = [role.id for role in roles]
+        AdminUserRole.objects.filter(user=user).exclude(role_id__in=role_ids).update(is_active=False)
+        assignments = []
+        for role in roles:
+            assignment, _ = AdminUserRole.objects.update_or_create(
+                user=user,
+                role=role,
+                defaults={'assigned_by': assigned_by, 'is_active': True},
             )
-        assignments.append(assignment)
+            AdminRoleScope.objects.filter(admin_user_role=assignment).delete()
+            for scope in normalized_scopes:
+                AdminRoleScope.objects.create(
+                    admin_user_role=assignment,
+                    scope_type=scope.get('scope_type', AdminRoleScope.ScopeType.GLOBAL),
+                    organization=scope.get('organization'),
+                    classroom=scope.get('classroom'),
+                    granted_by=assigned_by,
+                )
+            assignments.append(assignment)
     return assignments
 
 
 def count_super_admins(exclude_user=None):
     queryset = get_user_model().objects.filter(is_active=True).filter(
         models.Q(is_superuser=True)
-        | models.Q(admin_user_roles__is_active=True, admin_user_roles__role__code=SUPER_ADMIN_ROLE)
+        | models.Q(
+            admin_user_roles__is_active=True,
+            admin_user_roles__role__is_active=True,
+            admin_user_roles__role__code=SUPER_ADMIN_ROLE,
+            admin_user_roles__scopes__scope_type="global",
+        )
     )
     if exclude_user is not None:
         queryset = queryset.exclude(pk=exclude_user.pk)

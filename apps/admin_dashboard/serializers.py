@@ -3,7 +3,7 @@ from django.db.models import Count
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.organizations.scope import resolve_grantable_scopes
+from apps.organizations.scope import resolve_grantable_scopes, validate_grantable_roles
 from apps.quizzes.models import Quiz, QuizAttempt
 from apps.sources.models import (
     StudentSource,
@@ -259,17 +259,13 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             'role_ids',
             'role_codes',
             'scopes',
-            'is_staff',
-            'is_superuser',
         )
         read_only_fields = ('id',)
 
     def validate(self, attrs):
         request = self.context['request']
         roles = attrs.get('role_ids') or attrs.get('role_codes') or []
-        if (attrs.get('is_superuser') or any(role.code == 'super_admin' for role in roles)) and not is_super_admin_user(
-            request.user
-        ):
+        if any(role.code == 'super_admin' for role in roles) and not is_super_admin_user(request.user):
             raise serializers.ValidationError('Only Super Admin can create Super Admin users.')
         if not is_super_admin_user(request.user):
             actor_permissions = get_user_admin_permissions(request.user)
@@ -279,21 +275,21 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError('Cannot assign roles with permissions you do not have.')
         # Same rule as assign_roles: a new admin cannot be handed reach the
         # operator creating them does not have.
-        attrs['resolved_scopes'] = resolve_grantable_scopes(request.user, attrs.get('scopes') or [])
+        resolved_scopes = resolve_grantable_scopes(request.user, attrs.get('scopes') or [])
+        validate_grantable_roles(request.user, roles, resolved_scopes)
+        attrs['resolved_scopes'] = resolved_scopes
         return attrs
 
 
 class AdminUserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('full_name', 'phone_number', 'is_active', 'is_staff', 'is_superuser')
+        fields = ('full_name', 'phone_number', 'is_active')
 
     def validate(self, attrs):
         request = self.context['request']
         if is_super_admin_user(self.instance) and not is_super_admin_user(request.user):
             raise serializers.ValidationError('Only Super Admin can update Super Admin users.')
-        if 'is_superuser' in attrs and not is_super_admin_user(request.user):
-            raise serializers.ValidationError('Only Super Admin can change is_superuser.')
         return attrs
 
 
@@ -309,9 +305,8 @@ class AssignRolesSerializer(serializers.Serializer):
         many=True,
         required=False,
     )
-    #: Omitted means global, which is what every assignment meant before
-    #: scope existed. Existing callers keep working; a scoped assignment
-    #: says so explicitly.
+    #: An explicit scope is required.  Legacy global reach was established by
+    #: the one-time data migration, never by silently broadening new grants.
     scopes = RoleScopeSerializer(many=True, required=False)
 
     def validate(self, attrs):
@@ -330,8 +325,10 @@ class AssignRolesSerializer(serializers.Serializer):
                 role_permissions = set(role.permissions.values_list('code', flat=True))
                 if not role_permissions.issubset(actor_permissions):
                     raise serializers.ValidationError('Cannot assign roles with permissions you do not have.')
+        resolved_scopes = resolve_grantable_scopes(request.user, attrs.get('scopes') or [])
+        validate_grantable_roles(request.user, roles, resolved_scopes)
         attrs['roles'] = roles
-        attrs['scopes'] = resolve_grantable_scopes(request.user, attrs.get('scopes') or [])
+        attrs['scopes'] = resolved_scopes
         return attrs
 
 

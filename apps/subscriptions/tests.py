@@ -53,7 +53,7 @@ class SubscriptionsTestCase(APITestCase):
             password='StrongPass123',
             full_name='Subscription Super',
         )
-        assign_roles_to_user(self.super_admin, [self.admin_roles['super_admin']], self.super_admin)
+        assign_roles_to_user(self.super_admin, [self.admin_roles['super_admin']], self.super_admin, scopes=[{'scope_type': 'global'}])
         self.finance_admin = User.objects.create_user(
             email='finance@example.com',
             password='StrongPass123',
@@ -61,7 +61,7 @@ class SubscriptionsTestCase(APITestCase):
             role=User.Roles.ADMIN,
             is_staff=True,
         )
-        assign_roles_to_user(self.finance_admin, [self.admin_roles['finance']], self.super_admin)
+        assign_roles_to_user(self.finance_admin, [self.admin_roles['finance']], self.super_admin, scopes=[{'scope_type': 'global'}])
         self.basic_admin = User.objects.create_user(
             email='basic-admin@example.com',
             password='StrongPass123',
@@ -69,7 +69,7 @@ class SubscriptionsTestCase(APITestCase):
             role=User.Roles.ADMIN,
             is_staff=True,
         )
-        assign_roles_to_user(self.basic_admin, [self.admin_roles['admin']], self.super_admin)
+        assign_roles_to_user(self.basic_admin, [self.admin_roles['admin']], self.super_admin, scopes=[{'scope_type': 'global'}])
         self.stage = EducationStage.objects.create(name='Secondary', order=1)
         self.subject = Subject.objects.create(
             name='Mathematics',

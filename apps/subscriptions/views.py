@@ -92,6 +92,11 @@ class AdminSubscriptionPlanViewSet(AdminSubscriptionPermissionMixin, viewsets.Mo
             queryset = queryset.filter(billing_interval=billing_interval)
         return queryset
 
+    def get_required_scope_types(self):
+        if self.action in {'create', 'partial_update', 'destroy'}:
+            return ('global',)
+        return None
+
     def perform_create(self, serializer):
         plan = serializer.save()
         log_admin_action(self.request.user, 'subscription_plan.created', plan, request=self.request)

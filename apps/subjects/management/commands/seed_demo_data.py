@@ -533,7 +533,12 @@ class Command(BaseCommand):
         if created or reset_password:
             admin.set_password(self._demo_passwords['admin'])
             admin.save()
-        assign_roles_to_user(admin, [roles['super_admin']], assigned_by=admin)
+        assign_roles_to_user(
+            admin,
+            [roles['super_admin']],
+            assigned_by=admin,
+            scopes=[{'scope_type': 'global'}],
+        )
         self._write_upsert('admin user', admin.email, created)
         return admin
 
@@ -552,7 +557,12 @@ class Command(BaseCommand):
         if created or reset_password:
             project_admin.set_password(self._demo_passwords['project_admin'])
             project_admin.save()
-        assign_roles_to_user(project_admin, [roles['admin']], assigned_by=assigned_by)
+        assign_roles_to_user(
+            project_admin,
+            [roles['admin']],
+            assigned_by=assigned_by,
+            scopes=[{'scope_type': 'global'}],
+        )
         self._write_upsert('project admin user', project_admin.email, created)
         return project_admin
 

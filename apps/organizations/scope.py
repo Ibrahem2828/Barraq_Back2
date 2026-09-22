@@ -143,17 +143,17 @@ def accessible_organization_ids(user, permission=None):
         return UNRESTRICTED
 
     rows = _granting_scope_rows(user, permission).exclude(scope_type=AdminRoleScope.ScopeType.GLOBAL)
-    organization_ids = set()
-    for row in rows:
-        if row.scope_type == AdminRoleScope.ScopeType.ORGANIZATION and row.organization_id:
-            organization_ids.add(row.organization_id)
-        elif row.scope_type == AdminRoleScope.ScopeType.CLASS and row.classroom_id:
-            # A class grant does not carry the organization with it. It is
-            # recorded here only so an organization-level listing can show the
-            # one class the supervisor reaches -- `accessible_classroom_ids`
-            # is what actually limits them.
-            organization_ids.add(row.classroom.organization_id)
-    return organization_ids
+    # A class scope is not organization scope.  Folding the class's parent
+    # into this set made a supervisor for 10-A an organization administrator:
+    # membership listings, organization invitations and aggregate counts then
+    # leaked the whole school.  Parent metadata is deliberately exposed by the
+    # classroom serializer instead; organization operations require an actual
+    # organization grant.
+    return {
+        row.organization_id
+        for row in rows
+        if row.scope_type == AdminRoleScope.ScopeType.ORGANIZATION and row.organization_id
+    }
 
 
 def accessible_classroom_ids(user, permission=None):
@@ -198,6 +198,26 @@ def user_has_scoped_permission(user, permission):
     return permission in get_user_admin_permissions(user)
 
 
+def has_scope(user, permission=None, allowed_scope_types=None):
+    """Whether an active grant supplies a permission and an allowed scope.
+
+    A permission is necessary but cannot stand alone: assignments without a
+    scope are intentionally ineffective.  ``allowed_scope_types`` lets an
+    endpoint require an organization grant rather than treating a class grant
+    over a child resource as permission to administer the parent.
+    """
+    if not user or not getattr(user, "is_authenticated", False) or not user.is_active:
+        return False
+    if permission is not None and not user_has_scoped_permission(user, permission):
+        return False
+    if is_super_admin_user(user):
+        return True
+    rows = _granting_scope_rows(user, permission)
+    if allowed_scope_types is not None:
+        rows = rows.filter(scope_type__in=allowed_scope_types)
+    return rows.exists()
+
+
 def scope_organizations(user, queryset, permission=None):
     ids = _normalize(accessible_organization_ids(user, permission))
     if is_unrestricted(ids):
@@ -213,7 +233,14 @@ def scope_classrooms(user, queryset, permission=None):
 
 
 def scope_by_organization_field(user, queryset, permission=None, field="organization_id"):
-    """Narrow any queryset that carries an organization foreign key."""
+    """Narrow an organization-owned queryset to actual organization grants.
+
+    Class scope is intentionally excluded.  A row with an organization FK can
+    describe the entire tenant (an organization invitation, for example), so
+    using the class's parent id here would widen one class grant into a school
+    grant.  Resources that are directly class-owned must combine this helper
+    with ``scope_by_classroom_field`` explicitly.
+    """
     ids = _normalize(accessible_organization_ids(user, permission))
     if is_unrestricted(ids):
         return queryset
@@ -317,17 +344,17 @@ def describe_scope_rows(rows):
     return described
 
 
-def viewer_scope_reach(viewer):
+def viewer_scope_reach(viewer, permission=None):
     """The public ids a viewer may see, resolved once.
 
     Every row of the admin directory needs the same answer, so resolving it
     per row is the difference between one query and one per account on the
     page. Returns None when the viewer reaches everything.
     """
-    if has_global_scope(viewer):
+    if has_global_scope(viewer, permission):
         return None
-    organization_ids = _normalize(accessible_organization_ids(viewer))
-    classroom_ids = _normalize(accessible_classroom_ids(viewer))
+    organization_ids = _normalize(accessible_organization_ids(viewer, permission))
+    classroom_ids = _normalize(accessible_classroom_ids(viewer, permission))
     if is_unrestricted(organization_ids):  # pragma: no cover - defensive
         return None
     return {
@@ -513,6 +540,13 @@ class TenantScopedQuerysetMixin:
     #: catalogue (roles, permissions, plans, curriculum).
     tenant_user_field: str | None = _UNSET
 
+    # Permission classes read this marker before a queryset is evaluated, so
+    # an active assignment with no scope is rejected with 403 rather than
+    # being mistaken for a successful empty list.  Platform catalogues inherit
+    # the same fail-closed rule; their views may narrow this to GLOBAL where a
+    # mutation affects every tenant.
+    requires_scope = True
+
     def filter_queryset(self, queryset):
         queryset = super().filter_queryset(queryset)
         field = getattr(self, "tenant_user_field", self._UNSET)
@@ -529,18 +563,18 @@ class TenantScopedQuerysetMixin:
         return scope_by_user_field(self.request.user, queryset, permission, field)
 
 
-def assert_global_scope(user):
+def assert_global_scope(user, permission=None):
     """Guard for platform-wide aggregates.
 
     A scoped manager must never receive a platform total: a count leaks the
     shape of every other tenant as surely as a list leaks their rows. Scoped
     accounts read their own numbers from the organization overview instead.
     """
-    if not has_global_scope(user):
+    if not has_global_scope(user, permission):
         raise ScopeDenied("global_scope_required")
 
 
-def resolve_grantable_scopes(actor, raw_scopes):
+def resolve_grantable_scopes(actor, raw_scopes, *, permission="admins.assign_roles"):
     """Turn requested scopes into model objects, refusing escalation.
 
     An operator can only grant reach they already hold. Without this check,
@@ -550,21 +584,22 @@ def resolve_grantable_scopes(actor, raw_scopes):
     module is gone. The permission to assign roles is not the permission to
     invent reach.
 
-    Returns None for "global", which is what `assign_roles_to_user` already
-    means by an omitted scope.
+    Scope omission is refused even to platform administrators.  GLOBAL is an
+    explicit high-trust grant, not a default hidden behind an absent request
+    field.
     """
     from rest_framework import serializers
 
     from .models import Classroom, Organization
 
+    if not user_has_scoped_permission(actor, permission):
+        raise serializers.ValidationError({"scopes": "You cannot grant administrative scope."})
     if not raw_scopes:
-        if not has_global_scope(actor):
-            raise serializers.ValidationError({"scopes": "A scoped operator must state the scope being granted."})
-        return None
+        raise serializers.ValidationError({"scopes": "At least one explicit scope is required."})
 
-    actor_is_global = has_global_scope(actor)
-    allowed_organizations = _normalize(accessible_organization_ids(actor))
-    allowed_classrooms = _normalize(accessible_classroom_ids(actor))
+    actor_is_global = has_global_scope(actor, permission)
+    allowed_organizations = _normalize(accessible_organization_ids(actor, permission))
+    allowed_classrooms = _normalize(accessible_classroom_ids(actor, permission))
 
     resolved = []
     for entry in raw_scopes:
@@ -597,13 +632,52 @@ def resolve_grantable_scopes(actor, raw_scopes):
             {
                 "scope_type": scope_type,
                 "classroom": classroom,
-                "organization": classroom.organization,
             }
         )
     return resolved
 
 
-def revoke_grants_within_scope(target, actor):
+def validate_grantable_roles(actor, roles, scopes):
+    """Ensure every delegated permission is held at every delegated scope.
+
+    Checking only the actor's union of permission strings and union of scopes
+    lets unrelated assignments combine into a grant nobody issued.  A caller
+    with ``admins.assign_roles`` in organization A and ``support.view`` in a
+    separate global support assignment must not be able to delegate global
+    support access.  Each role permission is therefore checked against each
+    requested target independently.
+    """
+    from rest_framework import serializers
+
+    if not scopes:
+        raise serializers.ValidationError({"scopes": "At least one explicit scope is required."})
+
+    for role in roles:
+        permission_codes = list(role.permissions.filter(is_active=True).values_list("code", flat=True))
+        if role.code == "super_admin" and scopes != [{"scope_type": AdminRoleScope.ScopeType.GLOBAL}]:
+            raise serializers.ValidationError(
+                {"scopes": "The super_admin role requires exactly one GLOBAL scope."}
+            )
+        for scope in scopes:
+            scope_type = scope["scope_type"]
+            for code in permission_codes:
+                if scope_type == AdminRoleScope.ScopeType.GLOBAL:
+                    allowed = has_global_scope(actor, code)
+                elif scope_type == AdminRoleScope.ScopeType.ORGANIZATION:
+                    organization = scope["organization"]
+                    ids = _normalize(accessible_organization_ids(actor, code))
+                    allowed = is_unrestricted(ids) or organization.id in ids
+                else:
+                    classroom = scope["classroom"]
+                    ids = _normalize(accessible_classroom_ids(actor, code))
+                    allowed = is_unrestricted(ids) or classroom.id in ids
+                if not allowed:
+                    raise serializers.ValidationError(
+                        {"roles": "Cannot grant a role beyond your active permission scope."}
+                    )
+
+
+def revoke_grants_within_scope(target, actor, *, permission="admins.assign_roles"):
     """Withdraw `target`'s grants, but only the ones `actor` can reach.
 
     An operator scoped to one organization must be able to remove a
@@ -622,9 +696,9 @@ def revoke_grants_within_scope(target, actor):
     assignments = AdminUserRole.objects.filter(user=target, is_active=True)
     rows = AdminRoleScope.objects.filter(admin_user_role__in=assignments)
 
-    if not has_global_scope(actor):
-        organization_ids = _normalize(accessible_organization_ids(actor))
-        classroom_ids = _normalize(accessible_classroom_ids(actor))
+    if not has_global_scope(actor, permission):
+        organization_ids = _normalize(accessible_organization_ids(actor, permission))
+        classroom_ids = _normalize(accessible_classroom_ids(actor, permission))
         if is_unrestricted(organization_ids):  # pragma: no cover - defensive
             raise ScopeDenied("scope_access_denied")
         rows = rows.filter(Q(organization_id__in=organization_ids) | Q(classroom_id__in=classroom_ids or []))
@@ -641,7 +715,7 @@ def revoke_grants_within_scope(target, actor):
     return removed
 
 
-def describe_scopes_for_viewer(target, viewer):
+def describe_scopes_for_viewer(target, viewer, permission=None):
     """`target`'s scopes, reduced to the ones `viewer` is allowed to know.
 
     The admin directory has to say what each account administers, or it
@@ -652,7 +726,7 @@ def describe_scopes_for_viewer(target, viewer):
 
     A platform operator sees everything, because they already can.
     """
-    return reduce_scopes_to_reach(describe_scopes(target), viewer_scope_reach(viewer))
+    return reduce_scopes_to_reach(describe_scopes(target), viewer_scope_reach(viewer, permission))
 
 
 __all__ = [
@@ -665,6 +739,7 @@ __all__ = [
     "NO_ACCESS",
     "UNRESTRICTED",
     "resolve_grantable_scopes",
+    "validate_grantable_roles",
     "scoped_user_ids",
     "scope_by_user_field",
     "scope_admin_accounts",
