@@ -87,8 +87,7 @@
             "type": "string"
           },
           "rating": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           },
@@ -781,8 +780,7 @@
           },
           "metadata": {},
           "result_id": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -1129,8 +1127,7 @@
             "type": "integer"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -1148,8 +1145,7 @@
             "type": "string"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -1190,8 +1186,7 @@
       "AdminQuizAttempt": {
         "properties": {
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -1201,8 +1196,7 @@
             "type": "string"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -1246,8 +1240,7 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -1265,8 +1258,7 @@
             "readOnly": true
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -1550,8 +1542,7 @@
             "type": "string"
           },
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -1632,8 +1623,7 @@
       "AdminStudyTask": {
         "properties": {
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -1642,8 +1632,7 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -2165,8 +2154,7 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -2190,8 +2178,7 @@
             "type": "boolean"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -2211,8 +2198,7 @@
             "type": "boolean"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -2229,8 +2215,7 @@
       "ChoiceRequest": {
         "properties": {
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -2254,8 +2239,7 @@
             "type": "boolean"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -2419,8 +2403,7 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           },
@@ -2452,8 +2435,7 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           }
@@ -2522,8 +2504,7 @@
             "type": "integer"
           },
           "max_uses": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -2564,8 +2545,7 @@
             "type": "string"
           },
           "max_uses": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -4541,8 +4521,7 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           }
@@ -4627,14 +4606,12 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -4666,8 +4643,7 @@
             "$ref": "#/components/schemas/QuizStatusEnum"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -4770,8 +4746,7 @@
       "PatchedStudyPlanUpdateRequest": {
         "properties": {
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -4801,14 +4776,12 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -4890,8 +4863,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -5194,8 +5166,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -5224,14 +5195,12 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -5305,14 +5274,12 @@
             "$ref": "#/components/schemas/StudyPlanDifficultyLevelEnum"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -5416,14 +5383,12 @@
       "QuizAttempt": {
         "properties": {
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5468,14 +5433,12 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -5496,14 +5459,12 @@
             "type": "array"
           },
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5548,14 +5509,12 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -5590,8 +5549,7 @@
             "type": "array"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -5610,8 +5568,7 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5674,14 +5631,12 @@
       "QuizAttemptRequest": {
         "properties": {
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5714,14 +5669,12 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -5793,8 +5746,7 @@
             "type": "integer"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5864,8 +5816,7 @@
             "type": "array"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -5884,8 +5835,7 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5932,8 +5882,7 @@
             "$ref": "#/components/schemas/StudyPlanGenerationTypeEnum"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -5944,8 +5893,7 @@
             "$ref": "#/components/schemas/QuizStatusEnum"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -5987,8 +5935,7 @@
             "type": "string"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -6007,8 +5954,7 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -6039,8 +5985,7 @@
             "$ref": "#/components/schemas/StudyPlanGenerationTypeEnum"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -6051,8 +5996,7 @@
             "$ref": "#/components/schemas/QuizStatusEnum"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -6090,14 +6034,12 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -6134,14 +6076,12 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -7429,8 +7369,7 @@
           },
           "metadata": {},
           "result_id": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -7586,8 +7525,7 @@
       "StudyPlanCreateRequest": {
         "properties": {
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -7655,8 +7593,7 @@
             "type": "string"
           },
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -7870,8 +7807,7 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -7880,8 +7816,7 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -7914,14 +7849,12 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -8151,8 +8084,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -8208,8 +8140,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -8819,8 +8750,7 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -8830,8 +8760,7 @@
           },
           "order": {
             "default": 1,
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
