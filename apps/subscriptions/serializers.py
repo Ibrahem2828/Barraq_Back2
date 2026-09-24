@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
@@ -28,6 +29,18 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
 
+    def validate_limits(self, value):
+        # A plan must not promise a file size the platform refuses: every
+        # upload is also capped by STUDENT_SOURCE_MAX_UPLOAD_MB (see
+        # services.effective_max_file_size_mb).
+        ceiling = int(settings.STUDENT_SOURCE_MAX_UPLOAD_MB)
+        size = value.get('max_file_size_mb') if isinstance(value, dict) else None
+        if isinstance(size, (int, float)) and size > ceiling:
+            raise serializers.ValidationError(
+                {'max_file_size_mb': f'الحد الأقصى لحجم الملف على المنصة هو {ceiling} ميغابايت.'}
+            )
+        return value
+
 
 class PublicSubscriptionPlanSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,6 +57,18 @@ class PublicSubscriptionPlanSerializer(serializers.ModelSerializer):
             'limits',
             'sort_order',
         )
+
+    def to_representation(self, instance):
+        # Advertise what a subscriber can actually upload, not a plan figure
+        # above the platform ceiling.
+        data = super().to_representation(instance)
+        limits = dict(data.get('limits') or {})
+        size = limits.get('max_file_size_mb')
+        ceiling = int(settings.STUDENT_SOURCE_MAX_UPLOAD_MB)
+        if isinstance(size, (int, float)) and size > ceiling:
+            limits['max_file_size_mb'] = ceiling
+            data['limits'] = limits
+        return data
 
 
 class SubscriptionUsageSerializer(serializers.ModelSerializer):

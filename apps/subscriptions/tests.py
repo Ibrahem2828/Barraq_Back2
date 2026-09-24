@@ -488,3 +488,59 @@ class OpenAllCharactersMigrationTests(APITestCase):
             self.assertEqual(free['limits'][key], value, key)
         for key, value in module.OPENED['features'].items():
             self.assertEqual(free['features'][key], value, key)
+
+
+class PlanFileSizeCeilingTests(APITestCase):
+    """No plan may advertise a file size above the platform ceiling.
+
+    Production had Pro at 150MB while every upload stops at 50MB.
+    """
+
+    def test_public_plans_show_the_size_a_subscriber_can_actually_upload(self):
+        SubscriptionPlan.objects.create(
+            code='pro', name='Pro', is_active=True, is_public=True, limits={'max_file_size_mb': 150}
+        )
+        response = self.client.get(reverse('subscription-plan-public-list'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        body = response.json()
+        body = body.get('data', body)
+        plans = body if isinstance(body, list) else body.get('results', body.get('items', []))
+        pro = next(plan for plan in plans if plan['code'] == 'pro')
+        self.assertEqual(pro['limits']['max_file_size_mb'], 50)
+
+    def test_admin_cannot_set_a_size_above_the_ceiling(self):
+        from .serializers import SubscriptionPlanSerializer
+
+        serializer = SubscriptionPlanSerializer(
+            data={'code': 'pro2', 'name': 'Pro 2', 'limits': {'max_file_size_mb': 150}, 'features': {}}
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('limits', serializer.errors)
+        ok = SubscriptionPlanSerializer(
+            data={'code': 'pro3', 'name': 'Pro 3', 'limits': {'max_file_size_mb': 50}, 'features': {}}
+        )
+        self.assertTrue(ok.is_valid(), ok.errors)
+
+    def test_migration_caps_stored_plans_and_reverses_exactly(self):
+        import importlib
+
+        from django.apps import apps as django_apps
+
+        module = importlib.import_module(
+            'apps.subscriptions.migrations.0005_cap_plan_file_size_at_platform_limit'
+        )
+        pro = SubscriptionPlan.objects.create(
+            code='pro', name='Pro', limits={'max_file_size_mb': 150, 'max_sources': 9}
+        )
+        free = SubscriptionPlan.objects.create(code='free', name='Free', limits={'max_file_size_mb': 50})
+
+        module.cap_file_size(django_apps, None)
+        pro.refresh_from_db()
+        free.refresh_from_db()
+        self.assertEqual(pro.limits['max_file_size_mb'], 50)
+        self.assertEqual(pro.limits['max_sources'], 9)
+        self.assertEqual(free.limits, {'max_file_size_mb': 50})
+
+        module.restore_file_size(django_apps, None)
+        pro.refresh_from_db()
+        self.assertEqual(pro.limits, {'max_file_size_mb': 150, 'max_sources': 9})
