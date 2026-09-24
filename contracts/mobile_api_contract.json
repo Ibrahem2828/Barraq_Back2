@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-21T16:17:07+00:00",
-    "generated_from_backend_commit": "bd9cfdc507cede251ab4d95a7bdc21fb7b535b9c",
+    "generated_at": "2026-09-22T18:22:40+00:00",
+    "generated_from_backend_commit": "58d065469689986d855361ad8c667b7446b0b15e",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -16180,7 +16180,7 @@
         "pdf": "pdf",
         "txt": "text"
       },
-      "maximum_file_size": "STUDENT_SOURCE_MAX_UPLOAD_MB (source default: 25 MB; environment-configurable)",
+      "maximum_file_size": "STUDENT_SOURCE_MAX_UPLOAD_MB (source default: 50 MB; environment-configurable)",
       "ownership_and_context": "Optional project, subject and collection must be owned/active as validated. Collection subject/project can be inherited; mismatching project values are rejected.",
       "processing": "Upload queues processing. Text files are extracted locally and become ready; other accepted files are stored with processing metadata awaiting AI-service extraction. POST process queues processing and returns 202 with message and source.",
       "request_requirements": "title and file are required; the view requires request.FILES so a file upload representation is required in practice.",

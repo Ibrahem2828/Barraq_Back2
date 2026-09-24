@@ -1964,14 +1964,6 @@
             "readOnly": true,
             "type": "integer"
           },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
-            "type": "boolean"
-          },
           "phone_number": {
             "maxLength": 20,
             "pattern": "^[0-9+\\-\\s()]{7,20}$",
@@ -1997,14 +1989,6 @@
             "maxLength": 255,
             "minLength": 1,
             "type": "string"
-          },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
-            "type": "boolean"
           },
           "password": {
             "minLength": 8,
@@ -2055,14 +2039,6 @@
             "type": "string"
           },
           "is_active": {
-            "type": "boolean"
-          },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
             "type": "boolean"
           },
           "phone_number": {
@@ -4567,14 +4543,6 @@
             "type": "string"
           },
           "is_active": {
-            "type": "boolean"
-          },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
             "type": "boolean"
           },
           "phone_number": {

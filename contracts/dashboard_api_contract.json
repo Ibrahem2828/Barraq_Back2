@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-21T16:17:07+00:00",
-    "generated_from_backend_commit": "bd9cfdc507cede251ab4d95a7bdc21fb7b535b9c",
+    "generated_at": "2026-09-22T18:22:40+00:00",
+    "generated_from_backend_commit": "58d065469689986d855361ad8c667b7446b0b15e",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -22237,38 +22237,6 @@
           "required": false,
           "type": "string",
           "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_staff",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_superuser",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
         }
       ],
       "schema": {
@@ -22285,14 +22253,6 @@
           "id": {
             "readOnly": true,
             "type": "integer"
-          },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
-            "type": "boolean"
           },
           "phone_number": {
             "maxLength": 20,
@@ -22421,38 +22381,6 @@
           "required": false,
           "type": "array",
           "write_only": true
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_staff",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_superuser",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
         }
       ],
       "schema": {
@@ -22467,14 +22395,6 @@
             "maxLength": 255,
             "minLength": 1,
             "type": "string"
-          },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
-            "type": "boolean"
           },
           "password": {
             "minLength": 8,
@@ -22568,38 +22488,6 @@
           "required": false,
           "type": "boolean",
           "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_staff",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_superuser",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
         }
       ],
       "schema": {
@@ -22609,14 +22497,6 @@
             "type": "string"
           },
           "is_active": {
-            "type": "boolean"
-          },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
             "type": "boolean"
           },
           "phone_number": {
@@ -28413,38 +28293,6 @@
           "required": false,
           "type": "boolean",
           "write_only": false
-        },
-        {
-          "default": null,
-          "description": null,
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_staff",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
-        },
-        {
-          "default": null,
-          "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-          "enum": null,
-          "format": null,
-          "max_length": null,
-          "maximum": null,
-          "min_length": null,
-          "minimum": null,
-          "name": "is_superuser",
-          "nullable": false,
-          "read_only": false,
-          "required": false,
-          "type": "boolean",
-          "write_only": false
         }
       ],
       "schema": {
@@ -28455,14 +28303,6 @@
             "type": "string"
           },
           "is_active": {
-            "type": "boolean"
-          },
-          "is_staff": {
-            "type": "boolean"
-          },
-          "is_superuser": {
-            "description": "يقضي بأن هذا المستخدم يمتلك كافة الصلاحيات دون الحاجة لمنحها له تصريحاً.",
-            "title": "حالة المستخدم الفائق",
             "type": "boolean"
           },
           "phone_number": {
