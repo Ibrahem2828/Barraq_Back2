@@ -2033,7 +2033,10 @@ class JobRetryAfterTerminalStateTests(APITestCase):
         self.user = User.objects.create_user(
             email='retry@example.com', password='StrongPass123!', full_name='Retry User'
         )
-        project = Project.objects.create(owner=self.user, title='Retry Project')
+        # Fahes needs a subject; the project's is the fallback for its sources.
+        stage = EducationStage.objects.create(name='Secondary', order=1)
+        subject = Subject.objects.create(name='Biology', education_stage=stage, grade_level='12')
+        project = Project.objects.create(owner=self.user, title='Retry Project', subject=subject)
         body = b'Photosynthesis converts light energy into chemical energy.'
         self.source = StudentSource.objects.create(
             user=self.user,
@@ -2084,3 +2087,72 @@ class JobRetryAfterTerminalStateTests(APITestCase):
 
     def test_retry_after_failure_starts_a_new_job(self):
         self._assert_retry_starts_fresh(AIJob.Status.FAILED)
+
+
+class SubjectRequirementTests(APITestCase):
+    """Khota and Fahes save a StudyPlan / Quiz, and both require a subject.
+
+    Production 2026-09-24: the web never set one, so Khota answered a bare
+    400 and Fahes spent a provider call on a quiz that could not be saved,
+    while capabilities advertised both as available.
+    """
+
+    def setUp(self):
+        self.media_override = override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        self.media_override.enable()
+        self.user = User.objects.create_user(
+            email='subject-rule@example.com', password='StrongPass123!', full_name='Subject Rule'
+        )
+        stage = EducationStage.objects.create(name='Secondary', order=1)
+        self.subject = Subject.objects.create(name='Biology', education_stage=stage, grade_level='12')
+        self.project = Project.objects.create(owner=self.user, title='No subject yet')
+        body = b'Photosynthesis converts light energy into chemical energy.'
+        self.source = StudentSource.objects.create(
+            user=self.user,
+            project=self.project,
+            title='notes',
+            source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile('notes.txt', body, content_type='text/plain'),
+            original_filename='notes.txt',
+            file_size=len(body),
+            mime_type='text/plain',
+            extension='txt',
+            extracted_text=body.decode(),
+            status=StudentSource.Status.READY,
+        )
+        ensure_default_plans()
+
+    def tearDown(self):
+        self.media_override.disable()
+
+    def test_capabilities_withhold_khota_and_fahes_without_a_subject(self):
+        capabilities = get_source_character_capabilities(self.source)
+        for character in ('khota', 'fahes'):
+            self.assertFalse(capabilities[character]['available'], character)
+            self.assertEqual(capabilities[character]['actions'], [])
+            self.assertIn('مادة', capabilities[character]['message'])
+        # Characters that do not save a subject-bound record stay available.
+        self.assertTrue(capabilities['kholasa']['available'])
+        self.assertTrue(capabilities['rasheed']['available'])
+
+    def test_the_project_subject_makes_them_available(self):
+        self.project.subject = self.subject
+        self.project.save(update_fields=['subject', 'updated_at'])
+        self.source.refresh_from_db()
+        capabilities = get_source_character_capabilities(self.source)
+        self.assertTrue(capabilities['khota']['available'])
+        self.assertTrue(capabilities['fahes']['available'])
+
+    def test_fahes_without_a_subject_is_refused_before_any_job_exists(self):
+        with self.assertRaises(ValidationError) as raised:
+            create_ai_job(user=self.user, task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ, source=self.source)
+        self.assertIn('subject', raised.exception.detail)
+        self.assertFalse(AIJob.objects.filter(user=self.user).exists())
+        self.assertFalse(AIJobDispatchOutbox.objects.exists())
+
+    def test_a_job_takes_the_project_subject(self):
+        self.project.subject = self.subject
+        self.project.save(update_fields=['subject', 'updated_at'])
+        self.source.refresh_from_db()
+        job, _ = create_ai_job(user=self.user, task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ, source=self.source)
+        self.assertEqual(job.subject_id, self.subject.id)

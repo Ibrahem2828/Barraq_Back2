@@ -60,6 +60,37 @@ def _apply_source_state(capabilities, source):
     )
 
 
+#: Khota and Fahes save their output as a StudyPlan / Quiz, and both of those
+#: require a subject. Without one, Khota is refused and Fahes would spend a
+#: provider call on a quiz that can never be saved.
+SUBJECT_REQUIRED_MESSAGES = {
+    'khota': 'حدّد مادة المشروع أولًا لإنشاء خطة دراسة.',
+    'fahes': 'حدّد مادة المشروع أولًا لإنشاء اختبار.',
+}
+
+
+def has_subject(*owners):
+    """True when any of source/collection/project carries a subject.
+
+    Reads the foreign-key id only, so it never costs a query.
+    """
+    return any(getattr(owner, 'subject_id', None) for owner in owners if owner is not None)
+
+
+def _apply_subject_requirement(capabilities, *owners):
+    if has_subject(*owners):
+        return capabilities
+    for character, message in SUBJECT_REQUIRED_MESSAGES.items():
+        if capabilities[character]['available']:
+            capabilities[character] = {
+                **capabilities[character],
+                'available': False,
+                'actions': [],
+                'message': message,
+            }
+    return capabilities
+
+
 def _apply_entitlements(capabilities, features):
     """Keep source capability hints aligned with the user's subscription."""
 
@@ -92,7 +123,10 @@ def get_source_character_capabilities(source, *, features=None):
         'sada': {'available': is_audio, 'actions': ['transcribe'] if is_audio else [], 'message': 'تحويل التسجيل الصوتي إلى نص منظم.' if is_audio else 'صدى مخصص للمصادر الصوتية.'},
     }
     capabilities = _apply_source_type(capabilities, source)
-    return _apply_entitlements(_apply_source_state(capabilities, source), features)
+    capabilities = _apply_subject_requirement(
+        _apply_source_state(capabilities, source), source, source.collection, source.project
+    )
+    return _apply_entitlements(capabilities, features)
 
 
 def get_collection_character_capabilities(collection, *, features=None):
@@ -120,4 +154,5 @@ def get_collection_character_capabilities(collection, *, features=None):
         # ambiguous when it contains several recordings or non-audio files.
         'sada': {'available': False, 'actions': [], 'message': 'اختر مصدراً صوتياً واحداً من المجلد قبل بدء صدى.'},
     }
+    capabilities = _apply_subject_requirement(capabilities, collection, collection.project)
     return _apply_entitlements(capabilities, features)

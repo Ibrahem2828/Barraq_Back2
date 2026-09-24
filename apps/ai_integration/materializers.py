@@ -28,7 +28,12 @@ from apps.summaries.models import Summary
 
 
 def _subject(job):
-    return job.subject or getattr(job.source, "subject", None) or getattr(job.collection, "subject", None)
+    return (
+        job.subject
+        or getattr(job.source, "subject", None)
+        or getattr(job.collection, "subject", None)
+        or getattr(job.project, "subject", None)
+    )
 
 
 def _validate_question(item, index):

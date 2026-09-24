@@ -13,6 +13,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.quizzes.models import AttemptStatusChoices, QuizAttempt
+from apps.sources.capabilities import SUBJECT_REQUIRED_MESSAGES
 from apps.sources.models import StudentSource, StudentSourceInteraction
 from apps.subscriptions.services import (
     commit_character_request,
@@ -33,6 +34,13 @@ TASK_CHARACTER = {
     AIJob.TaskType.RASHEED_RECOMMENDATIONS: AIJob.Character.RASHEED,
     AIJob.TaskType.KHOLASA_GENERATE_SUMMARY: AIJob.Character.KHOLASA,
     AIJob.TaskType.SADA_TRANSCRIBE_AUDIO: AIJob.Character.SADA,
+}
+
+#: Their output is saved as a StudyPlan / Quiz, both of which require a subject
+#: (same wording as the capability hints in apps/sources/capabilities.py).
+SUBJECT_REQUIRED_TASKS = {
+    AIJob.TaskType.KHOTA_GENERATE_PLAN: SUBJECT_REQUIRED_MESSAGES["khota"],
+    AIJob.TaskType.FAHES_GENERATE_QUIZ: SUBJECT_REQUIRED_MESSAGES["fahes"],
 }
 
 TERMINAL_JOB_STATUSES = {AIJob.Status.COMPLETED, AIJob.Status.FAILED, AIJob.Status.CANCELED}
@@ -677,6 +685,18 @@ def create_ai_job(*, user, task_type, project=None, source=None, collection=None
         }
     project = project or getattr(source, "project", None) or getattr(collection, "project", None)
     validate_job_ownership(user, source, collection, subject, project)
+    # The project is the learner's own scope; its subject is the fallback when
+    # neither the source nor the collection names one.
+    subject = (
+        subject
+        or getattr(source, "subject", None)
+        or getattr(collection, "subject", None)
+        or getattr(project, "subject", None)
+    )
+    if subject is None and task_type in SUBJECT_REQUIRED_TASKS:
+        # Refused before anything is reserved or sent to the AI service: the
+        # StudyPlan/Quiz this produces cannot be saved without a subject.
+        raise ValidationError({"subject": SUBJECT_REQUIRED_TASKS[task_type]})
     input_payload = build_task_input(
         user=user,
         task_type=task_type,
