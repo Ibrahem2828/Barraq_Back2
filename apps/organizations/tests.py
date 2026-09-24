@@ -1748,7 +1748,11 @@ class LegacyGlobalBackfillTestCase(TestCase):
         )
 
     def _role(self, code, active=True):
-        return AdminRole.objects.create(code=code, name=code, is_active=active)
+        # System roles already exist: the RBAC seed migration creates them.
+        role, _ = AdminRole.objects.update_or_create(
+            code=code, defaults={"name": code, "is_active": active}
+        )
+        return role
 
     def _scopes(self, user):
         return list(
@@ -2632,3 +2636,122 @@ class Phase3ClosureTestCase(APITestCase):
             ).status_code,
             status.HTTP_403_FORBIDDEN,
         )
+
+
+
+class ProductionRbacSeedTests(APITestCase):
+    """RBAC must be complete from migrations alone.
+
+    Production was seeded once by `bootstrap_baraq`, before the school
+    permissions existed, and never again: every school endpoint answered 403
+    even to super admins. These tests deliberately do NOT call
+    seed_default_rbac(), unlike the rest of this module.
+    """
+
+    def test_migrations_alone_provide_every_default_permission_and_role(self):
+        from apps.admin_dashboard.services import DEFAULT_PERMISSIONS, DEFAULT_ROLES
+
+        codes = {code for code, _, _ in DEFAULT_PERMISSIONS}
+        existing = set(AdminPermission.objects.values_list("code", flat=True))
+        self.assertEqual(codes - existing, set(), "add new permissions to an RBAC seed migration")
+        for code, spec in DEFAULT_ROLES.items():
+            with self.subTest(role=code):
+                role = AdminRole.objects.get(code=code)
+                wanted = codes if spec["permissions"] == "all" else set(spec["permissions"])
+                have = set(role.permissions.values_list("code", flat=True))
+                self.assertEqual(wanted - have, set())
+
+    def test_a_superuser_can_create_a_school_without_the_seed_command(self):
+        root = User.objects.create_user(
+            email="root-noseed@example.com", password="StrongPass123", full_name="Root",
+            role=User.Roles.SUPER_ADMIN, is_superuser=True,
+        )
+        self.client.force_authenticate(root)
+        response = self.client.post(
+            reverse("organization-list"), {"name": "مدرسة جديدة", "organization_type": "school"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+    def test_the_seed_migration_only_adds(self):
+        module = import_module("apps.admin_dashboard.migrations.0002_seed_default_rbac")
+        support = AdminRole.objects.get(code="support")
+        custom = AdminPermission.objects.create(code="custom.thing", name="Custom", category="Custom")
+        support.permissions.add(custom)
+        support.permissions.remove(AdminPermission.objects.get(code="support.view"))
+        AdminPermission.objects.filter(code="classes.view").update(name="Renamed by an admin")
+
+        module.seed_rbac(django_apps, None)
+
+        codes = set(support.permissions.values_list("code", flat=True))
+        self.assertIn("custom.thing", codes)
+        self.assertIn("support.view", codes)
+        self.assertEqual(AdminPermission.objects.get(code="classes.view").name, "Renamed by an admin")
+
+
+class SuperAdminGrantReconciliationTests(APITestCase):
+    """An account classified super_admin must hold the grant that makes it one."""
+
+    def setUp(self):
+        self.module = import_module("apps.organizations.migrations.0005_reconcile_super_admin_grants")
+
+    def _account(self, email, **extra):
+        return User.objects.create_user(
+            email=email, password="StrongPass123", full_name="Admin", role=User.Roles.SUPER_ADMIN, **extra
+        )
+
+    def _create_school(self, user):
+        self.client.force_authenticate(user)
+        return self.client.post(
+            reverse("organization-list"), {"name": "School", "organization_type": "school"}, format="json"
+        )
+
+    def test_a_classified_super_admin_without_a_grant_gets_one(self):
+        from apps.admin_dashboard.services import is_super_admin_user
+
+        account = self._account("classified@example.com")
+        self.assertEqual(self._create_school(account).status_code, status.HTTP_403_FORBIDDEN)
+
+        self.module.grant(django_apps, None)
+
+        self.assertTrue(is_super_admin_user(account))
+        self.assertEqual(self._create_school(account).status_code, status.HTTP_201_CREATED)
+        entry = AuditLog.objects.get(action=self.module.ACTION, target_id=str(account.pk))
+        self.assertTrue(entry.metadata["created_assignment"])
+
+    def test_a_valid_super_admin_and_other_accounts_are_untouched(self):
+        valid = self._account("valid@example.com")
+        assign_roles_to_user(valid, [AdminRole.objects.get(code="super_admin")], scopes=[{"scope_type": "global"}])
+        student = User.objects.create_user(email="learner@example.com", password="StrongPass123", full_name="L")
+        admin = User.objects.create_user(
+            email="plain-admin@example.com", password="StrongPass123", full_name="A", role=User.Roles.ADMIN
+        )
+
+        self.module.grant(django_apps, None)
+
+        self.assertFalse(AuditLog.objects.filter(action=self.module.ACTION).exists())
+        self.assertFalse(AdminUserRole.objects.filter(user__in=[student, admin]).exists())
+
+    def test_an_inactive_assignment_is_reactivated_and_the_reverse_restores_it(self):
+        account = self._account("inactive@example.com")
+        assignment = AdminUserRole.objects.create(
+            user=account, role=AdminRole.objects.get(code="super_admin"), is_active=False
+        )
+
+        self.module.grant(django_apps, None)
+        assignment.refresh_from_db()
+        self.assertTrue(assignment.is_active)
+        self.assertTrue(assignment.scopes.filter(scope_type="global").exists())
+
+        self.module.revoke(django_apps, None)
+        assignment.refresh_from_db()
+        self.assertFalse(assignment.is_active)
+        self.assertFalse(assignment.scopes.exists())
+        self.assertFalse(AuditLog.objects.filter(action=self.module.ACTION).exists())
+
+    def test_the_reverse_removes_exactly_the_created_grants(self):
+        account = self._account("reverse@example.com")
+        self.module.grant(django_apps, None)
+        self.assertTrue(AdminUserRole.objects.filter(user=account).exists())
+
+        self.module.revoke(django_apps, None)
+        self.assertFalse(AdminUserRole.objects.filter(user=account).exists())
