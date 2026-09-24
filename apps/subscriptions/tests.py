@@ -225,7 +225,20 @@ class SubscriptionsTestCase(APITestCase):
             effective_max_file_size_mb(self.student),
         )
 
+    def _exclude_kholasa_from_free_plan(self):
+        # Every character is open on every plan today; the entitlement check
+        # must still hold for a plan that excludes one.
+        free = SubscriptionPlan.objects.get(code='free')
+        free.features = {**free.features, 'can_use_kholasa': False}
+        free.save(update_fields=['features'])
+
+    def test_every_character_is_available_on_the_free_plan(self):
+        for character in StudentSourceInteraction.Character.values:
+            with self.subTest(character=character):
+                self.assertTrue(can_use_character(self.student, character))
+
     def test_can_use_character_respects_feature_flags(self):
+        self._exclude_kholasa_from_free_plan()
         with self.assertRaises(SubscriptionFeatureNotAllowed):
             can_use_character(self.student, StudentSourceInteraction.Character.KHOLASA)
 
@@ -293,6 +306,7 @@ class SubscriptionsTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_unavailable_kholasa_is_rejected_without_usage(self):
+        self._exclude_kholasa_from_free_plan()
         source = self.create_source()
         self.authenticate(self.student)
         response = self.client.post(reverse('student-source-use-with-kholasa', args=[source.id]))
@@ -426,3 +440,51 @@ class SubscriptionsTestCase(APITestCase):
             ).count(),
             1,
         )
+
+
+class OpenAllCharactersMigrationTests(APITestCase):
+    """0004 must reach databases seeded before the constants changed, and must
+    merge only its own keys so an admin's other plan edits survive."""
+
+    def _migration(self):
+        import importlib
+
+        from django.apps import apps as django_apps
+
+        module = importlib.import_module(
+            'apps.subscriptions.migrations.0004_open_all_characters_on_free_plan'
+        )
+        return module, django_apps
+
+    def test_opens_characters_on_an_old_free_plan_and_keeps_other_values(self):
+        module, django_apps = self._migration()
+        old = SubscriptionPlan.objects.create(
+            code='free',
+            name='Free',
+            limits={**module.PREVIOUS['limits'], 'max_sources': 7},
+            features={**module.PREVIOUS['features'], 'can_use_fahes': True},
+        )
+
+        module.open_characters(django_apps, None)
+        old.refresh_from_db()
+
+        self.assertEqual(old.limits['max_file_size_mb'], 50)
+        self.assertEqual(old.limits['max_kholasa_requests_per_month'], 10)
+        self.assertEqual(old.limits['max_sada_requests_per_month'], 10)
+        self.assertTrue(old.features['can_use_kholasa'])
+        self.assertTrue(old.features['can_use_sada'])
+        self.assertEqual(old.limits['max_sources'], 7)
+        self.assertTrue(old.features['can_use_fahes'])
+
+        module.restore_previous(django_apps, None)
+        old.refresh_from_db()
+        self.assertEqual(old.limits['max_file_size_mb'], 10)
+        self.assertFalse(old.features['can_use_sada'])
+
+    def test_defaults_and_migration_agree(self):
+        module, _ = self._migration()
+        free = DEFAULT_PLANS['free']
+        for key, value in module.OPENED['limits'].items():
+            self.assertEqual(free['limits'][key], value, key)
+        for key, value in module.OPENED['features'].items():
+            self.assertEqual(free['features'][key], value, key)

@@ -13,7 +13,7 @@ Every user should have a Free subscription. Services still fall back to Free if 
 
 ## Default Plans
 
-- `free`: 3 collections, 20 sources, 10 MB per file, 200 MB storage, Khota/Fahes/Rasheed enabled, Kholasa/Sada disabled.
+- `free`: 3 collections, 20 sources, 50 MB per file, 200 MB storage, all five characters enabled (Kholasa and Sada 10 requests/month each), 20 AI requests/month in total. Migration `subscriptions.0004` applies this to databases seeded earlier.
 - `premium`: 50 collections, 500 sources, 50 MB per file, 5000 MB storage, all characters enabled.
 - `pro`: higher individual limits for intensive use, all characters enabled.
 - `school`: institutional custom plan with very high limits, hidden from public plan listing by default.

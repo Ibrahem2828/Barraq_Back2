@@ -396,10 +396,9 @@ class AIIntegrationApiTests(APITestCase):
             {'task_type': AIJob.TaskType.SADA_TRANSCRIBE_AUDIO, 'source': audio.id},
             format='json',
         )
-        # The test account does not have the Sada subscription feature, so a
-        # 403 proves the audio source passed request validation and reached
-        # the entitlement layer (rather than being rejected as malformed).
-        self.assertEqual(accepted.status_code, status.HTTP_403_FORBIDDEN)
+        # Sada is open on every plan, so a single audio source is accepted end
+        # to end -- proving the collection above was refused for its shape.
+        self.assertEqual(accepted.status_code, status.HTTP_202_ACCEPTED)
 
     def test_feedback_requires_completed_job(self):
         self.authenticate()

@@ -16,6 +16,7 @@ from rest_framework.test import APITestCase
 from apps.ai_integration.models import AIJob
 from apps.projects.models import Project
 from apps.subjects.models import EducationStage, Subject
+from apps.subscriptions.models import SubscriptionPlan
 from apps.subscriptions.services import ensure_default_plans, get_or_create_user_subscription
 
 from .capabilities import get_source_character_capabilities
@@ -25,6 +26,15 @@ from .tasks import process_source_task
 from .validators import ALLOWED_EXTENSIONS
 
 User = get_user_model()
+
+
+def gate_characters_on_free_plan(*characters):
+    """Every character is currently open on every plan, so the gating tests
+    configure a plan that excludes some -- the entitlement logic must keep
+    working for when pricing tiers return."""
+    plan = SubscriptionPlan.objects.get(code='free')
+    plan.features = {**plan.features, **{f'can_use_{name}': False for name in characters}}
+    plan.save(update_fields=['features'])
 
 
 @override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
@@ -401,7 +411,8 @@ class StudentSourceAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['khota']['available'])
-        self.assertFalse(response.data['kholasa']['available'])
+        # Every character is open on the free plan.
+        self.assertTrue(response.data['kholasa']['available'])
 
     def test_capabilities_available_for_an_uploaded_non_text_source(self):
         """UPLOADED is a terminal success state for non-text sources.
@@ -516,7 +527,16 @@ class StudentSourceAPITestCase(APITestCase):
         self.assertTrue(response.data['success'])
         self.assertEqual(response.data['ai_job']['task_type'], AIJob.TaskType.FAHES_GENERATE_QUIZ)
 
-    def test_kholasa_unavailable(self):
+    def test_use_with_kholasa_on_the_free_plan(self):
+        upload = self.upload_source()
+
+        response = self.client.post(reverse('student-source-use-with-kholasa', args=[upload.data['id']]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['ai_job']['task_type'], AIJob.TaskType.KHOLASA_GENERATE_SUMMARY)
+
+    def test_kholasa_unavailable_when_the_plan_excludes_it(self):
+        gate_characters_on_free_plan('kholasa')
         upload = self.upload_source()
 
         response = self.client.post(reverse('student-source-use-with-kholasa', args=[upload.data['id']]))
@@ -602,7 +622,8 @@ class StudentSourceAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['khota']['available'])
-        self.assertFalse(response.data['kholasa']['available'])
+        # Every character is open on the free plan.
+        self.assertTrue(response.data['kholasa']['available'])
 
     def test_collection_capabilities_withheld_when_every_source_failed(self):
         """use_collection_with_character requires one *usable* source, so a
@@ -866,7 +887,8 @@ class CapabilityCoherenceTests(APITestCase):
                 )
 
     def test_a_plan_gated_character_is_withheld_everywhere(self):
-        """Free plan excludes Kholasa and Sada. No surface may offer them."""
+        """A plan that excludes Kholasa and Sada: no surface may offer them."""
+        gate_characters_on_free_plan('kholasa', 'sada')
         listed = self.client.get(reverse('student-source-list')).data['results'][0]
         detail = self.client.get(
             reverse('student-source-detail', args=[self.source.id])
@@ -883,6 +905,7 @@ class CapabilityCoherenceTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_collection_capabilities_also_respect_the_plan(self):
+        gate_characters_on_free_plan('kholasa')
         collection = StudentSourceCollection.objects.create(
             user=self.user, project=self.project, name='Folder'
         )
