@@ -53,6 +53,7 @@ x-backend-environment: &backend-environment
   EMAIL_PORT: ${EMAIL_PORT:-587}
   EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
   EMAIL_USE_SSL: ${EMAIL_USE_SSL:-False}
+  EMAIL_TIMEOUT: ${EMAIL_TIMEOUT:-15}
   EMAIL_HOST_USER: ${EMAIL_HOST_USER:?EMAIL_HOST_USER is required for registration OTP delivery}
   EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:?EMAIL_HOST_PASSWORD is required for registration OTP delivery}
   DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?DEFAULT_FROM_EMAIL is required for registration OTP delivery}
