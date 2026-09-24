@@ -19,6 +19,7 @@ HEALTH_RESPONSE = inline_serializer(
 class LivenessView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
+    throttle_classes = []
 
     @extend_schema(tags=["System"], responses={200: HEALTH_RESPONSE})
     def get(self, request):
@@ -35,6 +36,7 @@ class LivenessView(APIView):
 class ReadinessView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
+    throttle_classes = []
 
     @extend_schema(tags=["System"], responses={200: HEALTH_RESPONSE, 503: HEALTH_RESPONSE})
     def get(self, request):

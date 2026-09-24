@@ -388,7 +388,19 @@ SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT") if not DEBUG else False
 # readiness and the app version; nothing that needs transport protection.
 # Both the canonical /api/v1/ routes and the legacy /api/ aliases are served,
 # and a probe may be pointed at either.
-SECURE_REDIRECT_EXEMPT = [r"^api/(v1/)?health/(live/|ready/)?$"]
+#
+# The AI microservice calls these same internal endpoints (source/collection
+# manifest, download, user context, job webhooks) directly, container-to-
+# container over the private Docker network -- also bypassing the gateway,
+# also never carrying X-Forwarded-Proto. Its own HTTP client deliberately
+# does not follow redirects (a redirect could leak the HMAC signature to
+# another origin), so an un-exempted 301 here doesn't just log noise like
+# the health probe case -- it silently breaks every AI job that needs to
+# read a source: manifest/download calls fail, and the job is stuck.
+SECURE_REDIRECT_EXEMPT = [
+    r"^api/(v1/)?health/(live/|ready/)?$",
+    r"^api/internal/v1/ai/.*$",
+]
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True

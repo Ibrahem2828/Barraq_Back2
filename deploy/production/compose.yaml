@@ -383,7 +383,12 @@ services:
       DJANGO_WAIT_FOR_DATABASE: "1"
       DJANGO_RUN_MIGRATIONS: "0"
       DJANGO_COLLECTSTATIC: "0"
-    command: [celery, -A, config, beat, --loglevel=INFO]
+    # --schedule: beat persists its last-run times in a file, by default in the
+    # working directory. /app is root-owned in the image while the process runs
+    # as the non-root `baraq` user, so the default path crash-looped beat with
+    # "Permission denied: 'celerybeat-schedule'" -- and with beat down, the
+    # periodic AI-job reconciliation and pending-registration cleanup never ran.
+    command: [celery, -A, config, beat, --loglevel=INFO, --schedule=/tmp/celerybeat-schedule]
     # The backend image carries a HEALTHCHECK that curls /api/v1/health/live/.
     # Beat is a scheduler: it serves no HTTP port, so it inherited a probe it
     # can never pass and reported `unhealthy` for its entire lifetime -- which

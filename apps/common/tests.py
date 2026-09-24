@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import environ
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.management import call_command
 from django.http import HttpResponse
 from django.middleware.security import SecurityMiddleware
@@ -453,3 +454,72 @@ class HealthProbeTests(APITestCase):
             self.assertTrue(exempt(path), path)
         for path in ('api/v1/student-sources/', 'api/v1/auth/login/', 'api/v1/admin/me/'):
             self.assertFalse(exempt(path), f'{path} must still be redirected to HTTPS')
+
+
+class HealthProbeThrottleTests(APITestCase):
+    """Every container probe arrives from loopback, so they all share one
+    anonymous throttle bucket (60/hour). Once the probes themselves used it
+    up, every check answered 429 and Docker marked a working backend
+    unhealthy -- which also blocks services that depend on it being healthy.
+    """
+
+    def setUp(self):
+        cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_probes_are_never_rate_limited(self):
+        for name in ('health-live', 'health-ready', 'health-check'):
+            for attempt in range(70):
+                response = self.client.get(reverse(name))
+                self.assertNotEqual(
+                    response.status_code,
+                    status.HTTP_429_TOO_MANY_REQUESTS,
+                    f'{name} throttled on request {attempt + 1}',
+                )
+
+
+class InternalAIRedirectExemptionTests(SimpleTestCase):
+    """The AI microservice calls these endpoints container-to-container over
+    plain HTTP, without X-Forwarded-Proto, and its client deliberately does
+    not follow redirects. A 301 here silently broke every AI job that has to
+    read a source. Uses SecurityMiddleware directly, like
+    SecureProxyForwardedProtoTests, because the redirect setting is cached on
+    the middleware instance at construction time.
+    """
+
+    def _run(self, path):
+        middleware = SecurityMiddleware(lambda request: HttpResponse())
+        return middleware(RequestFactory().get(path))
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_internal_ai_paths_answer_over_plain_http(self):
+        for path in (
+            '/api/internal/v1/ai/sources/1/manifest/',
+            '/api/internal/v1/ai/sources/1/download/',
+            '/api/internal/v1/ai/collections/1/manifest/',
+            '/api/internal/v1/ai/users/1/context/',
+            '/api/internal/v1/ai/webhooks/jobs/',
+        ):
+            self.assertEqual(self._run(path).status_code, 200, path)
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_the_exemption_does_not_leak_to_public_routes(self):
+        for path in ('/api/v1/ai/jobs/', '/api/internal/v1/other/', '/api/v1/student-sources/'):
+            self.assertEqual(self._run(path).status_code, 301, path)
+
+
+class BeatSchedulePathTests(SimpleTestCase):
+    """Beat's default schedule file lands in /app, which is root-owned while
+    beat runs as the non-root `baraq` user: it crash-looped in production with
+    "Permission denied: 'celerybeat-schedule'", so no periodic task ran."""
+
+    def test_backend_beat_writes_its_schedule_to_a_writable_path(self):
+        from apps.common.test_deployment_config import load_compose
+
+        command = [str(part) for part in load_compose()['services']['backend-beat']['command']]
+        schedule = [part for part in command if part.startswith('--schedule=')]
+
+        self.assertEqual(len(schedule), 1, command)
+        self.assertTrue(schedule[0].split('=', 1)[1].startswith('/tmp/'), command)
