@@ -701,6 +701,14 @@ def create_ai_job(*, user, task_type, project=None, source=None, collection=None
         existing = AIJob.objects.filter(user=user, idempotency_key=key).exclude(status__in=[AIJob.Status.FAILED, AIJob.Status.CANCELED]).first()
         if existing:
             return existing, False
+        # No in-flight job holds this key, but a failed/canceled one may still
+        # occupy it in the database: `unique_ai_job_idempotency_per_user` has
+        # no concept of status, so it rejects any duplicate (user, key) pair
+        # even when the row above says a retry is perfectly safe. Bust the
+        # key exactly like the `force` path below, or `AIJob.objects.create()`
+        # raises an IntegrityError instead of starting the retry.
+        if AIJob.objects.filter(user=user, idempotency_key=key).exists():
+            force = True
     if force:
         key = hashlib.sha256(f"{key}:{timezone.now().isoformat()}".encode()).hexdigest()
     job = AIJob.objects.create(

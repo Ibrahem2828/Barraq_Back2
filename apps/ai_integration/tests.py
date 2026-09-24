@@ -2017,3 +2017,71 @@ class CharacterResultFieldContractTests(SimpleTestCase):
                     f'materialize_{character} reads {sorted(undeclared)} which this '
                     'contract does not list as consumed',
                 )
+
+
+class JobRetryAfterTerminalStateTests(APITestCase):
+    """Retrying a canceled or failed request must start a fresh job.
+
+    create_ai_job skipped terminal jobs when looking for an in-flight
+    duplicate, then reused their idempotency key -- which the
+    (user, idempotency_key) unique constraint rejects whatever the status, so
+    the retry raised IntegrityError (a 500 to the student) instead of starting.
+    """
+
+    def setUp(self):
+        self.media_override = override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        self.media_override.enable()
+        self.user = User.objects.create_user(
+            email='retry@example.com', password='StrongPass123!', full_name='Retry User'
+        )
+        project = Project.objects.create(owner=self.user, title='Retry Project')
+        body = b'Photosynthesis converts light energy into chemical energy.'
+        self.source = StudentSource.objects.create(
+            user=self.user,
+            project=project,
+            title='notes',
+            source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile('notes.txt', body, content_type='text/plain'),
+            original_filename='notes.txt',
+            file_size=len(body),
+            mime_type='text/plain',
+            extension='txt',
+            extracted_text=body.decode(),
+            status=StudentSource.Status.READY,
+        )
+        ensure_default_plans()
+        get_or_create_user_subscription(self.user)
+
+    def tearDown(self):
+        cache.clear()
+        self.media_override.disable()
+
+    def _create(self):
+        return create_ai_job(
+            user=self.user, task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ, source=self.source
+        )
+
+    def test_an_in_flight_duplicate_is_still_reused(self):
+        first, created = self._create()
+        again, created_again = self._create()
+
+        self.assertTrue(created)
+        self.assertFalse(created_again)
+        self.assertEqual(again.pk, first.pk)
+
+    def _assert_retry_starts_fresh(self, terminal_status):
+        previous, _ = self._create()
+        AIJob.objects.filter(pk=previous.pk).update(status=terminal_status)
+
+        retry, created = self._create()
+
+        self.assertTrue(created)
+        self.assertNotEqual(retry.pk, previous.pk)
+        self.assertNotEqual(retry.idempotency_key, previous.idempotency_key)
+        self.assertEqual(retry.status, AIJob.Status.QUEUED)
+
+    def test_retry_after_cancel_starts_a_new_job(self):
+        self._assert_retry_starts_fresh(AIJob.Status.CANCELED)
+
+    def test_retry_after_failure_starts_a_new_job(self):
+        self._assert_retry_starts_fresh(AIJob.Status.FAILED)
