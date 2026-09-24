@@ -14314,7 +14314,7 @@
   "servers": [
     {
       "description": "Canonical production API origin",
-      "url": "https://api.barraq.xn--mgbaab0cxheq.tech"
+      "url": "https://api.baraqapp.com"
     }
   ],
   "x-baraq-contract-scope": "canonical-v1",
