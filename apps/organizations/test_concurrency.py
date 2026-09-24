@@ -39,7 +39,7 @@ from .models import (
     Organization,
     OrganizationMembership,
 )
-from .services import approve_join_request
+from .services import OrganizationError, approve_join_request
 
 User = get_user_model()
 
@@ -169,7 +169,7 @@ class InvitationConcurrencyTests(TransactionTestCase):
         self.manager = User.objects.create_user(
             email="seat-mgr@example.com", password="StrongPass123", full_name="Mgr"
         )
-        # One seat left, and several learners reaching for it together.
+        # Three seats, and five learners reaching for them together.
         self.invitation = Invitation.objects.create(
             organization=self.organization, classroom=self.classroom, max_uses=3
         )
@@ -192,22 +192,30 @@ class InvitationConcurrencyTests(TransactionTestCase):
     def test_usage_count_matches_the_approvals_that_happened(self):
         """`count += 1` over unlocked data loses increments.
 
-        Five concurrent approvals must leave usage_count at exactly five --
-        not three, not "whatever the last writer saw plus one".
+        Five concurrent approvals against three seats must approve exactly
+        three and leave usage_count at exactly three -- not fewer ("whatever
+        the last writer saw plus one"), and not more: approval rechecks the
+        seats under the lock, so the two late requests are refused as
+        exhausted instead of overbooking the class.
         """
 
         def approve(index):
             with transaction.atomic():
                 approve_join_request(join_request=self.requests[index], approved_by=self.manager)
 
-        run_concurrently(approve, times=5)
+        results = run_concurrently(approve, times=5)
 
         self.invitation.refresh_from_db()
         approved = JoinRequest.objects.filter(
             invitation=self.invitation, status=JoinRequest.Status.APPROVED
         ).count()
 
-        self.assertEqual(approved, 5)
+        refused = [result for result in results if result is not None]
+        self.assertEqual(approved, 3)
+        self.assertEqual(len(refused), 2, refused)
+        for error in refused:
+            self.assertIsInstance(error, OrganizationError)
+            self.assertEqual(error.domain_code, "invitation_exhausted")
         self.assertEqual(
             self.invitation.usage_count,
             approved,

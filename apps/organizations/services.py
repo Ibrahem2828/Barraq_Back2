@@ -203,7 +203,14 @@ def _consume_invitation(invitation_id):
     redemptions both observe the last seat as free. The lock is what makes
     max_uses mean anything.
     """
-    invitation = Invitation.objects.select_for_update().select_related("organization", "classroom").get(pk=invitation_id)
+    # of=("self",): classroom is nullable, so select_related() emits a LEFT
+    # OUTER JOIN, and PostgreSQL refuses FOR UPDATE on the nullable side of
+    # one. Only the invitation row needs the lock; the related rows are read.
+    invitation = (
+        Invitation.objects.select_for_update(of=("self",))
+        .select_related("organization", "classroom")
+        .get(pk=invitation_id)
+    )
     # The learner-facing preview/confirm check happened before this
     # transaction. Recheck under the lock so a revocation, expiry or final
     # seat consumed by another approval cannot be bypassed by an older pending
