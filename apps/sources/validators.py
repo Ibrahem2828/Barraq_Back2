@@ -122,7 +122,9 @@ def validate_student_source_file(file):
     size = getattr(file, "size", 0) or 0
     if size <= 0:
         raise ValidationError({"file": "الملف فارغ. يرجى اختيار ملف صالح."})
-    max_mb = getattr(settings, "STUDENT_SOURCE_MAX_UPLOAD_MB", 25)
+    # Settings defaults to the same 50MB ceiling as the AI ingestion service.
+    # Keep this fallback aligned for isolated serializer/unit-test use too.
+    max_mb = getattr(settings, "STUDENT_SOURCE_MAX_UPLOAD_MB", 50)
     if size > max_mb * 1024 * 1024:
         raise ValidationError({"file": f"حجم الملف أكبر من الحد المسموح ({max_mb}MB)."})
     extension = get_safe_extension(getattr(file, "name", ""))

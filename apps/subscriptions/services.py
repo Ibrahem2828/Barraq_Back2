@@ -173,7 +173,7 @@ def effective_max_file_size_mb(user):
     the platform cap were refused outright.
     """
 
-    platform_limit = int(getattr(settings, 'STUDENT_SOURCE_MAX_UPLOAD_MB', 25))
+    platform_limit = int(getattr(settings, 'STUDENT_SOURCE_MAX_UPLOAD_MB', 50))
     plan_limit = limit_value(get_user_limits(user), 'max_file_size_mb')
     if plan_limit is None:
         return platform_limit

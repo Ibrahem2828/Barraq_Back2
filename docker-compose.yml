@@ -40,7 +40,11 @@ x-backend-environment: &backend-environment
   ACCESS_TOKEN_LIFETIME_MINUTES: ${ACCESS_TOKEN_LIFETIME_MINUTES:-30}
   REFRESH_TOKEN_LIFETIME_DAYS: ${REFRESH_TOKEN_LIFETIME_DAYS:-14}
   API_DOCS_PUBLIC: ${API_DOCS_PUBLIC:-False}
-  STUDENT_SOURCE_MAX_UPLOAD_MB: ${STUDENT_SOURCE_MAX_UPLOAD_MB:-25}
+  # Must remain aligned with Django's platform ceiling, the 55MB BFF body
+  # allowance (multipart overhead), Caddy's 64MB limit and Baraq_AI's
+  # max_source_file_bytes.  A lower value here made local/container uploads
+  # fail at 25MB while every other production layer advertised 50MB.
+  STUDENT_SOURCE_MAX_UPLOAD_MB: ${STUDENT_SOURCE_MAX_UPLOAD_MB:-50}
   MEDIA_ROOT: /app/media
   MEDIA_URL: ${MEDIA_URL:-/media/}
   USE_S3_STORAGE: ${USE_S3_STORAGE:-False}

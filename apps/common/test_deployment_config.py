@@ -200,6 +200,12 @@ class UploadSizeChainTests(SimpleTestCase):
             'the BFF would 413 a file the backend accepts',
         )
 
+    def test_the_development_compose_default_matches_the_platform_ceiling(self):
+        """Avoid a local/container-only 25MB cap while production accepts 50MB."""
+
+        local_compose = (Path(settings.BASE_DIR) / 'docker-compose.yml').read_text(encoding='utf-8')
+        self.assertIn('STUDENT_SOURCE_MAX_UPLOAD_MB: ${STUDENT_SOURCE_MAX_UPLOAD_MB:-50}', local_compose)
+
     def test_caddy_accepts_at_least_what_the_bff_forwards(self):
         self.assertGreaterEqual(
             self._caddy_limit_bytes(),

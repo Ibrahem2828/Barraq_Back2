@@ -779,7 +779,7 @@ def mobile_flows() -> dict[str, Any]:
         "source_upload": {
             "creation_endpoint": "POST /api/v1/student-sources/",
             "request_requirements": "title and file are required; the view requires request.FILES so a file upload representation is required in practice.",
-            "maximum_file_size": "STUDENT_SOURCE_MAX_UPLOAD_MB (source default: 25 MB; environment-configurable)",
+            "maximum_file_size": "STUDENT_SOURCE_MAX_UPLOAD_MB (source default: 50 MB; environment-configurable)",
             "allowed_extensions": ["pdf", "txt", "jpg", "jpeg", "png", "webp", "doc", "docx", "ppt", "pptx", "mp3", "m4a", "wav"],
             "derived_source_types": {"pdf": "pdf", "txt": "text", "images": "image", "office_documents": "document|presentation", "audio": "audio"},
             "validation": "The backend checks filename extension, file signature and Office archive safety. It rejects executable/archive/script-style dangerous extensions.",
