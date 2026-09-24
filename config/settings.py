@@ -56,6 +56,14 @@ environ.Env.read_env(BASE_DIR / ".env")
 ENVIRONMENT = env("ENVIRONMENT")
 DEBUG = env("DEBUG")
 SECRET_KEY = env("SECRET_KEY", default="")
+# Where Django's own admin is mounted. Production sets a non-guessable path
+# so the login form is not the first thing a scanner finds at /admin/; the
+# team's day-to-day admin is the dashboard, which talks to /api/v1/admin/.
+DJANGO_ADMIN_URL = env("DJANGO_ADMIN_URL", default="admin/")
+if not DJANGO_ADMIN_URL.endswith("/") or DJANGO_ADMIN_URL.startswith(("/", "api/")):
+    raise ImproperlyConfigured(
+        "DJANGO_ADMIN_URL must be a relative path ending in '/', outside api/ (e.g. 'admin/')."
+    )
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 CSRF_TRUSTED_ORIGINS = resolve_list_setting(

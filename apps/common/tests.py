@@ -523,3 +523,31 @@ class BeatSchedulePathTests(SimpleTestCase):
 
         self.assertEqual(len(schedule), 1, command)
         self.assertTrue(schedule[0].split('=', 1)[1].startswith('/tmp/'), command)
+
+
+class DjangoAdminPathTests(APITestCase):
+    """Django's admin is mounted at DJANGO_ADMIN_URL, so production can move
+    it off the guessable /admin/."""
+
+    def _reload_urls(self):
+        import importlib
+
+        from django.urls import clear_url_caches
+
+        import config.urls
+
+        importlib.reload(config.urls)
+        clear_url_caches()
+
+    def test_the_admin_moves_with_the_setting(self):
+        self.addCleanup(self._reload_urls)
+        with self.settings(DJANGO_ADMIN_URL='hidden-panel-7f3c/', SECURE_SSL_REDIRECT=False):
+            self._reload_urls()
+            self.assertEqual(reverse('admin:index'), '/hidden-panel-7f3c/')
+            self.assertEqual(self.client.get('/admin/').status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(self.client.get('/hidden-panel-7f3c/').status_code, status.HTTP_302_FOUND)
+
+    def test_default_path_is_unchanged(self):
+        from django.conf import settings
+
+        self.assertEqual(reverse('admin:index'), '/' + settings.DJANGO_ADMIN_URL)
