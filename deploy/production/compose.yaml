@@ -4,6 +4,7 @@ x-backend-environment: &backend-environment
   ENVIRONMENT: production
   DEBUG: "False"
   SECRET_KEY: ${BACKEND_SECRET_KEY:?BACKEND_SECRET_KEY is required}
+  DJANGO_ADMIN_URL: ${DJANGO_ADMIN_URL:-admin/}
   ALLOWED_HOSTS: api.baraqapp.com,backend,localhost,127.0.0.1
   PUBLIC_API_BASE_URL: https://api.baraqapp.com
   CORS_ALLOWED_ORIGINS: https://baraqapp.com,https://www.baraqapp.com,https://dashboard.baraqapp.com,https://web.baraqapp.com
