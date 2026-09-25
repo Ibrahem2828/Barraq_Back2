@@ -2156,3 +2156,46 @@ class SubjectRequirementTests(APITestCase):
         self.source.refresh_from_db()
         job, _ = create_ai_job(user=self.user, task_type=AIJob.TaskType.FAHES_GENERATE_QUIZ, source=self.source)
         self.assertEqual(job.subject_id, self.subject.id)
+
+
+
+class ProjectlessSourceTests(APITestCase):
+    """A source outside any project can be uploaded, but the AI service refuses
+    every job without a project. It must say so instead of advertising the
+    characters and failing later."""
+
+    def setUp(self):
+        self.media_override = override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+        self.media_override.enable()
+        self.user = User.objects.create_user(email='loose@example.com', password='StrongPass123!', full_name='L')
+        body = b'Photosynthesis converts light energy into chemical energy.'
+        self.source = StudentSource.objects.create(
+            user=self.user, title='notes', source_type=StudentSource.SourceType.TEXT,
+            file=SimpleUploadedFile('notes.txt', body, content_type='text/plain'),
+            original_filename='notes.txt', file_size=len(body), mime_type='text/plain', extension='txt',
+            extracted_text=body.decode(), status=StudentSource.Status.READY,
+        )
+        ensure_default_plans()
+
+    def tearDown(self):
+        self.media_override.disable()
+
+    def test_capabilities_explain_that_a_project_is_needed(self):
+        from apps.sources.capabilities import PROJECT_REQUIRED_MESSAGE
+
+        capabilities = get_source_character_capabilities(self.source)
+        for character, capability in capabilities.items():
+            with self.subTest(character=character):
+                self.assertFalse(capability['available'])
+                self.assertEqual(capability['message'], PROJECT_REQUIRED_MESSAGE)
+
+    def test_using_it_is_refused_in_arabic_before_any_job_exists(self):
+        from apps.sources.capabilities import PROJECT_REQUIRED_MESSAGE
+
+        self.client.force_authenticate(self.user)
+        response = self.client.post(
+            reverse('student-source-use-with-character', args=[self.source.id]), {'character': 'kholasa'}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(PROJECT_REQUIRED_MESSAGE, str(response.data))
+        self.assertFalse(AIJob.objects.filter(user=self.user).exists())

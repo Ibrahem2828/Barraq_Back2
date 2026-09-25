@@ -13,7 +13,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.quizzes.models import AttemptStatusChoices, QuizAttempt
-from apps.sources.capabilities import SUBJECT_REQUIRED_MESSAGES
+from apps.sources.capabilities import PROJECT_REQUIRED_MESSAGE, SUBJECT_REQUIRED_MESSAGES
 from apps.sources.models import StudentSource, StudentSourceInteraction
 from apps.subscriptions.services import (
     commit_character_request,
@@ -642,7 +642,7 @@ def validate_job_ownership(user, source=None, collection=None, subject=None, pro
         # a project. This is server-side defense-in-depth -- create_ai_job()
         # already inherits `project` from source/collection before calling
         # this, but any other caller must not be able to skip it.
-        raise ValidationError({"project": "A project is required for this request."})
+        raise ValidationError({"project": PROJECT_REQUIRED_MESSAGE})
     if project.owner_id != user.id:
         raise ValidationError({"project": "You do not own this project."})
     if source and source.user_id != user.id:

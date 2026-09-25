@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.projects.models import Project
+from apps.sources.capabilities import PROJECT_REQUIRED_MESSAGE
 from apps.sources.models import StudentSource, StudentSourceCollection
 from apps.subjects.models import Subject
 
@@ -95,7 +96,7 @@ class AIJobCreateSerializer(serializers.Serializer):
             # Blueprint 01_BACKEND.md §3.1: no study experience may run
             # without a project -- an explicit project is required whenever
             # one can't be inherited from the chosen source/collection.
-            raise serializers.ValidationError({'project': 'A project is required for this request.'})
+            raise serializers.ValidationError({'project': PROJECT_REQUIRED_MESSAGE})
         task_type = attrs['task_type']
         if task_type in {
             AIJob.TaskType.FAHES_GENERATE_QUIZ,

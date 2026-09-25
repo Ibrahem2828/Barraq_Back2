@@ -69,6 +69,11 @@ SUBJECT_REQUIRED_MESSAGES = {
 }
 
 
+#: The AI service refuses every job without a project (project_id_required),
+#: so a source outside any project must not advertise a character.
+PROJECT_REQUIRED_MESSAGE = 'أضف هذا المصدر إلى مشروع أولًا؛ الشخصيات تعمل على مصادر المشروع.'
+
+
 def has_subject(*owners):
     """True when any of source/collection/project carries a subject.
 
@@ -126,6 +131,8 @@ def get_source_character_capabilities(source, *, features=None):
     capabilities = _apply_subject_requirement(
         _apply_source_state(capabilities, source), source, source.collection, source.project
     )
+    if not (source.project_id or getattr(source.collection, 'project_id', None)):
+        capabilities = _block_all(capabilities, PROJECT_REQUIRED_MESSAGE)
     return _apply_entitlements(capabilities, features)
 
 
