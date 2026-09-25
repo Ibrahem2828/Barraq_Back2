@@ -13,6 +13,7 @@ class SummarySerializer(serializers.ModelSerializer):
         fields = (
             'id', 'project', 'source', 'collection', 'title', 'short_summary', 'detailed_summary',
             'key_points', 'important_terms', 'covered_topics', 'review_questions',
+            'flashcards',
             'source_references', 'quality_score', 'created_at', 'updated_at',
         )
         read_only_fields = fields

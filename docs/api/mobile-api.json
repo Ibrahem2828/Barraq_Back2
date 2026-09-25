@@ -8255,6 +8255,9 @@
             "readOnly": true,
             "type": "string"
           },
+          "flashcards": {
+            "readOnly": true
+          },
           "id": {
             "readOnly": true,
             "type": "integer"
@@ -8307,6 +8310,7 @@
           "covered_topics",
           "created_at",
           "detailed_summary",
+          "flashcards",
           "id",
           "important_terms",
           "key_points",

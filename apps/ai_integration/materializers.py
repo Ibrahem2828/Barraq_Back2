@@ -73,7 +73,11 @@ def materialize_fahes(job, data):
         raise ValidationError("AI output contains too many questions.")
     for index, item in enumerate(questions, start=1):
         _validate_question(item, index)
-    difficulty = str(job.parameters.get("difficulty") or DifficultyLevelChoices.MEDIUM)
+    difficulty = str(
+        job.input_payload.get("difficulty")
+        or job.parameters.get("difficulty")
+        or DifficultyLevelChoices.MEDIUM
+    )
     if difficulty not in dict(DifficultyLevelChoices.choices):
         difficulty = DifficultyLevelChoices.MEDIUM
     quiz_type = job.parameters.get("quiz_type") or QuizTypeChoices.PRACTICE
@@ -224,8 +228,15 @@ def materialize_rasheed(job, data):
         for item in topic_performance
         if isinstance(item, dict) and item.get("score") is not None
     ]
+    metrics = [item for item in (job.input_payload.get("metrics") or []) if isinstance(item, dict)]
+    attempts = next(
+        (item.get("value") for item in metrics if item.get("name") == "quiz_attempts"), None
+    )
     if scores:
         overall_score = sum(scores) / len(scores)
+    elif attempts is not None and float(attempts) == 0:
+        # No attempt yet: there is no score to show, not a score of 0.
+        overall_score = None
     else:
         overall_score = next(
             (
@@ -240,6 +251,10 @@ def materialize_rasheed(job, data):
     next_best_action = data.get("next_best_action") or ""
     if isinstance(next_best_action, str):
         next_best_action = {"label": next_best_action} if next_best_action.strip() else {}
+    confidence_note = str(data.get("confidence_note") or "").strip()
+    if confidence_note and isinstance(next_best_action, dict):
+        # How sure Rasheed is, shown beside the next step (no dedicated column).
+        next_best_action = {**next_best_action, "confidence_note": confidence_note}
     recommendation = StudentRecommendation.objects.create(
         user=job.user,
         project=job.project,
@@ -260,6 +275,18 @@ def materialize_rasheed(job, data):
     return "recommendation", str(recommendation.id)
 
 
+def _flashcards(value):
+    """Front/back pairs only; anything else from the AI result is dropped."""
+    cards = []
+    for item in value if isinstance(value, list) else []:
+        if not isinstance(item, dict):
+            continue
+        front, back = str(item.get("front") or "").strip(), str(item.get("back") or "").strip()
+        if front and back:
+            cards.append({"front": front[:700], "back": back[:1200]})
+    return cards[:50]
+
+
 @transaction.atomic
 def materialize_kholasa(job, data):
     summary = Summary.objects.create(
@@ -275,6 +302,7 @@ def materialize_kholasa(job, data):
         important_terms=data.get("important_terms") or [],
         covered_topics=data.get("covered_topics") or [],
         review_questions=data.get("review_questions") or [],
+        flashcards=_flashcards(data.get("flashcards")),
         source_references=data.get("citations") or data.get("source_references") or [],
         quality_score=data.get("quality_score"),
     )

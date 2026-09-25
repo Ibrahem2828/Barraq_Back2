@@ -44,6 +44,7 @@ from .services import (
     MAX_SOURCES_PER_JOB,
     AIRequestError,
     build_khota_job_input,
+    build_rasheed_job_input,
     build_service_payload,
     complete_job,
     content_sha256,
@@ -811,6 +812,27 @@ class AIIntegrationApiTests(APITestCase):
         )
         self.assertEqual(built_input['weak_topics'], [])
 
+    def test_khota_forwards_the_learner_instructions(self):
+        built_input = build_khota_job_input(
+            subject=self.subject,
+            user=self.user,
+            project=None,
+            input_payload={'start_date': '2026-09-01', 'instructions': '  خطة للوحدة الثانية فقط  '},
+            parameters={},
+        )
+        self.assertEqual(built_input['instructions'], 'خطة للوحدة الثانية فقط')
+
+    def test_khota_without_instructions_sends_none(self):
+        built_input = build_khota_job_input(
+            subject=self.subject, user=self.user, project=None,
+            input_payload={'start_date': '2026-09-01'}, parameters={},
+        )
+        self.assertNotIn('instructions', built_input)
+
+    def test_rasheed_takes_the_instructions_box_as_the_learner_goal(self):
+        built_input = build_rasheed_job_input(user=self.user, input_payload={'instructions': 'أريد التحضير لامتحان الفيزياء'})
+        self.assertEqual(built_input['learner_goal'], 'أريد التحضير لامتحان الفيزياء')
+
     def test_khota_names_supplied_subjects_and_ignores_unknown_ids(self):
         built_input = build_khota_job_input(
             user=self.user,
@@ -967,6 +989,23 @@ class CharacterMaterializationContractTests(APITestCase):
         self.assertEqual(quiz.questions.count(), 1)
         self.assertTrue(quiz.questions.get().choices.get(is_correct=True).text.startswith('سبع'))
 
+    def test_fahes_keeps_the_difficulty_the_learner_asked_for(self):
+        job = self._job(AIJob.TaskType.FAHES_GENERATE_QUIZ, input_payload={'difficulty': 'hard'})
+        complete_job(job, {
+            'title': 'اختبار صعب',
+            'questions': [{
+                'question_type': 'mcq',
+                'question': 'كم عدد مراحل بروتوكول التحقق في برّاق؟',
+                'choices': ['سبع مراحل', 'خمس مراحل'],
+                'correct_answer_index': 0,
+                'explanation': 'ينص المصدر صراحة على وجود سبع مراحل.',
+                'difficulty': 'hard',
+                'topic': 'التحقق',
+                'source_references': [1],
+            }],
+        })
+        self.assertEqual(Quiz.objects.get(ai_job=job).difficulty_level, 'hard')
+
     def test_kholasa_materializes_executive_summary_from_ai_schema(self):
         job = self._job(AIJob.TaskType.KHOLASA_GENERATE_SUMMARY)
         complete_job(job, {
@@ -977,12 +1016,16 @@ class CharacterMaterializationContractTests(APITestCase):
             'important_terms': ['بروتوكول التحقق'],
             'covered_topics': ['التحقق'],
             'review_questions': ['كم عدد مراحل التحقق؟'],
-            'flashcards': [],
+            'flashcards': [
+                {'front': 'كم مرحلة في بروتوكول التحقق؟', 'back': 'سبع مراحل مستقلة', 'source_references': [1]},
+                {'front': '', 'back': 'بطاقة بلا وجه تُهمل'},
+            ],
             'limitations': [],
             'citations': [{'source_id': str(self.source.id), 'chunk_id': 'chunk-1', 'excerpt': 'سبع مراحل'}],
         })
 
         summary = Summary.objects.get(ai_job=job)
+        self.assertEqual(summary.flashcards, [{'front': 'كم مرحلة في بروتوكول التحقق؟', 'back': 'سبع مراحل مستقلة'}])
         self.assertIn('سبع مراحل', summary.short_summary)
         self.assertIn('سبع مراحل', summary.detailed_summary)
         self.assertEqual(summary.source_references[0]['source_id'], str(self.source.id))
@@ -1080,6 +1123,37 @@ class CharacterMaterializationContractTests(APITestCase):
         self.assertEqual(recommendation.overall_score, Decimal('70'))
         self.assertEqual(recommendation.next_best_action['label'], 'ابدأ بمراجعة القوة اليوم.')
         self.assertEqual(len(recommendation.source_metrics['topic_performance']), 2)
+        self.assertEqual(recommendation.next_best_action['confidence_note'], 'التوصية مبنية على عشرين إجابة.')
+
+    def test_rasheed_with_no_attempt_has_no_score_rather_than_zero(self):
+        job = self._job(
+            AIJob.TaskType.RASHEED_RECOMMENDATIONS,
+            input_payload={
+                'metrics': [
+                    {'name': 'quiz_attempts', 'value': 0.0, 'unit': 'attempts', 'period': 'all_time', 'authoritative': True},
+                    {'name': 'average_quiz_percentage', 'value': 0.0, 'unit': 'percent', 'period': 'all_time', 'authoritative': True},
+                ],
+                'topic_performance': [],
+            },
+        )
+        complete_job(job, {
+            'performance_summary': 'لا توجد نتائج اختبارات بعد، وسيصبح رشيد أدق بعد أول اختبارين.',
+            'strengths': [],
+            'weaknesses': [],
+            'recommendations': [{
+                'title': 'ابدأ بأول اختبار قصير',
+                'action': 'أنشئ اختبارًا من فاحص من ١٠ أسئلة على أول وحدة في مصدرك.',
+                'reason': 'لا توجد محاولات بعد لقياس الأداء.',
+                'priority': 'now',
+                'success_measure': 'إنهاء أول اختبار هذا الأسبوع.',
+                'related_topics': [],
+            }],
+            'next_best_action': 'أنشئ أول اختبار من فاحص الآن.',
+            'confidence_note': 'الثقة منخفضة لعدم وجود بيانات بعد.',
+        })
+
+        recommendation = StudentRecommendation.objects.get(ai_job=job)
+        self.assertIsNone(recommendation.overall_score)
 
 
 class SadaDerivedSourceTests(APITestCase):
@@ -1964,16 +2038,12 @@ UNMAPPED_RESULT_FIELDS: dict[str, dict[str, str]] = {
         'warnings': 'Advisory only; AIJob.service_metadata keeps the raw payload.',
     },
     'kholasa': {
-        'flashcards': 'Summary has no flashcard column; adding one is a product decision.',
         'limitations': 'Advisory caveats; no column, and not shown in the current UI.',
     },
     'khota': {
         'adaptation_rules': 'StudyPlan has no adaptation column; plan regeneration is manual today.',
         'assumptions': 'Advisory only; the raw payload stays on AIJob.result_payload.',
         'citations': 'A plan is generated from context, not quoted from a source.',
-    },
-    'rasheed': {
-        'confidence_note': 'StudentRecommendation has no confidence column.',
     },
     'sada': {
         'important_terms': 'Transcription has no terms column; detected_topics is persisted.',
@@ -1997,11 +2067,11 @@ class CharacterResultFieldContractTests(SimpleTestCase):
         'kholasa': {
             'title', 'executive_summary', 'short_summary', 'detailed_summary',
             'key_points', 'important_terms', 'covered_topics', 'review_questions',
-            'citations', 'source_references', 'quality_score',
+            'flashcards', 'citations', 'source_references', 'quality_score',
         },
         'khota': {'plan_days', 'plan_title', 'strategy_summary', 'summary', 'title'},
         'rasheed': {
-            'next_best_action', 'performance_summary', 'recommendations',
+            'confidence_note', 'next_best_action', 'performance_summary', 'recommendations',
             'source_metrics', 'strengths', 'summary', 'title', 'weaknesses',
         },
         'sada': {

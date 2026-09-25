@@ -19,6 +19,8 @@ class Summary(BaseModel):
     important_terms = models.JSONField(default=list, blank=True)
     covered_topics = models.JSONField(default=list, blank=True)
     review_questions = models.JSONField(default=list, blank=True)
+    # [{front, back}] from Kholasa; previously dropped.
+    flashcards = models.JSONField(default=list, blank=True)
     source_references = models.JSONField(default=list, blank=True)
     quality_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 

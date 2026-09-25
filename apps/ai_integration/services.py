@@ -411,7 +411,7 @@ def build_khota_job_input(
             raise ValidationError({"input.exam_dates": "Exam dates must be ISO dates."}) from exc
         if not isinstance(subject_id, str):
             raise ValidationError({"input.exam_dates": "Subject ids must be text."})
-    return {
+    built = {
         "source_ids": _input_source_ids(payload, source=source, collection=collection),
         "subject_ids": subject_ids,
         "subject_names": _subject_names(subject_ids, subject=subject),
@@ -440,6 +440,12 @@ def build_khota_job_input(
         ),
         "language": _language(payload),
     }
+    instructions = _optional_text(
+        payload.get("instructions", params.get("instructions")), "input.instructions", max_length=1000
+    )
+    if instructions:
+        built["instructions"] = instructions
+    return built
 
 
 def _subject_names(subject_ids, *, subject=None):
@@ -525,7 +531,12 @@ def build_rasheed_job_input(*, user, input_payload=None, parameters=None):
         "recent_actions": _recent_quiz_actions(user),
         "language": _language(payload),
     }
-    learner_goal = _optional_text(payload.get("learner_goal"), "input.learner_goal", max_length=500)
+    # The web's instructions box doubles as the learner's goal for Rasheed.
+    learner_goal = _optional_text(
+        payload.get("learner_goal") or payload.get("instructions"),
+        "input.learner_goal",
+        max_length=500,
+    )
     if learner_goal is not None:
         input_data["learner_goal"] = learner_goal
     return input_data
