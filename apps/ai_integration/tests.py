@@ -2,6 +2,7 @@ import hashlib
 import json
 import tempfile
 import time
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
@@ -12,6 +13,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
@@ -2084,6 +2086,32 @@ class JobRetryAfterTerminalStateTests(APITestCase):
         self.assertTrue(created)
         self.assertFalse(created_again)
         self.assertEqual(again.pk, first.pk)
+
+    def test_a_request_repeated_right_after_completion_is_still_reused(self):
+        first, _ = self._create()
+        AIJob.objects.filter(pk=first.pk).update(
+            status=AIJob.Status.COMPLETED, completed_at=timezone.now(), result_type='quiz', result_id='1'
+        )
+
+        again, created = self._create()
+
+        self.assertFalse(created)
+        self.assertEqual(again.pk, first.pk)
+
+    def test_asking_again_later_produces_a_new_result(self):
+        first, _ = self._create()
+        AIJob.objects.filter(pk=first.pk).update(
+            status=AIJob.Status.COMPLETED,
+            completed_at=timezone.now() - timedelta(minutes=10),
+            result_type='quiz',
+            result_id='1',
+        )
+
+        again, created = self._create()
+
+        self.assertTrue(created)
+        self.assertNotEqual(again.pk, first.pk)
+        self.assertNotEqual(again.idempotency_key, first.idempotency_key)
 
     def _assert_retry_starts_fresh(self, terminal_status):
         previous, _ = self._create()

@@ -584,6 +584,18 @@ def build_model_policy(parameters):
     return {"tier": tier, "allow_fallback": allow_fallback}
 
 
+#: How long a finished job still answers an identical request (a double click
+#: or a client retry arriving after the job completed).
+REPEAT_REQUEST_WINDOW = timedelta(minutes=2)
+
+
+def _finished_before_repeat_window(job):
+    finished_at = job.completed_at or (job.updated_at if job.status == AIJob.Status.COMPLETED else None)
+    return job.status == AIJob.Status.COMPLETED and finished_at is not None and (
+        timezone.now() - finished_at > REPEAT_REQUEST_WINDOW
+    )
+
+
 def build_idempotency_key(user_id, task_type, project_id, source_id, collection_id, payload, parameters):
     canonical = json.dumps(
         {
@@ -731,7 +743,10 @@ def create_ai_job(*, user, task_type, project=None, source=None, collection=None
     key = build_idempotency_key(user.id, task_type, getattr(project, "id", None), getattr(source, "id", None), getattr(collection, "id", None), input_payload, parameters)
     if not force:
         existing = AIJob.objects.filter(user=user, idempotency_key=key).exclude(status__in=[AIJob.Status.FAILED, AIJob.Status.CANCELED]).first()
-        if existing:
+        # The key guards against a double click or a retried request, not
+        # against asking again: a learner who requests another quiz on the
+        # same book later must get a new one, not the old result forever.
+        if existing and not _finished_before_repeat_window(existing):
             return existing, False
         # No in-flight job holds this key, but a failed/canceled one may still
         # occupy it in the database: `unique_ai_job_idempotency_per_user` has
