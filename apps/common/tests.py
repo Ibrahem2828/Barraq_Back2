@@ -157,17 +157,21 @@ class SystemAPITestCase(APITestCase):
         self.assertTrue(response.data['data']['features']['quizzes'])
 
     def test_seed_academic_data_runs_successfully(self):
+        # Migrations already seed the Baccalaureate stage and its subjects;
+        # the command adds its own 4 stages / 22 subjects on top.
+        stages, subjects = EducationStage.objects.count(), Subject.objects.count()
         self.seed_data()
 
-        self.assertEqual(EducationStage.objects.count(), 4)
-        self.assertEqual(Subject.objects.count(), 22)
+        self.assertEqual(EducationStage.objects.count(), stages + 4)
+        self.assertEqual(Subject.objects.count(), subjects + 22)
 
     def test_seed_academic_data_is_idempotent(self):
+        stages, subjects = EducationStage.objects.count(), Subject.objects.count()
         self.seed_data()
         self.seed_data()
 
-        self.assertEqual(EducationStage.objects.count(), 4)
-        self.assertEqual(Subject.objects.count(), 22)
+        self.assertEqual(EducationStage.objects.count(), stages + 4)
+        self.assertEqual(Subject.objects.count(), subjects + 22)
 
     def test_subject_filters_work_after_seed(self):
         self.seed_data()

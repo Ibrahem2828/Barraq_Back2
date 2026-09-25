@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -161,3 +162,73 @@ class BackfillProjectScopingCommandTests(TestCase):
         self.assertIsNotNone(job.project_id)
         self.assertEqual(recommendation.project_id, job.project_id)
         self.assertEqual(transcription.project_id, job.project_id)
+
+
+class StageProjectsTests(APITestCase):
+    """Choosing a stage (e.g. بكالوريا) gives one ready project per subject."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        from apps.subjects.models import EducationStage, Subject
+
+        self.User = get_user_model()
+        self.stage = EducationStage.objects.get(name="بكالوريا")  # seeded by subjects.0003
+        self.Subject = Subject
+        self.learner = self.User.objects.create_user(
+            email="bac@example.com", password="StrongPass123!", full_name="طالب بكالوريا"
+        )
+
+    def _setup_profile(self, stage):
+        self.client.force_authenticate(self.learner)
+        return self.client.post(
+            reverse("student-setup-profile"),
+            {"education_stage": stage.id, "grade_level": "الثالث الثانوي", "daily_study_hours": 3},
+            format="json",
+        )
+
+    def _project_subjects(self, user=None):
+        return sorted(
+            Project.objects.filter(owner=user or self.learner).values_list("subject__name", flat=True)
+        )
+
+    def test_the_baccalaureate_stage_carries_its_default_subjects(self):
+        names = set(self.Subject.objects.filter(education_stage=self.stage).values_list("name", flat=True))
+        for name in ("العلوم", "اللغة العربية", "الفيزياء", "الكيمياء", "التاريخ", "الجغرافيا",
+                     "الرياضيات - الجبر", "الرياضيات - الهندسة"):
+            self.assertIn(name, names)
+
+    def test_choosing_baccalaureate_creates_a_project_per_subject(self):
+        response = self._setup_profile(self.stage)
+        self.assertIn(response.status_code, (200, 201), response.data)
+        expected = sorted(
+            self.Subject.objects.filter(education_stage=self.stage, is_active=True).values_list("name", flat=True)
+        )
+        self.assertEqual(self._project_subjects(), expected)
+        project = Project.objects.filter(owner=self.learner).first()
+        self.assertEqual(project.title, project.subject.name)
+
+    def test_saving_the_profile_again_creates_no_duplicates_and_respects_deletions(self):
+        self._setup_profile(self.stage)
+        count = Project.objects.filter(owner=self.learner).count()
+        deleted = Project.objects.filter(owner=self.learner).first()
+        deleted.delete()  # soft delete by the learner
+
+        self.client.patch(reverse("student-profile"), {"daily_study_hours": 4}, format="json")
+
+        self.assertEqual(Project.all_objects.filter(owner=self.learner).count(), count)
+        self.assertEqual(Project.objects.filter(owner=self.learner).count(), count - 1)
+
+    def test_a_subject_added_from_the_dashboard_reaches_learners_already_in_the_stage(self):
+        self._setup_profile(self.stage)
+        other = self.User.objects.create_user(email="other@example.com", password="StrongPass123!", full_name="x")
+
+        new_subject = self.Subject.objects.create(name="اللغة الإنكليزية", education_stage=self.stage)
+
+        self.assertTrue(Project.objects.filter(owner=self.learner, subject=new_subject).exists())
+        self.assertFalse(Project.objects.filter(owner=other).exists())
+
+    def test_inactive_subjects_get_no_project(self):
+        self.Subject.objects.create(name="مادة معطلة", education_stage=self.stage, is_active=False)
+        self._setup_profile(self.stage)
+        self.assertNotIn("مادة معطلة", self._project_subjects())
