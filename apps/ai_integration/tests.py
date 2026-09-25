@@ -21,7 +21,7 @@ from rest_framework.test import APITestCase
 from apps.analytics.models import StudentRecommendation
 from apps.audio.models import Transcription
 from apps.projects.models import Project
-from apps.quizzes.models import Quiz
+from apps.quizzes.models import AttemptStatusChoices, Quiz, QuizAttempt
 from apps.sources.capabilities import get_source_character_capabilities
 from apps.sources.models import StudentSource, StudentSourceCollection
 from apps.study_plans.models import StudyPlan
@@ -762,6 +762,12 @@ class AIIntegrationApiTests(APITestCase):
             weaknesses=['Newton\'s laws', 'Thermodynamics'],
             recommendations=[],
         )
+        # Both are topics the learner was actually tested on.
+        for topic in ("Newton's laws", 'Thermodynamics'):
+            quiz = Quiz.objects.create(user=self.user, subject=self.subject, title=topic, topic=topic)
+            QuizAttempt.objects.create(
+                user=self.user, quiz=quiz, status=AttemptStatusChoices.SUBMITTED, percentage=Decimal('40')
+            )
         built_input = build_khota_job_input(
             subject=self.subject,
             user=self.user,
@@ -775,6 +781,35 @@ class AIIntegrationApiTests(APITestCase):
         )
         self.assertEqual(built_input['weak_topics'], ["Newton's laws", 'Thermodynamics'])
         self.assertEqual(built_input['subject_names'], {str(self.subject.id): self.subject.name})
+
+    def test_khota_does_not_schedule_sentences_about_missing_data(self):
+        from apps.analytics.models import StudentRecommendation
+
+        rasheed_job = AIJob.objects.create(
+            user=self.user,
+            subject=self.subject,
+            character=AIJob.Character.RASHEED,
+            task_type=AIJob.TaskType.RASHEED_RECOMMENDATIONS,
+            status=AIJob.Status.SUBMITTED,
+            idempotency_key='rasheed-without-topic-data',
+        )
+        StudentRecommendation.objects.create(
+            user=self.user,
+            subject=self.subject,
+            ai_job=rasheed_job,
+            title='Rasheed recommendation',
+            summary='...',
+            weaknesses=['No quiz attempts were recorded (quiz_attempts = 0).'],
+            recommendations=[],
+        )
+        built_input = build_khota_job_input(
+            subject=self.subject,
+            user=self.user,
+            project=None,
+            input_payload={'start_date': '2026-09-01', 'end_date': '2026-09-03'},
+            parameters={},
+        )
+        self.assertEqual(built_input['weak_topics'], [])
 
     def test_khota_names_supplied_subjects_and_ignores_unknown_ids(self):
         built_input = build_khota_job_input(

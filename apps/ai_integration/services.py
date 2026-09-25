@@ -369,7 +369,20 @@ def _latest_weak_topics(*, user, project=None, limit=50):
     if latest is None:
         return []
     weaknesses = latest.weaknesses if isinstance(latest.weaknesses, list) else []
-    return [str(item).strip() for item in weaknesses if isinstance(item, str) and item.strip()][:limit]
+    # Only real topics become study tasks. Recommendations made without
+    # per-topic data listed sentences about the missing data as weaknesses
+    # ("no quiz attempts were recorded"), which Khota then scheduled
+    # (production 2026-09-25); the AI service now filters them too, but
+    # recommendations already stored still carry them.
+    known = [item["topic"].casefold() for item in _topic_performance(user, limit=50)]
+    topics = []
+    for item in weaknesses:
+        if not isinstance(item, str) or not item.strip():
+            continue
+        folded = item.strip().casefold()
+        if any(topic and (topic in folded or folded in topic) for topic in known):
+            topics.append(item.strip())
+    return topics[:limit]
 
 
 def build_khota_job_input(
