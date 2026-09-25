@@ -401,6 +401,7 @@ def build_khota_job_input(
     return {
         "source_ids": _input_source_ids(payload, source=source, collection=collection),
         "subject_ids": subject_ids,
+        "subject_names": _subject_names(subject_ids, subject=subject),
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
         "daily_available_minutes": _integer(
@@ -426,6 +427,17 @@ def build_khota_job_input(
         ),
         "language": _language(payload),
     }
+
+
+def _subject_names(subject_ids, *, subject=None):
+    """Display names for a plan's subjects, so Khota says "Chemistry" instead
+    of "subject 7". Unknown or non-numeric ids simply get no name."""
+    if subject is not None:
+        return {str(subject.id): subject.name}
+    from apps.subjects.models import Subject
+
+    numeric = [value for value in subject_ids if value.isdigit()]
+    return {str(pk): name for pk, name in Subject.objects.filter(pk__in=numeric).values_list('pk', 'name')}
 
 
 def _topic_performance(user, *, limit=20):

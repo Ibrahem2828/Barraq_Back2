@@ -772,6 +772,20 @@ class AIIntegrationApiTests(APITestCase):
             parameters={},
         )
         self.assertEqual(built_input['weak_topics'], ["Newton's laws", 'Thermodynamics'])
+        self.assertEqual(built_input['subject_names'], {str(self.subject.id): self.subject.name})
+
+    def test_khota_names_supplied_subjects_and_ignores_unknown_ids(self):
+        built_input = build_khota_job_input(
+            user=self.user,
+            project=None,
+            input_payload={
+                'subject_ids': [str(self.subject.id), '999999', 'not-a-number'],
+                'start_date': '2026-09-01',
+                'end_date': '2026-09-03',
+            },
+            parameters={},
+        )
+        self.assertEqual(built_input['subject_names'], {str(self.subject.id): self.subject.name})
 
 
 @override_settings(
