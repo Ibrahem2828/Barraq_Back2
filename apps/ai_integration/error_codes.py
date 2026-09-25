@@ -52,6 +52,13 @@ class ErrorCode(models.TextChoices):
     VALIDATION_FAILED = "validation_failed", "Output validation failed"
     RESULT_VALIDATION_FAILED = "result_validation_failed", "Result validation failed"
     OUTPUT_VALIDATION_FAILED = "output_validation_failed", "Output validation failed"
+    # The AI service's grounding checks (Baraq_AI app/rag/grounding.py): the
+    # generated result could not be verified against the learner's sources.
+    # They were unknown here and surfaced as "provider unavailable".
+    UNSUPPORTED_CLAIM = "unsupported_claim", "Claim not supported by its evidence"
+    UNVERIFIABLE_CLAIM = "unverifiable_claim", "Claim has no verifiable content"
+    INVALID_SOURCE_REFERENCE = "invalid_source_reference", "Invalid source reference"
+    UNSUPPORTED_TOPIC_REFERENCE = "unsupported_topic_reference", "Unsupported topic reference"
     WORKER_INTERRUPTED = (
         "worker_interrupted_execution_uncertain",
         "Worker interrupted after processing began",
@@ -105,6 +112,10 @@ _PUBLIC_ERROR_MESSAGES: dict[str, str] = {
     ErrorCode.VALIDATION_FAILED: "The generated result did not pass validation.",
     ErrorCode.RESULT_VALIDATION_FAILED: "The generated result did not pass validation.",
     ErrorCode.OUTPUT_VALIDATION_FAILED: "The generated result did not pass validation.",
+    ErrorCode.UNSUPPORTED_CLAIM: "The result could not be verified against your sources. Please try again.",
+    ErrorCode.UNVERIFIABLE_CLAIM: "The result could not be verified against your sources. Please try again.",
+    ErrorCode.INVALID_SOURCE_REFERENCE: "The result could not be verified against your sources. Please try again.",
+    ErrorCode.UNSUPPORTED_TOPIC_REFERENCE: "The result could not be verified against your data. Please try again.",
     ErrorCode.WORKER_INTERRUPTED: "The job stopped safely after a worker interruption.",
 }
 
@@ -119,6 +130,11 @@ _RETRYABLE_CODES: frozenset[str] = frozenset(
         ErrorCode.PROVIDER_RATE_LIMITED,
         ErrorCode.PROVIDER_UNAVAILABLE,
         ErrorCode.ALL_PROVIDERS_FAILED,
+        # A new generation is likely to pass: the check rejects one output.
+        ErrorCode.UNSUPPORTED_CLAIM,
+        ErrorCode.UNVERIFIABLE_CLAIM,
+        ErrorCode.INVALID_SOURCE_REFERENCE,
+        ErrorCode.UNSUPPORTED_TOPIC_REFERENCE,
     }
 )
 
