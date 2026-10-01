@@ -9,10 +9,10 @@ from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -40,6 +40,7 @@ from apps.subscriptions.services import (
 )
 from apps.support.models import SupportTicket
 
+from . import performance
 from .models import AdminPermission, AdminRole, AuditLog
 from .permissions import HasAdminPermission, IsAdminDashboardUser
 from .serializers import (
@@ -62,6 +63,9 @@ from .serializers import (
     ManagedUserCreateSerializer,
     ManagedUserSerializer,
     ManagedUserUpdateSerializer,
+    StudentPerformanceDetailSerializer,
+    StudentPerformanceRowSerializer,
+    StudentPerformanceSummarySerializer,
     SystemHealthSerializer,
     build_admin_me_payload,
     managed_user_queryset,
@@ -897,3 +901,65 @@ class AdminApiRootView(APIView):
             'support_tickets': f'{base}/api/v1/admin/support-tickets/',
             'subscriptions': f'{base}/api/v1/admin/user-subscriptions/',
         })
+
+
+_PERFORMANCE_FILTERS = [
+    OpenApiParameter('organization', OpenApiTypes.UUID, description='Organization public id.'),
+    OpenApiParameter('classroom', OpenApiTypes.UUID, description='Class public id.'),
+    OpenApiParameter('days', OpenApiTypes.INT, description='Reporting window in days (1-365, default 30).'),
+]
+
+
+@extend_schema(tags=['Admin Students'])
+class StudentPerformanceViewSet(AdminPermissionMixin, viewsets.GenericViewSet):  # type: ignore[misc]
+    """How an organization's students work: quizzes, scores, AI use.
+
+    Scoped by organization/class membership rather than by row owner, so a
+    supervisor reports on exactly the students it was granted. AI activity
+    is metadata only (character, task, status, time) -- never content.
+    """
+
+    required_permission = performance.PERMISSION
+    tenant_user_field = scope_policy.TenantScopedQuerysetMixin.SCOPED_BY_ORGANIZATION
+    serializer_class = StudentPerformanceRowSerializer
+
+    def _population(self):
+        return performance.student_population(self.request.user, self.request.query_params)
+
+    @extend_schema(
+        parameters=[
+            *_PERFORMANCE_FILTERS,
+            OpenApiParameter('search', OpenApiTypes.STR, description='Name or email.'),
+            OpenApiParameter(
+                'ordering',
+                OpenApiTypes.STR,
+                description='name, email, quizzes, score, ai, last_quiz, last_ai; prefix "-" to reverse. Default -last_ai.',
+            ),
+        ],
+        responses=StudentPerformanceRowSerializer(many=True),
+    )
+    def list(self, request):
+        days, since = performance.period_start(request.query_params)
+        users = performance.apply_search(self._population(), request.query_params)
+        users = performance.apply_ordering(performance.annotate_metrics(users, since), request.query_params)
+        page = self.paginate_queryset(users)
+        rows = performance.build_rows(request.user, page if page is not None else users, since)
+        data = StudentPerformanceRowSerializer(rows, many=True).data
+        return self.get_paginated_response(data) if page is not None else Response(data)
+
+    @extend_schema(parameters=_PERFORMANCE_FILTERS, responses=StudentPerformanceDetailSerializer)
+    def retrieve(self, request, pk=None):
+        days, since = performance.period_start(request.query_params)
+        try:
+            user_id = int(pk)
+        except (TypeError, ValueError) as exc:
+            raise NotFound('Unknown student.') from exc
+        row = performance.build_detail(request.user, self._population(), user_id, days, since)
+        return Response(StudentPerformanceDetailSerializer(row).data)
+
+    @extend_schema(parameters=_PERFORMANCE_FILTERS, responses=StudentPerformanceSummarySerializer)
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        days, since = performance.period_start(request.query_params)
+        payload = performance.build_summary(request.user, self._population(), days, since)
+        return Response(StudentPerformanceSummarySerializer(payload).data)

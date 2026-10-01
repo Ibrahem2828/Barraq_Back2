@@ -134,6 +134,9 @@ DEFAULT_ROLES = {
             # Adds accounts to the manager's own organization only: the
             # create endpoint confines it to organizations in this scope.
             'users.create',
+            # Student performance (quizzes, scores, AI use) of its own
+            # organization's students -- see admin_dashboard/performance.py.
+            'students.view',
             'subjects.view',
             'education_stages.view',
         ],
@@ -150,6 +153,8 @@ DEFAULT_ROLES = {
             'class_members.manage',
             'join_requests.view',
             'join_requests.manage',
+            # Performance of the students in its own classes only.
+            'students.view',
             'subjects.view',
             'education_stages.view',
         ],

@@ -4046,6 +4046,37 @@
         ],
         "type": "object"
       },
+      "PaginatedStudentPerformanceRowList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/StudentPerformanceRow"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
       "PaginatedStudentRecommendationList": {
         "properties": {
           "count": {
@@ -6598,6 +6629,244 @@
           "id",
           "question",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "StudentPerformanceDetail": {
+        "properties": {
+          "ai_by_character": {
+            "$ref": "#/components/schemas/_CharacterCounts"
+          },
+          "ai_completed": {
+            "type": "integer"
+          },
+          "ai_failed": {
+            "type": "integer"
+          },
+          "ai_requests": {
+            "type": "integer"
+          },
+          "average_score": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/_Placement"
+            },
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_ai_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_quiz_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "needs_attention": {
+            "type": "boolean"
+          },
+          "organizations": {
+            "items": {
+              "$ref": "#/components/schemas/_Placement"
+            },
+            "type": "array"
+          },
+          "period_days": {
+            "type": "integer"
+          },
+          "quizzes_submitted": {
+            "type": "integer"
+          },
+          "recent_ai_activity": {
+            "items": {
+              "$ref": "#/components/schemas/_RecentAIActivity"
+            },
+            "type": "array"
+          },
+          "recent_attempts": {
+            "items": {
+              "$ref": "#/components/schemas/_RecentAttempt"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "ai_by_character",
+          "ai_completed",
+          "ai_failed",
+          "ai_requests",
+          "average_score",
+          "classes",
+          "email",
+          "full_name",
+          "id",
+          "last_activity_at",
+          "last_ai_at",
+          "last_quiz_at",
+          "needs_attention",
+          "organizations",
+          "period_days",
+          "quizzes_submitted",
+          "recent_ai_activity",
+          "recent_attempts"
+        ],
+        "type": "object"
+      },
+      "StudentPerformanceRow": {
+        "properties": {
+          "ai_by_character": {
+            "$ref": "#/components/schemas/_CharacterCounts"
+          },
+          "ai_completed": {
+            "type": "integer"
+          },
+          "ai_failed": {
+            "type": "integer"
+          },
+          "ai_requests": {
+            "type": "integer"
+          },
+          "average_score": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/_Placement"
+            },
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_ai_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_quiz_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "needs_attention": {
+            "type": "boolean"
+          },
+          "organizations": {
+            "items": {
+              "$ref": "#/components/schemas/_Placement"
+            },
+            "type": "array"
+          },
+          "quizzes_submitted": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ai_by_character",
+          "ai_completed",
+          "ai_failed",
+          "ai_requests",
+          "average_score",
+          "classes",
+          "email",
+          "full_name",
+          "id",
+          "last_activity_at",
+          "last_ai_at",
+          "last_quiz_at",
+          "needs_attention",
+          "organizations",
+          "quizzes_submitted"
+        ],
+        "type": "object"
+      },
+      "StudentPerformanceSummary": {
+        "properties": {
+          "active_students": {
+            "type": "integer"
+          },
+          "ai_by_character": {
+            "$ref": "#/components/schemas/_CharacterCounts"
+          },
+          "ai_completed": {
+            "type": "integer"
+          },
+          "ai_failed": {
+            "type": "integer"
+          },
+          "ai_requests": {
+            "type": "integer"
+          },
+          "average_score": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "needs_attention": {
+            "type": "integer"
+          },
+          "period_days": {
+            "type": "integer"
+          },
+          "quizzes_submitted": {
+            "type": "integer"
+          },
+          "score_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "students_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_students",
+          "ai_by_character",
+          "ai_completed",
+          "ai_failed",
+          "ai_requests",
+          "average_score",
+          "needs_attention",
+          "period_days",
+          "quizzes_submitted",
+          "score_distribution",
+          "students_count"
         ],
         "type": "object"
       },
@@ -9480,6 +9749,124 @@
           "days",
           "end_date",
           "start_date"
+        ],
+        "type": "object"
+      },
+      "_CharacterCounts": {
+        "properties": {
+          "fahes": {
+            "type": "integer"
+          },
+          "kholasa": {
+            "type": "integer"
+          },
+          "khota": {
+            "type": "integer"
+          },
+          "rasheed": {
+            "type": "integer"
+          },
+          "sada": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fahes",
+          "kholasa",
+          "khota",
+          "rasheed",
+          "sada"
+        ],
+        "type": "object"
+      },
+      "_Placement": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "public_id"
+        ],
+        "type": "object"
+      },
+      "_RecentAIActivity": {
+        "properties": {
+          "character": {
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "character",
+          "completed_at",
+          "created_at",
+          "status",
+          "task_type"
+        ],
+        "type": "object"
+      },
+      "_RecentAttempt": {
+        "properties": {
+          "correct_answers_count": {
+            "type": "integer"
+          },
+          "duration_seconds": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "percentage": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "quiz_title": {
+            "type": "string"
+          },
+          "subject": {
+            "nullable": true,
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "unanswered_count": {
+            "type": "integer"
+          },
+          "wrong_answers_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "correct_answers_count",
+          "duration_seconds",
+          "percentage",
+          "quiz_title",
+          "subject",
+          "submitted_at",
+          "unanswered_count",
+          "wrong_answers_count"
         ],
         "type": "object"
       }

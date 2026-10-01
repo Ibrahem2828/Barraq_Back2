@@ -834,3 +834,73 @@ def managed_user_queryset():
         study_plans_count=Count('study_plans', distinct=True),
         quizzes_count=Count('quizzes', distinct=True),
     )
+
+
+class _PlacementSerializer(serializers.Serializer):
+    public_id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class _CharacterCountsSerializer(serializers.Serializer):
+    fahes = serializers.IntegerField()
+    khota = serializers.IntegerField()
+    rasheed = serializers.IntegerField()
+    kholasa = serializers.IntegerField()
+    sada = serializers.IntegerField()
+
+
+class StudentPerformanceRowSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    full_name = serializers.CharField()
+    email = serializers.EmailField()
+    organizations = _PlacementSerializer(many=True)
+    classes = _PlacementSerializer(many=True)
+    quizzes_submitted = serializers.IntegerField()
+    average_score = serializers.FloatField(allow_null=True)
+    last_quiz_at = serializers.DateTimeField(allow_null=True)
+    ai_requests = serializers.IntegerField()
+    ai_completed = serializers.IntegerField()
+    ai_failed = serializers.IntegerField()
+    ai_by_character = _CharacterCountsSerializer()
+    last_ai_at = serializers.DateTimeField(allow_null=True)
+    last_activity_at = serializers.DateTimeField(allow_null=True)
+    needs_attention = serializers.BooleanField()
+
+
+class _RecentAttemptSerializer(serializers.Serializer):
+    quiz_title = serializers.CharField()
+    subject = serializers.CharField(allow_null=True)
+    percentage = serializers.FloatField(allow_null=True)
+    correct_answers_count = serializers.IntegerField()
+    wrong_answers_count = serializers.IntegerField()
+    unanswered_count = serializers.IntegerField()
+    duration_seconds = serializers.IntegerField(allow_null=True)
+    submitted_at = serializers.DateTimeField(allow_null=True)
+
+
+class _RecentAIActivitySerializer(serializers.Serializer):
+    character = serializers.CharField()
+    task_type = serializers.CharField()
+    status = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    completed_at = serializers.DateTimeField(allow_null=True)
+
+
+class StudentPerformanceDetailSerializer(StudentPerformanceRowSerializer):
+    period_days = serializers.IntegerField()
+    recent_attempts = _RecentAttemptSerializer(many=True)
+    recent_ai_activity = _RecentAIActivitySerializer(many=True)
+
+
+class StudentPerformanceSummarySerializer(serializers.Serializer):
+    period_days = serializers.IntegerField()
+    students_count = serializers.IntegerField()
+    active_students = serializers.IntegerField()
+    needs_attention = serializers.IntegerField()
+    quizzes_submitted = serializers.IntegerField()
+    average_score = serializers.FloatField(allow_null=True)
+    ai_requests = serializers.IntegerField()
+    ai_completed = serializers.IntegerField()
+    ai_failed = serializers.IntegerField()
+    ai_by_character = _CharacterCountsSerializer()
+    score_distribution = serializers.DictField(child=serializers.IntegerField())

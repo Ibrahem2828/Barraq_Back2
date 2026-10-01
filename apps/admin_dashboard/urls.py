@@ -27,6 +27,7 @@ from .views import (
     AdminUserViewSet,
     AuditLogViewSet,
     ManagedUserViewSet,
+    StudentPerformanceViewSet,
     SystemHealthView,
 )
 
@@ -37,6 +38,7 @@ router.register(r'subjects', AdminSubjectViewSet, basename='admin-subject')
 router.register(r'roles', AdminRoleViewSet, basename='admin-role')
 router.register(r'admin-users', AdminUserViewSet, basename='admin-user')
 router.register(r'users', ManagedUserViewSet, basename='admin-managed-user')
+router.register(r'student-performance', StudentPerformanceViewSet, basename='admin-student-performance')
 router.register(
     r'source-collections',
     AdminSourceCollectionViewSet,
