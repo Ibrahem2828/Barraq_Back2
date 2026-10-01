@@ -8,7 +8,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
-from django.db import IntegrityError, close_old_connections, connection
+from django.db import IntegrityError, close_old_connections, connection, connections
 from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -283,7 +283,11 @@ class PendingRegistrationConcurrencyTests(TransactionTestCase):
                 with result_lock:
                     results.append((response.status_code, 'access' in response.data))
             finally:
-                close_old_connections()
+                # Not close_old_connections(): with CONN_MAX_AGE=60 it keeps
+                # this thread's connection open, and a session still attached
+                # to the test database makes its teardown fail ("being
+                # accessed by other users") whenever thread GC runs late.
+                connections.close_all()
 
         threads = [threading.Thread(target=verify), threading.Thread(target=verify)]
         for thread in threads:
