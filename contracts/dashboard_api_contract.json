@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-22T18:22:40+00:00",
-    "generated_from_backend_commit": "58d065469689986d855361ad8c667b7446b0b15e",
+    "generated_at": "2026-10-01T21:23:40+00:00",
+    "generated_from_backend_commit": "1834f6195cac6ac3277490bff3228982dde0248e",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -10009,6 +10009,479 @@
         "permissions": [
           "IsAdminDashboardUser",
           "HasAdminPermission",
+          "students.view"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "list",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.admin_dashboard.serializers.StudentPerformanceRowSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/admin_dashboard/urls.py",
+        "view": "apps.admin_dashboard.views.StudentPerformanceViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "How an organization's students work: quizzes, scores, AI use.\n\nScoped by organization/class membership rather than by row owner, so a\nsupervisor reports on exactly the students it was granted. AI activity\nis metadata only (character, task, status, time) -- never content.",
+      "domain": "admin_students",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_student_performance_list",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_admin_student_performance_list",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": {
+        "default_page_size": 20,
+        "maximum_page_size": 100,
+        "meta": [
+          "count",
+          "next",
+          "previous"
+        ],
+        "page_query_parameter": "page",
+        "page_size_query_parameter": "page_size",
+        "type": "page_number",
+        "wrapped_data_location": "data"
+      },
+      "path": "/api/v1/admin/student-performance/",
+      "path_parameters": [],
+      "query_parameters": [
+        {
+          "description": "Class public id.",
+          "name": "classroom",
+          "required": false,
+          "schema": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Reporting window in days (1-365, default 30).",
+          "name": "days",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "name, email, quizzes, score, ai, last_quiz, last_ai; prefix \"-\" to reverse. Default -last_ai.",
+          "name": "ordering",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Organization public id.",
+          "name": "organization",
+          "required": false,
+          "schema": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        {
+          "description": "رقم الصفحة ضمن النتائج المقسمة.",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+          "name": "page_size",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Name or email.",
+          "name": "search",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/PaginatedStudentPerformanceRowList/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
+          "students.view"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "summary",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.admin_dashboard.serializers.StudentPerformanceRowSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/admin_dashboard/urls.py",
+        "view": "apps.admin_dashboard.views.StudentPerformanceViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "How an organization's students work: quizzes, scores, AI use.\n\nScoped by organization/class membership rather than by row owner, so a\nsupervisor reports on exactly the students it was granted. AI activity\nis metadata only (character, task, status, time) -- never content.",
+      "domain": "admin_students",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_student_performance_summary_retrieve",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_admin_student_performance_summary_retrieve",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": null,
+      "path": "/api/v1/admin/student-performance/summary/",
+      "path_parameters": [],
+      "query_parameters": [
+        {
+          "description": "Class public id.",
+          "name": "classroom",
+          "required": false,
+          "schema": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Reporting window in days (1-365, default 30).",
+          "name": "days",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Organization public id.",
+          "name": "organization",
+          "required": false,
+          "schema": {
+            "format": "uuid",
+            "type": "string"
+          }
+        }
+      ],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/StudentPerformanceSummary/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
+          "students.view"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "retrieve",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.admin_dashboard.serializers.StudentPerformanceRowSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/admin_dashboard/urls.py",
+        "view": "apps.admin_dashboard.views.StudentPerformanceViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "How an organization's students work: quizzes, scores, AI use.\n\nScoped by organization/class membership rather than by row owner, so a\nsupervisor reports on exactly the students it was granted. AI activity\nis metadata only (character, task, status, time) -- never content.",
+      "domain": "admin_students",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_student_performance_retrieve",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_admin_student_performance_retrieve",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": null,
+      "path": "/api/v1/admin/student-performance/{id}/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [
+        {
+          "description": "Class public id.",
+          "name": "classroom",
+          "required": false,
+          "schema": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Reporting window in days (1-365, default 30).",
+          "name": "days",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Organization public id.",
+          "name": "organization",
+          "required": false,
+          "schema": {
+            "format": "uuid",
+            "type": "string"
+          }
+        }
+      ],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/StudentPerformanceDetail/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
           "study_plans.view"
         ],
         "required": true,
@@ -13464,6 +13937,142 @@
         "permissions": [
           "IsAdminDashboardUser",
           "HasAdminPermission",
+          "users.create"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "create",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.admin_dashboard.serializers.ManagedUserCreateSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/admin_dashboard/urls.py",
+        "view": "apps.admin_dashboard.views.ManagedUserViewSet"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
+      "domain": "admin_managed_users",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_users_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_admin_users_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": null,
+      "path": "/api/v1/admin/users/",
+      "path_parameters": [],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": true,
+        "schema": {
+          "$ref": "#/resources/ManagedUserCreateRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "201": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/ManagedUserCreate/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
           "users.view"
         ],
         "required": true,
@@ -15397,6 +16006,14 @@
         "cancelled"
       ]
     },
+    "OrganizationMembershipTypeEnum": {
+      "nullable": false,
+      "type": "string",
+      "values": [
+        "student",
+        "staff"
+      ]
+    },
     "OrganizationStatusEnum": {
       "nullable": false,
       "type": "string",
@@ -15755,7 +16372,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
           "maximum": 5,
           "min_length": null,
@@ -16034,7 +16651,6 @@
             "type": "string"
           },
           "rating": {
-            "format": "int64",
             "maximum": 5,
             "minimum": 1,
             "type": "integer"
@@ -17758,9 +18374,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "result_id",
@@ -17865,8 +18481,7 @@
           },
           "metadata": {},
           "result_id": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -19155,9 +19770,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "questions_count",
@@ -19171,9 +19786,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "time_limit_minutes",
@@ -19257,8 +19872,7 @@
             "type": "integer"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -19276,8 +19890,7 @@
             "type": "string"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -19487,9 +20100,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "correct_answers_count",
@@ -19503,9 +20116,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "wrong_answers_count",
@@ -19519,9 +20132,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "unanswered_count",
@@ -19535,9 +20148,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "duration_seconds",
@@ -19583,8 +20196,7 @@
       "schema": {
         "properties": {
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -19594,8 +20206,7 @@
             "type": "string"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -19639,8 +20250,7 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -19658,8 +20268,7 @@
             "readOnly": true
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -20821,9 +21430,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "daily_study_minutes",
@@ -20990,8 +21599,7 @@
             "type": "string"
           },
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -21124,9 +21732,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "estimated_minutes",
@@ -21183,9 +21791,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -21199,8 +21807,7 @@
       "schema": {
         "properties": {
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -21209,8 +21816,7 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -23471,9 +24077,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 32767,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -23554,8 +24160,7 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           },
@@ -23612,9 +24217,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 32767,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -23655,8 +24260,7 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           }
@@ -23807,9 +24411,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "max_uses",
@@ -23879,8 +24483,7 @@
             "type": "integer"
           },
           "max_uses": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -23955,9 +24558,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "max_uses",
@@ -23977,8 +24580,7 @@
             "type": "string"
           },
           "max_uses": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -24509,6 +25111,357 @@
         "type": "object"
       }
     },
+    "ManagedUserCreate": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 255,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "full_name",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 32,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "phone_number",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": "student",
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "member_type",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "role_codes",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "array",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "description": "A learner (or staff) account created from the dashboard.\n\nThe same identity rules as self-registration (normalized email, phone\nformat, Django's password policy). The account belongs to an\norganization when one is given -- and must for a scoped administrator,\nwho can only add people to organizations they manage. A dashboard role\n(e.g. organization_manager) may be granted in the same step, under the\nsame rules as the admin-creation endpoint: never beyond the caller's own\npermissions or reach, and scoped to that organization.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "member_type": {
+            "allOf": [
+              {
+                "$ref": "#/resources/OrganizationMembershipTypeEnum/schema"
+              }
+            ],
+            "default": "student"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "phone_number": {
+            "maxLength": 32,
+            "pattern": "^[0-9+\\-\\s()]{7,20}$",
+            "type": "string"
+          },
+          "role_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "email",
+          "full_name"
+        ],
+        "type": "object"
+      }
+    },
+    "ManagedUserCreateRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": 1,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 255,
+          "maximum": null,
+          "min_length": 1,
+          "minimum": null,
+          "name": "full_name",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": 32,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "phone_number",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": 10,
+          "minimum": null,
+          "name": "password",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": true
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": "student",
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "member_type",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "role_codes",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "type": "array",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "description": "A learner (or staff) account created from the dashboard.\n\nThe same identity rules as self-registration (normalized email, phone\nformat, Django's password policy). The account belongs to an\norganization when one is given -- and must for a scoped administrator,\nwho can only add people to organizations they manage. A dashboard role\n(e.g. organization_manager) may be granted in the same step, under the\nsame rules as the admin-creation endpoint: never beyond the caller's own\npermissions or reach, and scoped to that organization.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "minLength": 1,
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "member_type": {
+            "allOf": [
+              {
+                "$ref": "#/resources/OrganizationMembershipTypeEnum/schema"
+              }
+            ],
+            "default": "student"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "password": {
+            "minLength": 10,
+            "type": "string",
+            "writeOnly": true
+          },
+          "phone_number": {
+            "maxLength": 32,
+            "pattern": "^[0-9+\\-\\s()]{7,20}$",
+            "type": "string"
+          },
+          "role_codes": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "email",
+          "full_name",
+          "password"
+        ],
+        "type": "object"
+      }
+    },
     "ManagedUserRequest": {
       "fields": [
         {
@@ -24895,6 +25848,17 @@
           "updated_at"
         ],
         "type": "object"
+      }
+    },
+    "OrganizationMembershipTypeEnum": {
+      "fields": [],
+      "schema": {
+        "description": "* `student` - Student\n* `staff` - Staff",
+        "enum": [
+          "student",
+          "staff"
+        ],
+        "type": "string"
       }
     },
     "OrganizationRequest": {
@@ -27139,6 +28103,105 @@
         "type": "object"
       }
     },
+    "PaginatedStudentPerformanceRowList": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uri",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "next",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uri",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "previous",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "results",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/resources/StudentPerformanceRow/schema"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      }
+    },
     "PaginatedStudentRecommendationList": {
       "fields": [
         {
@@ -28425,9 +29488,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 32767,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -28468,8 +29531,7 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           }
@@ -28904,9 +29966,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "sort_order",
@@ -28954,8 +30016,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -29401,6 +30462,963 @@
           "other"
         ],
         "type": "string"
+      }
+    },
+    "StudentPerformanceDetail": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "id",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "full_name",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organizations",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classes",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "quizzes_submitted",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "double",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "average_score",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "number",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "last_quiz_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_requests",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_completed",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_failed",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_by_character",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "schema_ref": "#/resources/_CharacterCounts/schema",
+          "type": "object",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "last_ai_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "last_activity_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "needs_attention",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "boolean",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "period_days",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "recent_attempts",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "recent_ai_activity",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "ai_by_character": {
+            "$ref": "#/resources/_CharacterCounts/schema"
+          },
+          "ai_completed": {
+            "type": "integer"
+          },
+          "ai_failed": {
+            "type": "integer"
+          },
+          "ai_requests": {
+            "type": "integer"
+          },
+          "average_score": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/resources/_Placement/schema"
+            },
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_ai_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_quiz_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "needs_attention": {
+            "type": "boolean"
+          },
+          "organizations": {
+            "items": {
+              "$ref": "#/resources/_Placement/schema"
+            },
+            "type": "array"
+          },
+          "period_days": {
+            "type": "integer"
+          },
+          "quizzes_submitted": {
+            "type": "integer"
+          },
+          "recent_ai_activity": {
+            "items": {
+              "$ref": "#/resources/_RecentAIActivity/schema"
+            },
+            "type": "array"
+          },
+          "recent_attempts": {
+            "items": {
+              "$ref": "#/resources/_RecentAttempt/schema"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "ai_by_character",
+          "ai_completed",
+          "ai_failed",
+          "ai_requests",
+          "average_score",
+          "classes",
+          "email",
+          "full_name",
+          "id",
+          "last_activity_at",
+          "last_ai_at",
+          "last_quiz_at",
+          "needs_attention",
+          "organizations",
+          "period_days",
+          "quizzes_submitted",
+          "recent_ai_activity",
+          "recent_attempts"
+        ],
+        "type": "object"
+      }
+    },
+    "StudentPerformanceRow": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "id",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "full_name",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "email",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organizations",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classes",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "quizzes_submitted",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "double",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "average_score",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "number",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "last_quiz_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_requests",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_completed",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_failed",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_by_character",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "schema_ref": "#/resources/_CharacterCounts/schema",
+          "type": "object",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "last_ai_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "last_activity_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "needs_attention",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "boolean",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "ai_by_character": {
+            "$ref": "#/resources/_CharacterCounts/schema"
+          },
+          "ai_completed": {
+            "type": "integer"
+          },
+          "ai_failed": {
+            "type": "integer"
+          },
+          "ai_requests": {
+            "type": "integer"
+          },
+          "average_score": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/resources/_Placement/schema"
+            },
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_ai_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_quiz_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "needs_attention": {
+            "type": "boolean"
+          },
+          "organizations": {
+            "items": {
+              "$ref": "#/resources/_Placement/schema"
+            },
+            "type": "array"
+          },
+          "quizzes_submitted": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ai_by_character",
+          "ai_completed",
+          "ai_failed",
+          "ai_requests",
+          "average_score",
+          "classes",
+          "email",
+          "full_name",
+          "id",
+          "last_activity_at",
+          "last_ai_at",
+          "last_quiz_at",
+          "needs_attention",
+          "organizations",
+          "quizzes_submitted"
+        ],
+        "type": "object"
+      }
+    },
+    "StudentPerformanceSummary": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "period_days",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "students_count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "active_students",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "needs_attention",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "quizzes_submitted",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "double",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "average_score",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "number",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_requests",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_completed",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_failed",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "ai_by_character",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "schema_ref": "#/resources/_CharacterCounts/schema",
+          "type": "object",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "score_distribution",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "object",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "active_students": {
+            "type": "integer"
+          },
+          "ai_by_character": {
+            "$ref": "#/resources/_CharacterCounts/schema"
+          },
+          "ai_completed": {
+            "type": "integer"
+          },
+          "ai_failed": {
+            "type": "integer"
+          },
+          "ai_requests": {
+            "type": "integer"
+          },
+          "average_score": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "needs_attention": {
+            "type": "integer"
+          },
+          "period_days": {
+            "type": "integer"
+          },
+          "quizzes_submitted": {
+            "type": "integer"
+          },
+          "score_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "students_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_students",
+          "ai_by_character",
+          "ai_completed",
+          "ai_failed",
+          "ai_requests",
+          "average_score",
+          "needs_attention",
+          "period_days",
+          "quizzes_submitted",
+          "score_distribution",
+          "students_count"
+        ],
+        "type": "object"
       }
     },
     "StudentProfileBrief": {
@@ -30472,9 +32490,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "sort_order",
@@ -30560,8 +32578,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -30754,9 +32771,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "sort_order",
@@ -30804,8 +32821,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -31333,6 +33349,22 @@
           "maximum": null,
           "min_length": null,
           "minimum": null,
+          "name": "flashcards",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
           "name": "source_references",
           "nullable": false,
           "read_only": true,
@@ -31408,6 +33440,9 @@
             "readOnly": true,
             "type": "string"
           },
+          "flashcards": {
+            "readOnly": true
+          },
           "id": {
             "readOnly": true,
             "type": "integer"
@@ -31460,6 +33495,7 @@
           "covered_topics",
           "created_at",
           "detailed_summary",
+          "flashcards",
           "id",
           "important_terms",
           "key_points",
@@ -32920,6 +34956,460 @@
             "type": "string"
           }
         },
+        "type": "object"
+      }
+    },
+    "_CharacterCounts": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "fahes",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "khota",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "rasheed",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "kholasa",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "sada",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "fahes": {
+            "type": "integer"
+          },
+          "kholasa": {
+            "type": "integer"
+          },
+          "khota": {
+            "type": "integer"
+          },
+          "rasheed": {
+            "type": "integer"
+          },
+          "sada": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fahes",
+          "kholasa",
+          "khota",
+          "rasheed",
+          "sada"
+        ],
+        "type": "object"
+      }
+    },
+    "_Placement": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "public_id",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "name",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "public_id"
+        ],
+        "type": "object"
+      }
+    },
+    "_RecentAIActivity": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "character",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "task_type",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "status",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "created_at",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "completed_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "character": {
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "character",
+          "completed_at",
+          "created_at",
+          "status",
+          "task_type"
+        ],
+        "type": "object"
+      }
+    },
+    "_RecentAttempt": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "quiz_title",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "subject",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "double",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "percentage",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "number",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "correct_answers_count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "wrong_answers_count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "unanswered_count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "duration_seconds",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "submitted_at",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "correct_answers_count": {
+            "type": "integer"
+          },
+          "duration_seconds": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "percentage": {
+            "format": "double",
+            "nullable": true,
+            "type": "number"
+          },
+          "quiz_title": {
+            "type": "string"
+          },
+          "subject": {
+            "nullable": true,
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "unanswered_count": {
+            "type": "integer"
+          },
+          "wrong_answers_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "correct_answers_count",
+          "duration_seconds",
+          "percentage",
+          "quiz_title",
+          "subject",
+          "submitted_at",
+          "unanswered_count",
+          "wrong_answers_count"
+        ],
         "type": "object"
       }
     }

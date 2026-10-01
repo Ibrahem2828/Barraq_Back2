@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-09-22T18:22:40+00:00",
-    "generated_from_backend_commit": "58d065469689986d855361ad8c667b7446b0b15e",
+    "generated_at": "2026-10-01T21:23:40+00:00",
+    "generated_from_backend_commit": "1834f6195cac6ac3277490bff3228982dde0248e",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -16445,7 +16445,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
           "maximum": 5,
           "min_length": null,
@@ -16724,7 +16724,6 @@
             "type": "string"
           },
           "rating": {
-            "format": "int64",
             "maximum": 5,
             "minimum": 1,
             "type": "integer"
@@ -16759,7 +16758,7 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
           "maximum": 5,
           "min_length": null,
@@ -16971,7 +16970,6 @@
             "type": "string"
           },
           "rating": {
-            "format": "int64",
             "maximum": 5,
             "minimum": 1,
             "type": "integer"
@@ -18667,9 +18665,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -18687,8 +18685,7 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -18757,9 +18754,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -18780,8 +18777,7 @@
             "type": "boolean"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -18834,9 +18830,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -18853,8 +18849,7 @@
             "type": "boolean"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -18923,9 +18918,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -18946,8 +18941,7 @@
             "type": "boolean"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -19071,9 +19065,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 32767,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -19154,8 +19148,7 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 32767,
             "minimum": 0,
             "type": "integer"
           },
@@ -22305,9 +22298,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -22321,9 +22314,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "points",
@@ -22365,14 +22358,12 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -22507,9 +22498,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "time_limit_minutes",
@@ -22535,8 +22526,7 @@
             "$ref": "#/resources/QuizStatusEnum/schema"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -23001,9 +22991,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "daily_study_minutes",
@@ -23038,8 +23028,7 @@
       "schema": {
         "properties": {
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -23118,9 +23107,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "estimated_minutes",
@@ -23177,9 +23166,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -23196,14 +23185,12 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -24270,9 +24257,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "sort_order",
@@ -24315,8 +24302,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -24409,9 +24395,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -24425,9 +24411,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "points",
@@ -24471,14 +24457,12 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -25142,9 +25126,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "correct_answers_count",
@@ -25158,9 +25142,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "wrong_answers_count",
@@ -25174,9 +25158,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "unanswered_count",
@@ -25190,9 +25174,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "duration_seconds",
@@ -25206,14 +25190,12 @@
       "schema": {
         "properties": {
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -25258,14 +25240,12 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -25416,9 +25396,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "correct_answers_count",
@@ -25432,9 +25412,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "wrong_answers_count",
@@ -25448,9 +25428,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "unanswered_count",
@@ -25464,9 +25444,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "duration_seconds",
@@ -25503,14 +25483,12 @@
             "type": "array"
           },
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -25555,14 +25533,12 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -25728,9 +25704,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "questions_count",
@@ -25744,9 +25720,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "time_limit_minutes",
@@ -25812,8 +25788,7 @@
             "type": "array"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -25832,8 +25807,7 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -26122,9 +26096,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "correct_answers_count",
@@ -26138,9 +26112,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "wrong_answers_count",
@@ -26154,9 +26128,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "unanswered_count",
@@ -26170,9 +26144,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "duration_seconds",
@@ -26186,14 +26160,12 @@
       "schema": {
         "properties": {
           "correct_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "duration_seconds": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -26226,14 +26198,12 @@
             "type": "string"
           },
           "unanswered_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "wrong_answers_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           }
@@ -26531,9 +26501,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "time_limit_minutes",
@@ -26589,8 +26559,7 @@
             "type": "integer"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -26780,9 +26749,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "questions_count",
@@ -26796,9 +26765,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "time_limit_minutes",
@@ -26971,8 +26940,7 @@
             "type": "array"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -26991,8 +26959,7 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -27145,9 +27112,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "questions_count",
@@ -27161,9 +27128,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "time_limit_minutes",
@@ -27222,8 +27189,7 @@
             "$ref": "#/resources/StudyPlanGenerationTypeEnum/schema"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -27234,8 +27200,7 @@
             "$ref": "#/resources/QuizStatusEnum/schema"
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -27424,9 +27389,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "questions_count",
@@ -27440,9 +27405,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "time_limit_minutes",
@@ -27492,8 +27457,7 @@
             "type": "string"
           },
           "questions_count": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -27512,8 +27476,7 @@
             "readOnly": true
           },
           "time_limit_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -27648,9 +27611,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -27664,9 +27627,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "points",
@@ -27712,14 +27675,12 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -27838,9 +27799,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -27854,9 +27815,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "points",
@@ -27898,14 +27859,12 @@
             "type": "string"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "points": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -32056,9 +32015,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "result_id",
@@ -32143,8 +32102,7 @@
           },
           "metadata": {},
           "result_id": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "nullable": true,
             "type": "integer"
@@ -32717,9 +32675,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "daily_study_minutes",
@@ -32790,8 +32748,7 @@
       "schema": {
         "properties": {
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -33068,9 +33025,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "daily_study_minutes",
@@ -33182,8 +33139,7 @@
             "type": "string"
           },
           "daily_study_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -33751,9 +33707,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "estimated_minutes",
@@ -33810,9 +33766,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -33850,8 +33806,7 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -33860,8 +33815,7 @@
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -33943,9 +33897,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "estimated_minutes",
@@ -33980,9 +33934,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -33999,14 +33953,12 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
           "order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -34697,9 +34649,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "sort_order",
@@ -34785,8 +34737,7 @@
             "type": "string"
           },
           "sort_order": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -35322,6 +35273,22 @@
           "maximum": null,
           "min_length": null,
           "minimum": null,
+          "name": "flashcards",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
           "name": "source_references",
           "nullable": false,
           "read_only": true,
@@ -35397,6 +35364,9 @@
             "readOnly": true,
             "type": "string"
           },
+          "flashcards": {
+            "readOnly": true
+          },
           "id": {
             "readOnly": true,
             "type": "integer"
@@ -35449,6 +35419,7 @@
           "covered_topics",
           "created_at",
           "detailed_summary",
+          "flashcards",
           "id",
           "important_terms",
           "key_points",
@@ -36820,9 +36791,9 @@
           "default": null,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "estimated_minutes",
@@ -36879,9 +36850,9 @@
           "default": 1,
           "description": null,
           "enum": null,
-          "format": "int64",
+          "format": null,
           "max_length": null,
-          "maximum": 9223372036854775807,
+          "maximum": 2147483647,
           "min_length": null,
           "minimum": 0,
           "name": "order",
@@ -36935,8 +36906,7 @@
             "type": "string"
           },
           "estimated_minutes": {
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
@@ -36946,8 +36916,7 @@
           },
           "order": {
             "default": 1,
-            "format": "int64",
-            "maximum": 9223372036854775807,
+            "maximum": 2147483647,
             "minimum": 0,
             "type": "integer"
           },
