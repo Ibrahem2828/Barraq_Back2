@@ -80,6 +80,8 @@ class OpenAPISurfaceTests(TestCase):
         # 215 before organizations; the 28 added since are the scoped admin
         # resources, the learner join flow and scoped role revocation; then
         # 4 more: dashboard user creation (POST admin/users/) and student
-        # performance (list, summary, detail).
+        # performance (list, summary, detail); then 10 for the Classroom
+        # Shared Library (staff: list, create, retrieve, update, delete,
+        # download; students: list, retrieve, download, use).
         # Pinned so a new endpoint cannot quietly skip this sweep.
-        self.assertEqual(exercised, 247)
+        self.assertEqual(exercised, 257)

@@ -342,6 +342,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny" if API_DOCS_PUBLIC else "rest_framework.permissions.IsAdminUser"],
     "COMPONENT_SPLIT_REQUEST": True,
     "ENUM_NAME_OVERRIDES": {
+        "ClassLibraryCategoryEnum": "apps.organizations.models.ClassLibraryItem.Category",
         "StudyPlanStatusEnum": "apps.study_plans.models.StudyPlan.Status",
         "StudyPlanDifficultyLevelEnum": "apps.study_plans.models.StudyPlan.DifficultyLevel",
         "StudyPlanGenerationTypeEnum": "apps.study_plans.models.StudyPlan.GenerationType",

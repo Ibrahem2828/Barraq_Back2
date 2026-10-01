@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "mobile",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-10-01T21:23:40+00:00",
-    "generated_from_backend_commit": "1834f6195cac6ac3277490bff3228982dde0248e",
+    "generated_at": "2026-10-01T22:27:30+00:00",
+    "generated_from_backend_commit": "dcbf04ed3b4a8fc2d1ca979e744baa0b1061e143",
     "name": "Baraq Mobile API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -2119,6 +2119,544 @@
           "content_types": [],
           "description": "No response body",
           "schema": null
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "list",
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": "apps.organizations.library_api.LibraryItemSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/organizations/urls.py",
+        "view": "apps.organizations.library_api.StudentClassLibraryViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "The shared library of the learner's own classes and organizations.",
+      "domain": "class_library",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_class_library_list",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_class_library_list",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": {
+        "default_page_size": 20,
+        "maximum_page_size": 100,
+        "meta": [
+          "count",
+          "next",
+          "previous"
+        ],
+        "page_query_parameter": "page",
+        "page_size_query_parameter": "page_size",
+        "type": "page_number",
+        "wrapped_data_location": "data"
+      },
+      "path": "/api/v1/class-library/",
+      "path_parameters": [],
+      "query_parameters": [
+        {
+          "description": null,
+          "name": "category",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": null,
+          "name": "classroom",
+          "required": false,
+          "schema": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        {
+          "description": "رقم الصفحة ضمن النتائج المقسمة.",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+          "name": "page_size",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": null,
+          "name": "search",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": null,
+          "name": "subject",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/PaginatedLibraryItemList/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "retrieve",
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": "apps.organizations.library_api.LibraryItemSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/organizations/urls.py",
+        "view": "apps.organizations.library_api.StudentClassLibraryViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "The shared library of the learner's own classes and organizations.",
+      "domain": "class_library",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_class_library_retrieve",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_class_library_retrieve",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/class-library/{public_id}/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "public_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/LibraryItem/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "download",
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": "apps.organizations.library_api.LibraryItemSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/organizations/urls.py",
+        "view": "apps.organizations.library_api.StudentClassLibraryViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "The shared library of the learner's own classes and organizations.",
+      "domain": "class_library",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_class_library_download_retrieve",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_class_library_download_retrieve",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/class-library/{public_id}/download/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "public_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/octet-stream"
+          ],
+          "description": "",
+          "schema": {
+            "format": "binary",
+            "type": "string"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "mobile",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [],
+        "required": true,
+        "roles": [],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "use",
+        "permission": [
+          "rest_framework.permissions.IsAuthenticated"
+        ],
+        "serializer": "apps.organizations.library_api.LibraryItemSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/organizations/urls.py",
+        "view": "apps.organizations.library_api.StudentClassLibraryViewSet"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "Put the item in one of my projects (once), ready for a character.",
+      "domain": "class_library",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_class_library_use_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_class_library_use_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No object ownership rule is enforced by this endpoint."
+      },
+      "pagination": null,
+      "path": "/api/v1/class-library/{public_id}/use/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "public_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": {
+          "$ref": "#/resources/LibraryUseRequestRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/LibraryUseResponse/schema"
+          }
+        },
+        "201": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/LibraryUseResponse/schema"
+          }
         }
       },
       "side_effects": [],
@@ -15633,6 +16171,17 @@
         ""
       ]
     },
+    "ClassLibraryCategoryEnum": {
+      "nullable": false,
+      "type": "string",
+      "values": [
+        "handout",
+        "worksheet",
+        "past_exam",
+        "recording",
+        "other"
+      ]
+    },
     "FeedbackTypeEnum": {
       "nullable": false,
       "type": "string",
@@ -15656,6 +16205,16 @@
         "approved",
         "rejected",
         "cancelled"
+      ]
+    },
+    "LibraryUseRequestCharacterEnum": {
+      "nullable": false,
+      "type": "string",
+      "values": [
+        "fahes",
+        "kholasa",
+        "khota",
+        "sada"
       ]
     },
     "LocaleEnum": {
@@ -18956,6 +19515,20 @@
         "type": "object"
       }
     },
+    "ClassLibraryCategoryEnum": {
+      "fields": [],
+      "schema": {
+        "description": "* `handout` - Handout\n* `worksheet` - Worksheet\n* `past_exam` - Past exam paper\n* `recording` - Approved recording\n* `other` - Other",
+        "enum": [
+          "handout",
+          "worksheet",
+          "past_exam",
+          "recording",
+          "other"
+        ],
+        "type": "string"
+      }
+    },
     "CustomTokenObtainPairRequest": {
       "fields": [
         {
@@ -19511,6 +20084,615 @@
           "cancelled"
         ],
         "type": "string"
+      }
+    },
+    "LibraryItem": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "public_id",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "organization_name",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "classroom_name",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "subject",
+          "nullable": true,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "subject_name",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "title",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "description",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "category",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "original_filename",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "file_size",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "extension",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "source_type",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "status",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "uploaded_by_name",
+          "nullable": true,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "characters",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "created_at",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "updated_at",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/resources/ClassLibraryCategoryEnum/schema"
+              }
+            ],
+            "readOnly": true
+          },
+          "characters": {
+            "items": {
+              "type": "string"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "classroom": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "classroom_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "description": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "extension": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "file_size": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "organization_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "original_filename": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "source_type": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/resources/StudentSourceCollectionStatusEnum/schema"
+              }
+            ],
+            "readOnly": true
+          },
+          "subject": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "subject_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "title": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "uploaded_by_name": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "characters",
+          "classroom",
+          "classroom_name",
+          "created_at",
+          "description",
+          "extension",
+          "file_size",
+          "organization",
+          "organization_name",
+          "original_filename",
+          "public_id",
+          "source_type",
+          "status",
+          "subject",
+          "subject_name",
+          "title",
+          "updated_at",
+          "uploaded_by_name"
+        ],
+        "type": "object"
+      }
+    },
+    "LibraryUseRequestCharacterEnum": {
+      "fields": [],
+      "schema": {
+        "description": "* `fahes` - fahes\n* `kholasa` - kholasa\n* `khota` - khota\n* `sada` - sada",
+        "enum": [
+          "fahes",
+          "kholasa",
+          "khota",
+          "sada"
+        ],
+        "type": "string"
+      }
+    },
+    "LibraryUseRequestRequest": {
+      "fields": [
+        {
+          "default": null,
+          "description": "* `fahes` - fahes\n* `kholasa` - kholasa\n* `khota` - khota\n* `sada` - sada",
+          "enum": [
+            "fahes",
+            "kholasa",
+            "khota",
+            "sada"
+          ],
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "character",
+          "nullable": false,
+          "read_only": false,
+          "required": false,
+          "schema_ref": "#/resources/LibraryUseRequestCharacterEnum/schema",
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "character": {
+            "$ref": "#/resources/LibraryUseRequestCharacterEnum/schema"
+          },
+          "project": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "LibraryUseResponse": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "source_id",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uuid",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "project_title",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "character",
+          "nullable": true,
+          "read_only": false,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "created",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "boolean",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "character": {
+            "nullable": true,
+            "type": "string"
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "project": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "project_title": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "character",
+          "created",
+          "project",
+          "project_title",
+          "source_id"
+        ],
+        "type": "object"
       }
     },
     "LocaleEnum": {
@@ -20152,6 +21334,105 @@
           "results": {
             "items": {
               "$ref": "#/resources/AIJobList/schema"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      }
+    },
+    "PaginatedLibraryItemList": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uri",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "next",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uri",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "previous",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "results",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/resources/LibraryItem/schema"
             },
             "type": "array"
           }

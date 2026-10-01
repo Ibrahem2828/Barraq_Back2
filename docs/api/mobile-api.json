@@ -2253,6 +2253,17 @@
         ],
         "type": "object"
       },
+      "ClassLibraryCategoryEnum": {
+        "description": "* `handout` - Handout\n* `worksheet` - Worksheet\n* `past_exam` - Past exam paper\n* `recording` - Approved recording\n* `other` - Other",
+        "enum": [
+          "handout",
+          "worksheet",
+          "past_exam",
+          "recording",
+          "other"
+        ],
+        "type": "string"
+      },
       "Classroom": {
         "properties": {
           "code": {
@@ -2667,6 +2678,222 @@
           "cancelled"
         ],
         "type": "string"
+      },
+      "LibraryItem": {
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClassLibraryCategoryEnum"
+              }
+            ],
+            "readOnly": true
+          },
+          "characters": {
+            "items": {
+              "type": "string"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "classroom": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "classroom_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "description": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "extension": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "file_size": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "organization": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "organization_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "original_filename": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "public_id": {
+            "format": "uuid",
+            "readOnly": true,
+            "type": "string"
+          },
+          "source_type": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+              }
+            ],
+            "readOnly": true
+          },
+          "subject": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "subject_name": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "title": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "uploaded_by_name": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "characters",
+          "classroom",
+          "classroom_name",
+          "created_at",
+          "description",
+          "extension",
+          "file_size",
+          "organization",
+          "organization_name",
+          "original_filename",
+          "public_id",
+          "source_type",
+          "status",
+          "subject",
+          "subject_name",
+          "title",
+          "updated_at",
+          "uploaded_by_name"
+        ],
+        "type": "object"
+      },
+      "LibraryItemCreateRequest": {
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClassLibraryCategoryEnum"
+              }
+            ],
+            "default": "handout"
+          },
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "file": {
+            "format": "binary",
+            "type": "string"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "subject": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "title"
+        ],
+        "type": "object"
+      },
+      "LibraryUseRequestCharacterEnum": {
+        "description": "* `fahes` - fahes\n* `kholasa` - kholasa\n* `khota` - khota\n* `sada` - sada",
+        "enum": [
+          "fahes",
+          "kholasa",
+          "khota",
+          "sada"
+        ],
+        "type": "string"
+      },
+      "LibraryUseRequestRequest": {
+        "properties": {
+          "character": {
+            "$ref": "#/components/schemas/LibraryUseRequestCharacterEnum"
+          },
+          "project": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LibraryUseResponse": {
+        "properties": {
+          "character": {
+            "nullable": true,
+            "type": "string"
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "project": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "project_title": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "character",
+          "created",
+          "project",
+          "project_title",
+          "source_id"
+        ],
+        "type": "object"
       },
       "LocaleEnum": {
         "description": "* `ar` - Arabic\n* `en` - English",
@@ -3767,6 +3994,37 @@
         ],
         "type": "object"
       },
+      "PaginatedLibraryItemList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/LibraryItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
       "PaginatedManagedUserList": {
         "properties": {
           "count": {
@@ -4666,6 +4924,29 @@
             "maximum": 32767,
             "minimum": 0,
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PatchedLibraryItemUpdateRequest": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ClassLibraryCategoryEnum"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StudentSourceCollectionStatusEnum"
+          },
+          "subject": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
           }
         },
         "type": "object"
@@ -10711,6 +10992,219 @@
         },
         "tags": [
           "v1"
+        ]
+      }
+    },
+    "/api/v1/class-library/": {
+      "get": {
+        "description": "The shared library of the learner's own classes and organizations.",
+        "operationId": "v1_class_library_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "classroom",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "رقم الصفحة ضمن النتائج المقسمة.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subject",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedLibraryItemList"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Class Library"
+        ]
+      }
+    },
+    "/api/v1/class-library/{public_id}/": {
+      "get": {
+        "description": "The shared library of the learner's own classes and organizations.",
+        "operationId": "v1_class_library_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryItem"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Class Library"
+        ]
+      }
+    },
+    "/api/v1/class-library/{public_id}/download/": {
+      "get": {
+        "description": "The shared library of the learner's own classes and organizations.",
+        "operationId": "v1_class_library_download_retrieve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Class Library"
+        ]
+      }
+    },
+    "/api/v1/class-library/{public_id}/use/": {
+      "post": {
+        "description": "Put the item in one of my projects (once), ready for a character.",
+        "operationId": "v1_class_library_use_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "public_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryUseRequestRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryUseRequestRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryUseRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryUseResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryUseResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "jwtAuth": []
+          }
+        ],
+        "tags": [
+          "Class Library"
         ]
       }
     },

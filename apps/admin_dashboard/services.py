@@ -43,6 +43,8 @@ DEFAULT_PERMISSIONS = [
     ('roles.update', 'Roles', 'Update roles'),
     ('roles.delete', 'Roles', 'Delete roles'),
     ('students.view', 'Students', 'View students'),
+    ('library.view', 'Class library', 'View the classroom shared library'),
+    ('library.manage', 'Class library', 'Upload and manage classroom shared library files'),
     ('students.update', 'Students', 'Update students'),
     ('education_stages.view', 'Content', 'View education stages'),
     ('education_stages.create', 'Content', 'Create education stages'),
@@ -137,6 +139,10 @@ DEFAULT_ROLES = {
             # Student performance (quizzes, scores, AI use) of its own
             # organization's students -- see admin_dashboard/performance.py.
             'students.view',
+            # Classroom Shared Library: share files with its organization or
+            # any of its classes.
+            'library.view',
+            'library.manage',
             'subjects.view',
             'education_stages.view',
         ],
@@ -155,6 +161,9 @@ DEFAULT_ROLES = {
             'join_requests.manage',
             # Performance of the students in its own classes only.
             'students.view',
+            # Shares files with its own classes only.
+            'library.view',
+            'library.manage',
             'subjects.view',
             'education_stages.view',
         ],
@@ -225,6 +234,7 @@ SECTION_PERMISSIONS = {
     'admins': 'admins.view',
     'roles': 'roles.view',
     'students': 'students.view',
+    'library': 'library.view',
     'organizations': 'organizations.view',
     'classes': 'classes.view',
     'invitations': 'invitations.view',

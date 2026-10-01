@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from pathlib import Path
 
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.common.models import BaseModel
 
@@ -422,3 +424,86 @@ class AdminRoleScope(BaseModel):
 
     def __str__(self):
         return f"{self.admin_user_role_id}:{self.scope_type}"
+
+
+def class_library_upload_to(instance, filename):
+    # The owning organization in the path keeps one tenant's files together
+    # for backup and deletion; the name itself is random, never the upload's.
+    extension = Path(filename).suffix.lower()
+    now = timezone.now()
+    return f"class_library/{instance.organization_id}/{now:%Y}/{now:%m}/{uuid.uuid4().hex}{extension}"
+
+
+class ClassLibraryItem(BaseModel):
+    """A file a school shares with its students -- the Classroom Shared Library.
+
+    Plain storage: uploading an item calls no AI and costs no AI quota. It
+    belongs to one class, or -- with no classroom -- to the whole
+    organization. Students reach it through an active membership only; a
+    learner outside every organization never sees a library.
+
+    A student who sends an item to a character gets a private copy in one of
+    their own projects (see apps/organizations/library.py): the AI pipeline
+    keeps its single rule that a job reads only what its owner owns.
+    """
+
+    class Category(models.TextChoices):
+        HANDOUT = "handout", "Handout"
+        WORKSHEET = "worksheet", "Worksheet"
+        PAST_EXAM = "past_exam", "Past exam paper"
+        RECORDING = "recording", "Approved recording"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        ARCHIVED = "archived", "Archived"
+
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="library_items")
+    classroom = models.ForeignKey(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name="library_items",
+        null=True,
+        blank=True,
+        help_text="Empty means every student of the organization.",
+    )
+    subject = models.ForeignKey(
+        "subjects.Subject",
+        on_delete=models.SET_NULL,
+        related_name="library_items",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.HANDOUT, db_index=True)
+    file = models.FileField(upload_to=class_library_upload_to)
+    original_filename = models.CharField(max_length=255)
+    file_size = models.PositiveBigIntegerField(default=0)
+    mime_type = models.CharField(max_length=120, blank=True)
+    extension = models.CharField(max_length=20, blank=True)
+    source_type = models.CharField(max_length=20, default="other")
+    sha256 = models.CharField(max_length=64, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="uploaded_library_items",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("organization", "status", "-created_at"), name="library_org_status_idx"),
+            models.Index(fields=("classroom", "status", "-created_at"), name="library_class_status_idx"),
+        ]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_audio(self):
+        return self.source_type == "audio"
