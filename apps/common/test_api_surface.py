@@ -78,6 +78,8 @@ class OpenAPISurfaceTests(TestCase):
                     self.assertLess(response.status_code, 500)
 
         # 215 before organizations; the 28 added since are the scoped admin
-        # resources, the learner join flow and scoped role revocation.
+        # resources, the learner join flow and scoped role revocation; then
+        # 4 more: dashboard user creation (POST admin/users/) and student
+        # performance (list, summary, detail).
         # Pinned so a new endpoint cannot quietly skip this sweep.
-        self.assertEqual(exercised, 243)
+        self.assertEqual(exercised, 247)
