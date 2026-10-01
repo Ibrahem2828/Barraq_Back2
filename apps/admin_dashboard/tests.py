@@ -474,3 +474,184 @@ class ApplicationAccessAndAuthorizationTests(APITestCase):
         self.assertFalse(
             HasAdminPermission().has_permission(request, ViewWithoutPermission())
         )
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+class ManagedUserCreateTests(APITestCase):
+    """POST /admin/users/ -- the dashboard's "add user" form.
+
+    The endpoint had no create action, so every POST resolved no permission
+    and the fail-closed check answered 403 even to a super admin.
+    """
+
+    password = 'Create-Pass-2026!'
+
+    def setUp(self):
+        from apps.organizations.models import Classroom, Organization
+
+        _, self.roles = seed_default_rbac()
+        self.super_admin = User.objects.create_superuser(
+            email='super-create@example.com', password='StrongPass123', full_name='Super Admin'
+        )
+        assign_roles_to_user(self.super_admin, [self.roles['super_admin']], self.super_admin, scopes=GLOBAL_SCOPES)
+        self.org_a = Organization.objects.create(name='School A', created_by=self.super_admin)
+        self.org_b = Organization.objects.create(name='School B', created_by=self.super_admin)
+        self.class_a = Classroom.objects.create(organization=self.org_a, name='10-A')
+        self.class_b = Classroom.objects.create(organization=self.org_b, name='10-B')
+        self.manager = User.objects.create_user(
+            email='manager-a@example.com', password='StrongPass123', full_name='Manager A', role=User.Roles.ADMIN
+        )
+        assign_roles_to_user(
+            self.manager,
+            [self.roles['organization_manager']],
+            self.super_admin,
+            scopes=[{'scope_type': 'organization', 'organization': self.org_a}],
+        )
+        self.url = reverse('admin-managed-user-list')
+
+    def payload(self, **extra):
+        data = {'email': 'New.Person@Example.com', 'full_name': 'New Person', 'password': self.password}
+        data.update(extra)
+        return data
+
+    def post(self, actor, **extra):
+        self.client.force_authenticate(user=actor)
+        return self.client.post(self.url, self.payload(**extra), format='json')
+
+    def test_super_admin_creates_a_platform_user(self):
+        response = self.post(self.super_admin)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        user = User.objects.get(email='new.person@example.com')
+        self.assertEqual(user.role, User.Roles.STUDENT)
+        self.assertTrue(user.is_verified)
+        self.assertTrue(user.check_password(self.password))
+        self.assertNotIn('password', response.data)
+        self.assertFalse(user.organization_memberships.exists())
+        log = AuditLog.objects.get(action='user.created')
+        self.assertEqual(log.actor, self.super_admin)
+
+    def test_super_admin_creates_an_organization_manager(self):
+        from apps.organizations.models import AdminRoleScope, OrganizationMembership
+        from apps.organizations.scope import accessible_organization_ids
+
+        response = self.post(
+            self.super_admin,
+            organization=str(self.org_a.public_id),
+            member_type='staff',
+            role_codes=['organization_manager'],
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        user = User.objects.get(email='new.person@example.com')
+        self.assertEqual(user.role, User.Roles.ADMIN)
+        membership = OrganizationMembership.objects.get(user=user)
+        self.assertEqual(membership.organization, self.org_a)
+        self.assertEqual(membership.member_type, OrganizationMembership.MemberType.STAFF)
+        assignment = AdminUserRole.objects.get(user=user, role__code='organization_manager')
+        scope = AdminRoleScope.objects.get(admin_user_role=assignment)
+        self.assertEqual(scope.scope_type, AdminRoleScope.ScopeType.ORGANIZATION)
+        self.assertEqual(scope.organization, self.org_a)
+        # The grant works: the new manager reaches exactly its organization.
+        self.assertEqual(set(accessible_organization_ids(user, 'users.create')), {self.org_a.id})
+
+    def test_super_admin_creates_a_class_supervisor_scoped_to_the_class(self):
+        from apps.organizations.models import AdminRoleScope, ClassMembership
+
+        response = self.post(
+            self.super_admin,
+            organization=str(self.org_a.public_id),
+            classroom=str(self.class_a.public_id),
+            member_type='staff',
+            role_codes=['class_supervisor'],
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        user = User.objects.get(email='new.person@example.com')
+        self.assertTrue(ClassMembership.objects.filter(user=user, classroom=self.class_a).exists())
+        scope = AdminRoleScope.objects.get(admin_user_role__user=user)
+        self.assertEqual(scope.scope_type, AdminRoleScope.ScopeType.CLASS)
+        self.assertEqual(scope.classroom, self.class_a)
+
+    def test_organization_manager_adds_a_student_to_its_own_organization(self):
+        from apps.organizations.models import ClassMembership, OrganizationMembership
+
+        response = self.post(
+            self.manager, organization=str(self.org_a.public_id), classroom=str(self.class_a.public_id)
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        user = User.objects.get(email='new.person@example.com')
+        membership = OrganizationMembership.objects.get(user=user)
+        self.assertEqual(membership.organization, self.org_a)
+        self.assertEqual(membership.member_type, OrganizationMembership.MemberType.STUDENT)
+        self.assertEqual(membership.approved_by, self.manager)
+        self.assertTrue(ClassMembership.objects.filter(user=user, classroom=self.class_a).exists())
+        # ...and then sees the account in its scoped user list.
+        listed = self.client.get(self.url)
+        rows = listed.data['results'] if isinstance(listed.data, dict) and 'results' in listed.data else listed.data
+        self.assertIn('new.person@example.com', [row['email'] for row in rows])
+
+    def test_organization_manager_cannot_add_to_another_organization(self):
+        response = self.post(self.manager, organization=str(self.org_b.public_id))
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email='new.person@example.com').exists())
+
+    def test_organization_manager_must_name_an_organization(self):
+        response = self.post(self.manager)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email='new.person@example.com').exists())
+
+    def test_organization_manager_cannot_grant_dashboard_roles(self):
+        for role_code in ('super_admin', 'class_supervisor'):
+            response = self.post(self.manager, organization=str(self.org_a.public_id), role_codes=[role_code])
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, role_code)
+        self.assertFalse(User.objects.filter(email='new.person@example.com').exists())
+
+    def test_class_must_belong_to_the_organization(self):
+        response = self.post(
+            self.super_admin, organization=str(self.org_a.public_id), classroom=str(self.class_b.public_id)
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('classroom', response.data['errors'])
+
+    def test_super_admin_role_needs_a_platform_wide_grant(self):
+        response = self.post(self.super_admin, organization=str(self.org_a.public_id), role_codes=['super_admin'])
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(email='new.person@example.com').exists())
+
+    def test_duplicate_email_is_rejected_case_insensitively(self):
+        User.objects.create_user(email='new.person@example.com', password='StrongPass123', full_name='Taken')
+
+        response = self.post(self.super_admin)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data['errors'])
+        self.assertEqual(User.objects.filter(email__iexact='new.person@example.com').count(), 1)
+
+    def test_weak_password_is_rejected(self):
+        response = self.post(self.super_admin, password='1234567890')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data['errors'])
+
+    def test_admin_without_users_create_is_denied(self):
+        reader = User.objects.create_user(
+            email='reader@example.com', password='StrongPass123', full_name='Reader', role=User.Roles.ADMIN
+        )
+        assign_roles_to_user(reader, [self.roles['admin']], self.super_admin, scopes=GLOBAL_SCOPES)
+
+        response = self.post(reader)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_student_is_denied(self):
+        student = User.objects.create_user(email='plain-student@example.com', password='StrongPass123', full_name='S')
+
+        response = self.post(student)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

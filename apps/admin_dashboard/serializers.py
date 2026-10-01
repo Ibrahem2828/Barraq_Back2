@@ -1,9 +1,19 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.organizations.scope import resolve_grantable_scopes, validate_grantable_roles
+from apps.organizations.models import Classroom, Organization, OrganizationMembership
+from apps.organizations.scope import (
+    ScopeDenied,
+    accessible_organization_ids,
+    assert_organization_allowed,
+    is_unrestricted,
+    resolve_grantable_scopes,
+    validate_grantable_roles,
+)
 from apps.quizzes.models import Quiz, QuizAttempt
 from apps.sources.models import (
     StudentSource,
@@ -12,6 +22,8 @@ from apps.sources.models import (
 )
 from apps.students.models import StudentProfile
 from apps.study_plans.models import StudyPlan, StudyTask
+from apps.users.identity import normalize_email
+from apps.users.models import phone_number_validator
 
 from .models import AdminPermission, AdminRole, AdminUserRole, AuditLog
 from .services import (
@@ -376,6 +388,110 @@ class ManagedUserSerializer(serializers.ModelSerializer):
             'study_plans_count': getattr(obj, 'study_plans_count', 0),
             'quizzes_count': getattr(obj, 'quizzes_count', 0),
         }
+
+
+class ManagedUserCreateSerializer(serializers.Serializer):
+    """A learner (or staff) account created from the dashboard.
+
+    The same identity rules as self-registration (normalized email, phone
+    format, Django's password policy). The account belongs to an
+    organization when one is given -- and must for a scoped administrator,
+    who can only add people to organizations they manage. A dashboard role
+    (e.g. organization_manager) may be granted in the same step, under the
+    same rules as the admin-creation endpoint: never beyond the caller's own
+    permissions or reach, and scoped to that organization.
+    """
+
+    email = serializers.EmailField()
+    full_name = serializers.CharField(max_length=255)
+    phone_number = serializers.CharField(
+        max_length=32, required=False, allow_blank=True, validators=[phone_number_validator]
+    )
+    password = serializers.CharField(write_only=True, min_length=10)
+    organization = serializers.UUIDField(required=False, allow_null=True)
+    classroom = serializers.UUIDField(required=False, allow_null=True)
+    member_type = serializers.ChoiceField(
+        choices=OrganizationMembership.MemberType.choices,
+        default=OrganizationMembership.MemberType.STUDENT,
+    )
+    role_codes = serializers.SlugRelatedField(
+        queryset=AdminRole.objects.filter(is_active=True),
+        many=True,
+        slug_field='code',
+        required=False,
+    )
+
+    def validate_email(self, value):
+        email = normalize_email(value)
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError(
+                'A user with this email already exists.', code='email_already_registered'
+            )
+        return email
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+        return value
+
+    def validate(self, attrs):
+        request = self.context['request']
+        actor = request.user
+        organization = classroom = None
+        if attrs.get('organization'):
+            organization = Organization.objects.filter(public_id=attrs['organization']).first()
+            if organization is None or organization.status != Organization.Status.ACTIVE:
+                raise serializers.ValidationError({'organization': 'Organization not found.'})
+        reach = accessible_organization_ids(actor, 'users.create')
+        if organization is None:
+            if not is_unrestricted(reach):
+                raise serializers.ValidationError(
+                    {'organization': 'Choose the organization this account belongs to.'}
+                )
+        else:
+            try:
+                assert_organization_allowed(actor, organization, 'users.create')
+            except ScopeDenied as exc:
+                raise serializers.ValidationError(
+                    {'organization': 'You cannot add users to this organization.'}
+                ) from exc
+        if attrs.get('classroom'):
+            classroom = Classroom.objects.filter(public_id=attrs['classroom']).first()
+            if classroom is None or organization is None or classroom.organization_id != organization.id:
+                raise serializers.ValidationError(
+                    {'classroom': 'The class must belong to the chosen organization.'}
+                )
+
+        roles = attrs.get('role_codes') or []
+        if any(role.code == 'super_admin' for role in roles) and not is_super_admin_user(actor):
+            raise serializers.ValidationError({'role_codes': 'Only Super Admin can grant Super Admin.'})
+        if not is_super_admin_user(actor):
+            actor_permissions = get_user_admin_permissions(actor)
+            for role in roles:
+                if not set(role.permissions.values_list('code', flat=True)) <= actor_permissions:
+                    raise serializers.ValidationError(
+                        {'role_codes': 'Cannot assign roles with permissions you do not have.'}
+                    )
+        resolved_scopes = []
+        if roles:
+            # A role applies where the account lives: its organization (or
+            # class), or the whole platform for a super admin's platform roles.
+            if classroom is not None:
+                raw = [{'scope_type': 'class', 'classroom': classroom.public_id}]
+            elif organization is not None:
+                raw = [{'scope_type': 'organization', 'organization': organization.public_id}]
+            else:
+                raw = [{'scope_type': 'global'}]
+            resolved_scopes = resolve_grantable_scopes(actor, raw)
+            validate_grantable_roles(actor, roles, resolved_scopes)
+
+        attrs['organization'] = organization
+        attrs['classroom'] = classroom
+        attrs['roles'] = roles
+        attrs['resolved_scopes'] = resolved_scopes
+        return attrs
 
 
 class ManagedUserUpdateSerializer(serializers.ModelSerializer):

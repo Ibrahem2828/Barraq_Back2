@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -20,6 +21,7 @@ from apps.ai_integration.models import AIFeedback, AIJob
 from apps.common.health import cache_status, database_status, storage_status
 from apps.notifications.models import Notification
 from apps.organizations import scope as scope_policy
+from apps.organizations.models import ClassMembership, OrganizationMembership
 from apps.quizzes.models import Quiz, QuizAttempt
 from apps.sources.models import (
     StudentSource,
@@ -57,6 +59,7 @@ from .serializers import (
     AdminUserUpdateSerializer,
     AssignRolesSerializer,
     AuditLogSerializer,
+    ManagedUserCreateSerializer,
     ManagedUserSerializer,
     ManagedUserUpdateSerializer,
     SystemHealthSerializer,
@@ -525,6 +528,10 @@ class ManagedUserViewSet(  # type: ignore[misc]
     permission_map = {
         'list': 'users.view',
         'retrieve': 'users.view',
+        # POST here used to have no action at all: DRF resolved action=None,
+        # the permission gate found no permission for it and failed closed, so
+        # even a super admin got 403 "You do not have permission".
+        'create': 'users.create',
         'suspend': 'users.suspend',
         'activate': 'users.activate',
         'partial_update': 'users.update',
@@ -548,9 +555,66 @@ class ManagedUserViewSet(  # type: ignore[misc]
         return apply_date_filters(queryset, self.request.query_params)
 
     def get_serializer_class(self):
+        if self.action == 'create':
+            return ManagedUserCreateSerializer
         if self.action == 'partial_update':
             return ManagedUserUpdateSerializer
         return ManagedUserSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        organization = data['organization']
+        classroom = data['classroom']
+        roles = data['roles']
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=data['email'],
+                password=data['password'],
+                full_name=data['full_name'],
+                phone_number=data.get('phone_number') or '',
+                # An administrator vouches for the address; no OTP round trip.
+                is_verified=True,
+                role=User.Roles.ADMIN if roles else User.Roles.STUDENT,
+            )
+            if organization is not None:
+                OrganizationMembership.objects.create(
+                    organization=organization,
+                    user=user,
+                    member_type=data['member_type'],
+                    status=OrganizationMembership.Status.ACTIVE,
+                    joined_at=timezone.now(),
+                    approved_by=request.user,
+                )
+            if classroom is not None:
+                ClassMembership.objects.create(
+                    classroom=classroom,
+                    user=user,
+                    status=ClassMembership.Status.ACTIVE,
+                    joined_at=timezone.now(),
+                    approved_by=request.user,
+                )
+            if roles:
+                assign_roles_to_user(
+                    user, roles, assigned_by=request.user, scopes=data['resolved_scopes']
+                )
+        log_admin_action(
+            request.user,
+            'user.created',
+            user,
+            {
+                'organization': str(organization.public_id) if organization else None,
+                'classroom': str(classroom.public_id) if classroom else None,
+                'member_type': data['member_type'],
+                'roles': [role.code for role in roles],
+            },
+            request,
+        )
+        return Response(
+            ManagedUserSerializer(user, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def partial_update(self, request, *args, **kwargs):
         target = self.get_object()

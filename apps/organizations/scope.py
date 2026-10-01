@@ -626,7 +626,9 @@ def resolve_grantable_scopes(actor, raw_scopes, *, permission="admins.assign_rol
             continue
 
         classroom = Classroom.objects.filter(public_id=entry.get("classroom")).first()
-        if classroom is None or (allowed_classrooms is not None and classroom.id not in allowed_classrooms):
+        if classroom is None or (
+            not is_unrestricted(allowed_classrooms) and classroom.id not in allowed_classrooms
+        ):
             raise serializers.ValidationError({"scopes": "Unknown class."})
         resolved.append(
             {

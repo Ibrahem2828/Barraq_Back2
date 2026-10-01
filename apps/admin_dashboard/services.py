@@ -131,6 +131,9 @@ DEFAULT_ROLES = {
             'join_requests.view',
             'join_requests.manage',
             'users.view',
+            # Adds accounts to the manager's own organization only: the
+            # create endpoint confines it to organizations in this scope.
+            'users.create',
             'subjects.view',
             'education_stages.view',
         ],

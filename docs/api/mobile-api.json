@@ -2754,6 +2754,109 @@
         ],
         "type": "object"
       },
+      "ManagedUserCreate": {
+        "description": "A learner (or staff) account created from the dashboard.\n\nThe same identity rules as self-registration (normalized email, phone\nformat, Django's password policy). The account belongs to an\norganization when one is given -- and must for a scoped administrator,\nwho can only add people to organizations they manage. A dashboard role\n(e.g. organization_manager) may be granted in the same step, under the\nsame rules as the admin-creation endpoint: never beyond the caller's own\npermissions or reach, and scoped to that organization.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "member_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationMembershipTypeEnum"
+              }
+            ],
+            "default": "student"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "phone_number": {
+            "maxLength": 32,
+            "pattern": "^[0-9+\\-\\s()]{7,20}$",
+            "type": "string"
+          },
+          "role_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "email",
+          "full_name"
+        ],
+        "type": "object"
+      },
+      "ManagedUserCreateRequest": {
+        "description": "A learner (or staff) account created from the dashboard.\n\nThe same identity rules as self-registration (normalized email, phone\nformat, Django's password policy). The account belongs to an\norganization when one is given -- and must for a scoped administrator,\nwho can only add people to organizations they manage. A dashboard role\n(e.g. organization_manager) may be granted in the same step, under the\nsame rules as the admin-creation endpoint: never beyond the caller's own\npermissions or reach, and scoped to that organization.",
+        "properties": {
+          "classroom": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "minLength": 1,
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "member_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationMembershipTypeEnum"
+              }
+            ],
+            "default": "student"
+          },
+          "organization": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "password": {
+            "minLength": 10,
+            "type": "string",
+            "writeOnly": true
+          },
+          "phone_number": {
+            "maxLength": 32,
+            "pattern": "^[0-9+\\-\\s()]{7,20}$",
+            "type": "string"
+          },
+          "role_codes": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "email",
+          "full_name",
+          "password"
+        ],
+        "type": "object"
+      },
       "ManagedUserRequest": {
         "properties": {
           "email": {
@@ -2993,6 +3096,14 @@
           "updated_at"
         ],
         "type": "object"
+      },
+      "OrganizationMembershipTypeEnum": {
+        "description": "* `student` - Student\n* `staff` - Staff",
+        "enum": [
+          "student",
+          "staff"
+        ],
+        "type": "string"
       },
       "OrganizationRequest": {
         "properties": {
