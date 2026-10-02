@@ -47,6 +47,8 @@ DEFAULT_PERMISSIONS = [
     ('library.manage', 'Class library', 'Upload and manage classroom shared library files'),
     ('class_work.view', 'Class work', 'View announcements, calendar, assignments and class quizzes'),
     ('class_work.manage', 'Class work', 'Manage announcements, calendar, assignments and class quizzes'),
+    ('journey.view', 'Journey', 'View journey paths, unlockables and weekly challenges'),
+    ('journey.manage', 'Journey', 'Manage journey paths, unlockables and weekly challenges'),
     ('students.update', 'Students', 'Update students'),
     ('education_stages.view', 'Content', 'View education stages'),
     ('education_stages.create', 'Content', 'Create education stages'),
@@ -190,6 +192,10 @@ DEFAULT_ROLES = {
             'subjects.delete',
             'quizzes.view',
             'quizzes.moderate',
+            # Platform-wide journey content: paths, stations, unlockables,
+            # weekly challenges -- not a class's own goal (class_work.*).
+            'journey.view',
+            'journey.manage',
         ],
     },
     'support': {
@@ -242,6 +248,7 @@ SECTION_PERMISSIONS = {
     'students': 'students.view',
     'library': 'library.view',
     'class_work': 'class_work.view',
+    'journey': 'journey.view',
     'organizations': 'organizations.view',
     'classes': 'classes.view',
     'invitations': 'invitations.view',

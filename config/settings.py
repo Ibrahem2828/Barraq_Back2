@@ -156,6 +156,7 @@ INSTALLED_APPS = [
     "apps.mistakes.apps.MistakesConfig",
     "apps.class_work.apps.ClassWorkConfig",
     "apps.study_groups.apps.StudyGroupsConfig",
+    "apps.journey.apps.JourneyConfig",
 ]
 
 MIDDLEWARE = [
@@ -355,6 +356,7 @@ SPECTACULAR_SETTINGS = {
         # reuses QuizStatusEnum rather than a second name for one set.
         "ClassQuizQuestionTypeEnum": "apps.class_work.models.ClassQuizQuestion.QuestionType",
         "GroupMembershipRoleEnum": "apps.study_groups.models.GroupMembership.Role",
+        "UnlockableCategoryEnum": "apps.journey.models.Unlockable.Category",
         "UserRoleEnum": "apps.users.models.User.Roles",
         "ClassQuizAttemptStatusEnum": "apps.class_work.models.ClassQuizAttempt.Status",
         "StudyPlanStatusEnum": "apps.study_plans.models.StudyPlan.Status",
