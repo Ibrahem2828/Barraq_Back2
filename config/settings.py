@@ -152,6 +152,7 @@ INSTALLED_APPS = [
     "apps.waitlist.apps.WaitlistConfig",
     "apps.admin_dashboard",
     "apps.organizations.apps.OrganizationsConfig",
+    "apps.desk.apps.DeskConfig",
 ]
 
 MIDDLEWARE = [
