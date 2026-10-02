@@ -153,6 +153,7 @@ INSTALLED_APPS = [
     "apps.admin_dashboard",
     "apps.organizations.apps.OrganizationsConfig",
     "apps.desk.apps.DeskConfig",
+    "apps.mistakes.apps.MistakesConfig",
 ]
 
 MIDDLEWARE = [
@@ -344,6 +345,7 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "ENUM_NAME_OVERRIDES": {
         "ClassLibraryCategoryEnum": "apps.organizations.models.ClassLibraryItem.Category",
+        "MistakeEntryCategoryEnum": "apps.mistakes.models.MistakeEntry.Category",
         "StudyPlanStatusEnum": "apps.study_plans.models.StudyPlan.Status",
         "StudyPlanDifficultyLevelEnum": "apps.study_plans.models.StudyPlan.DifficultyLevel",
         "StudyPlanGenerationTypeEnum": "apps.study_plans.models.StudyPlan.GenerationType",

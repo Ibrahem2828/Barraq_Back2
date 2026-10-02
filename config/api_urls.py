@@ -18,6 +18,7 @@ urlpatterns = [
     path('', include('apps.support.urls')),
     path('', include('apps.waitlist.urls')),
     path('', include('apps.desk.urls')),
+    path('', include('apps.mistakes.urls')),
     path('admin/', include('apps.admin_dashboard.urls')),
     # Scoped organization administration lives under the same admin
     # prefix as the rest of the dashboard surface.
