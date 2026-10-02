@@ -22,6 +22,8 @@ urlpatterns = [
     path('', include('apps.study_groups.urls')),
     path('admin/', include('apps.journey.admin_urls')),
     path('', include('apps.journey.student_urls')),
+    path('admin/', include('apps.knowledge.admin_urls')),
+    path('', include('apps.knowledge.student_urls')),
     path('admin/', include('apps.admin_dashboard.urls')),
     # Scoped organization administration lives under the same admin
     # prefix as the rest of the dashboard surface.

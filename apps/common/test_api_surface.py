@@ -82,6 +82,8 @@ class OpenAPISurfaceTests(TestCase):
         # 4 more: dashboard user creation (POST admin/users/) and student
         # performance (list, summary, detail); then 10 for the Classroom
         # Shared Library (staff: list, create, retrieve, update, delete,
-        # download; students: list, retrieve, download, use).
+        # download; students: list, retrieve, download, use); then 151 for
+        # six student-engagement apps (desk, mistakes notebook, class work,
+        # study buddies, journey, knowledge square).
         # Pinned so a new endpoint cannot quietly skip this sweep.
-        self.assertEqual(exercised, 257)
+        self.assertEqual(exercised, 408)

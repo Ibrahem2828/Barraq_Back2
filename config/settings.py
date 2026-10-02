@@ -157,6 +157,7 @@ INSTALLED_APPS = [
     "apps.class_work.apps.ClassWorkConfig",
     "apps.study_groups.apps.StudyGroupsConfig",
     "apps.journey.apps.JourneyConfig",
+    "apps.knowledge.apps.KnowledgeConfig",
 ]
 
 MIDDLEWARE = [
