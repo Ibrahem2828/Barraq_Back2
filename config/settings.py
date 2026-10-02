@@ -155,6 +155,7 @@ INSTALLED_APPS = [
     "apps.desk.apps.DeskConfig",
     "apps.mistakes.apps.MistakesConfig",
     "apps.class_work.apps.ClassWorkConfig",
+    "apps.study_groups.apps.StudyGroupsConfig",
 ]
 
 MIDDLEWARE = [
@@ -353,6 +354,8 @@ SPECTACULAR_SETTINGS = {
         # published, archived) are identical to QuizStatusChoices, so it
         # reuses QuizStatusEnum rather than a second name for one set.
         "ClassQuizQuestionTypeEnum": "apps.class_work.models.ClassQuizQuestion.QuestionType",
+        "GroupMembershipRoleEnum": "apps.study_groups.models.GroupMembership.Role",
+        "UserRoleEnum": "apps.users.models.User.Roles",
         "ClassQuizAttemptStatusEnum": "apps.class_work.models.ClassQuizAttempt.Status",
         "StudyPlanStatusEnum": "apps.study_plans.models.StudyPlan.Status",
         "StudyPlanDifficultyLevelEnum": "apps.study_plans.models.StudyPlan.DifficultyLevel",
