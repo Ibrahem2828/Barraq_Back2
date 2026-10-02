@@ -154,6 +154,7 @@ INSTALLED_APPS = [
     "apps.organizations.apps.OrganizationsConfig",
     "apps.desk.apps.DeskConfig",
     "apps.mistakes.apps.MistakesConfig",
+    "apps.class_work.apps.ClassWorkConfig",
 ]
 
 MIDDLEWARE = [
@@ -346,6 +347,13 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "ClassLibraryCategoryEnum": "apps.organizations.models.ClassLibraryItem.Category",
         "MistakeEntryCategoryEnum": "apps.mistakes.models.MistakeEntry.Category",
+        "ClassAssignmentStatusEnum": "apps.class_work.models.ClassAssignment.Status",
+        "AssignmentSubmissionStatusEnum": "apps.class_work.models.AssignmentSubmission.Status",
+        # ClassQuiz.Status is deliberately absent: its choices (draft,
+        # published, archived) are identical to QuizStatusChoices, so it
+        # reuses QuizStatusEnum rather than a second name for one set.
+        "ClassQuizQuestionTypeEnum": "apps.class_work.models.ClassQuizQuestion.QuestionType",
+        "ClassQuizAttemptStatusEnum": "apps.class_work.models.ClassQuizAttempt.Status",
         "StudyPlanStatusEnum": "apps.study_plans.models.StudyPlan.Status",
         "StudyPlanDifficultyLevelEnum": "apps.study_plans.models.StudyPlan.DifficultyLevel",
         "StudyPlanGenerationTypeEnum": "apps.study_plans.models.StudyPlan.GenerationType",

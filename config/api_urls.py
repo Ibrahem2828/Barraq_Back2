@@ -23,6 +23,8 @@ urlpatterns = [
     # Scoped organization administration lives under the same admin
     # prefix as the rest of the dashboard surface.
     path('admin/', include('apps.organizations.admin_urls')),
+    path('admin/', include('apps.class_work.admin_urls')),
     # Learner-facing join flow: authenticated students, not admins.
     path('', include('apps.organizations.student_urls')),
+    path('', include('apps.class_work.student_urls')),
 ]
