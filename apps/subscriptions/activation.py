@@ -33,6 +33,7 @@ from .services import get_or_create_user_subscription
 
 ENTITLING_STATUSES = frozenset({UserSubscription.Status.ACTIVE, UserSubscription.Status.TRIALING})
 MAX_PERIOD_YEARS = 5
+MIN_REFERENCE_SIGNIFICANT_CHARS = 4
 _REFERENCE_PATTERN = re.compile(r'^[\w\-./:# ]{4,120}$')
 
 
@@ -47,8 +48,12 @@ def normalize_payment_reference(raw: str | None) -> str:
 
 
 def payment_reference_key(reference: str) -> str:
-    """Comparison key: case- and whitespace-insensitive, so 'tx 9' == 'TX9'."""
-    return re.sub(r'\s+', '', normalize_payment_reference(reference)).casefold()
+    """Comparison key: only the letters and digits, case-folded.
+
+    Staff type the same receipt as 'TRX-1001', 'trx 1001' or 'TRX1001'; all of
+    them must be one reference, or the same payment could buy two activations.
+    """
+    return re.sub(r'[\W_]+', '', normalize_payment_reference(reference)).casefold()
 
 
 def _luhn_valid(digits: str) -> bool:
@@ -79,6 +84,13 @@ def validate_payment_reference(raw: str | None) -> str:
     if not _REFERENCE_PATTERN.match(reference):
         raise SubscriptionError(
             'Payment reference must be 4-120 characters: letters, digits, spaces and - . / : #',
+            code='invalid_payment_reference',
+        )
+    if len(payment_reference_key(reference)) < MIN_REFERENCE_SIGNIFICANT_CHARS:
+        # '----' or '. . . .' passes the pattern but identifies nothing, and
+        # would collapse to the same comparison key as any other such value.
+        raise SubscriptionError(
+            f'Payment reference needs at least {MIN_REFERENCE_SIGNIFICANT_CHARS} letters or digits.',
             code='invalid_payment_reference',
         )
     if looks_like_card_number(reference):

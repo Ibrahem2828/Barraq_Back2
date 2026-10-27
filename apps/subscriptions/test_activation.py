@@ -43,6 +43,21 @@ class ReferenceRuleTests(TestCase):
         self.assertEqual(payment_reference_key('  TX  9 12 '), payment_reference_key('tx912'))
         self.assertEqual(normalize_payment_reference('TX  9'), 'TX 9')
 
+    def test_separators_do_not_make_a_different_reference(self):
+        """The same receipt typed three ways is one reference, or it buys twice."""
+        keys = {
+            payment_reference_key(value)
+            for value in ('TRX-1001', 'trx 1001', 'TRX1001', 'trx_1001', 'TRX/1001', 'trx.10.01', '#TRX:1001')
+        }
+        self.assertEqual(keys, {'trx1001'})
+
+    def test_a_reference_with_too_few_letters_or_digits_is_refused(self):
+        """'----' fits the pattern but would share one key with every other such value."""
+        for value in ('----', '. . . .', 'ab--', '#-/-'):
+            with self.assertRaises(SubscriptionError, msg=value) as caught:
+                validate_payment_reference(value)
+            self.assertEqual(caught.exception.domain_code, 'invalid_payment_reference')
+
     def test_fullwidth_characters_are_normalised(self):
         self.assertEqual(payment_reference_key('ＴＸ-１２３'), payment_reference_key('tx-123'))
 
@@ -228,6 +243,14 @@ class ActivationApiTests(TestCase):
         self.assertEqual(replay.status_code, status.HTTP_200_OK)
         self.assertEqual(SubscriptionActivation.objects.count(), 1)
 
+    def test_a_receipt_retyped_with_other_separators_cannot_activate_a_second_student(self):
+        self.activate(payment_reference='TRX-E2E-1001')
+        response = self.activate(user=self.other_student, payment_reference='trx-e2e 1001')
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data['code'], 'payment_reference_already_used')
+        self.assertEqual(SubscriptionActivation.objects.count(), 1)
+
     def test_a_reference_cannot_activate_a_second_student(self):
         self.activate()
         response = self.activate(user=self.other_student)
@@ -314,7 +337,7 @@ class ActivationApiTests(TestCase):
             ({'plan_code': 'school'}, 'period_end_required'),
         ]
         for index, (overrides, code) in enumerate(cases):
-            response = self.activate(payment_reference=f'PE-{index}', **overrides)
+            response = self.activate(payment_reference=f'PERIOD-{index}', **overrides)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, (code, response.data))
             self.assertEqual(response.data['code'], code)
         self.assertEqual(SubscriptionActivation.objects.count(), 0)
