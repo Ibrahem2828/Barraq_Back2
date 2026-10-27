@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from corsheaders.defaults import default_headers as default_cors_headers
 from django.core.exceptions import ImproperlyConfigured
 
 from apps.common.env_config import (
@@ -401,6 +402,10 @@ SPECTACULAR_SETTINGS = {
 }
 
 CORS_ALLOW_CREDENTIALS = env("CORS_ALLOW_CREDENTIALS")
+# The Android app calls the API directly from its WebView origin with a Bearer
+# token; the client sends x-request-id and reads it back (and Retry-After on 429).
+CORS_ALLOW_HEADERS = (*default_cors_headers, "x-request-id")
+CORS_EXPOSE_HEADERS = ["x-request-id", "retry-after"]
 CORS_URLS_REGEX = r"^/api/.*$"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

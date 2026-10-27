@@ -7,7 +7,7 @@ x-backend-environment: &backend-environment
   DJANGO_ADMIN_URL: ${DJANGO_ADMIN_URL:-admin/}
   ALLOWED_HOSTS: api.baraqapp.com,backend,localhost,127.0.0.1
   PUBLIC_API_BASE_URL: https://api.baraqapp.com
-  CORS_ALLOWED_ORIGINS: https://baraqapp.com,https://www.baraqapp.com,https://dashboard.baraqapp.com,https://web.baraqapp.com
+  CORS_ALLOWED_ORIGINS: https://baraqapp.com,https://www.baraqapp.com,https://dashboard.baraqapp.com,https://web.baraqapp.com,https://localhost
   CSRF_TRUSTED_ORIGINS: https://api.baraqapp.com,https://baraqapp.com,https://www.baraqapp.com,https://dashboard.baraqapp.com,https://web.baraqapp.com
   CORS_ALLOW_CREDENTIALS: "False"
   FRONTEND_PASSWORD_RESET_URL: https://web.baraqapp.com/ar/reset-password

@@ -555,3 +555,32 @@ class DjangoAdminPathTests(APITestCase):
         from django.conf import settings
 
         self.assertEqual(reverse('admin:index'), '/' + settings.DJANGO_ADMIN_URL)
+
+
+@override_settings(CORS_ALLOWED_ORIGINS=['https://localhost'])
+class NativeAppCorsTests(APITestCase):
+    """The mobile app calls the API from its WebView origin with a Bearer token."""
+
+    def test_preflight_allows_the_request_id_header(self):
+        response = self.client.options(
+            '/api/v1/auth/login/',
+            HTTP_ORIGIN='https://localhost',
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST',
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS='authorization, content-type, x-request-id',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['access-control-allow-origin'], 'https://localhost')
+        allowed = {header.strip() for header in response['access-control-allow-headers'].split(',')}
+        self.assertTrue({'authorization', 'content-type', 'x-request-id'} <= allowed)
+
+    def test_response_exposes_request_id_and_retry_after(self):
+        response = self.client.get('/api/health/', HTTP_ORIGIN='https://localhost')
+
+        exposed = {header.strip() for header in response['access-control-expose-headers'].split(',')}
+        self.assertEqual(exposed, {'x-request-id', 'retry-after'})
+
+    def test_an_unlisted_origin_gets_no_cors_grant(self):
+        response = self.client.get('/api/health/', HTTP_ORIGIN='https://evil.example')
+
+        self.assertNotIn('access-control-allow-origin', response)
