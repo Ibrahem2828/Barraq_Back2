@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-10-27T09:13:51+00:00",
-    "generated_from_backend_commit": "d87bced7cb8ab675a1a4b10c82611f2c6803669f",
+    "generated_at": "2026-10-27T10:35:19+00:00",
+    "generated_from_backend_commit": "1339253766e88a89547d927e603e1e1d45a139b4",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -36524,7 +36524,7 @@
           "write_only": false
         },
         {
-          "default": null,
+          "default": "",
           "description": null,
           "enum": null,
           "format": null,
@@ -36535,7 +36535,7 @@
           "name": "code",
           "nullable": false,
           "read_only": false,
-          "required": true,
+          "required": false,
           "type": "string",
           "write_only": false
         },
@@ -36611,6 +36611,7 @@
       "schema": {
         "properties": {
           "code": {
+            "default": "",
             "maxLength": 40,
             "type": "string"
           },
@@ -36647,7 +36648,6 @@
           }
         },
         "required": [
-          "code",
           "created_at",
           "member_count",
           "name",
@@ -36677,7 +36677,7 @@
           "write_only": false
         },
         {
-          "default": null,
+          "default": "",
           "description": null,
           "enum": null,
           "format": null,
@@ -36688,7 +36688,7 @@
           "name": "code",
           "nullable": false,
           "read_only": false,
-          "required": true,
+          "required": false,
           "type": "string",
           "write_only": false
         },
@@ -36716,6 +36716,7 @@
       "schema": {
         "properties": {
           "code": {
+            "default": "",
             "maxLength": 40,
             "type": "string"
           },
@@ -36729,7 +36730,6 @@
           }
         },
         "required": [
-          "code",
           "name"
         ],
         "type": "object"
@@ -46515,7 +46515,7 @@
           "write_only": false
         },
         {
-          "default": null,
+          "default": "",
           "description": null,
           "enum": null,
           "format": null,
@@ -46572,6 +46572,7 @@
             "type": "integer"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -49466,7 +49467,7 @@
           "write_only": false
         },
         {
-          "default": null,
+          "default": "",
           "description": null,
           "enum": null,
           "format": null,
@@ -49477,7 +49478,7 @@
           "name": "grade_level",
           "nullable": false,
           "read_only": false,
-          "required": true,
+          "required": false,
           "type": "string",
           "write_only": false
         },
@@ -49564,6 +49565,7 @@
             "type": "string"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -49588,7 +49590,6 @@
           "created_at",
           "education_stage",
           "education_stage_name",
-          "grade_level",
           "id",
           "name",
           "updated_at"
@@ -49797,7 +49798,7 @@
           "write_only": false
         },
         {
-          "default": null,
+          "default": "",
           "description": null,
           "enum": null,
           "format": null,
@@ -49808,7 +49809,7 @@
           "name": "grade_level",
           "nullable": false,
           "read_only": false,
-          "required": true,
+          "required": false,
           "type": "string",
           "write_only": false
         },
@@ -49854,6 +49855,7 @@
             "type": "integer"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -49868,7 +49870,6 @@
         },
         "required": [
           "education_stage",
-          "grade_level",
           "name"
         ],
         "type": "object"

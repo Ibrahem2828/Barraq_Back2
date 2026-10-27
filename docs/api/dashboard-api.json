@@ -3350,6 +3350,7 @@
       "Classroom": {
         "properties": {
           "code": {
+            "default": "",
             "maxLength": 40,
             "type": "string"
           },
@@ -3386,7 +3387,6 @@
           }
         },
         "required": [
-          "code",
           "created_at",
           "member_count",
           "name",
@@ -3399,6 +3399,7 @@
       "ClassroomRequest": {
         "properties": {
           "code": {
+            "default": "",
             "maxLength": 40,
             "type": "string"
           },
@@ -3412,7 +3413,6 @@
           }
         },
         "required": [
-          "code",
           "name"
         ],
         "type": "object"
@@ -8695,6 +8695,7 @@
             "type": "integer"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -10248,6 +10249,7 @@
             "type": "string"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -10266,7 +10268,6 @@
         "required": [
           "education_stage",
           "education_stage_name",
-          "grade_level",
           "id",
           "name"
         ],
@@ -10281,6 +10282,7 @@
             "type": "integer"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -10295,7 +10297,6 @@
         },
         "required": [
           "education_stage",
-          "grade_level",
           "name"
         ],
         "type": "object"
@@ -12529,6 +12530,7 @@
             "type": "string"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -12553,7 +12555,6 @@
           "created_at",
           "education_stage",
           "education_stage_name",
-          "grade_level",
           "id",
           "name",
           "updated_at"
@@ -12641,6 +12642,7 @@
             "type": "integer"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -12655,7 +12657,6 @@
         },
         "required": [
           "education_stage",
-          "grade_level",
           "name"
         ],
         "type": "object"
@@ -12673,6 +12674,7 @@
             "type": "string"
           },
           "grade_level": {
+            "default": "",
             "maxLength": 50,
             "type": "string"
           },
@@ -12691,7 +12693,6 @@
         "required": [
           "education_stage",
           "education_stage_name",
-          "grade_level",
           "id",
           "name"
         ],
