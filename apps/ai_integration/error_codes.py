@@ -49,6 +49,7 @@ class ErrorCode(models.TextChoices):
     PROVIDER_UNAVAILABLE = "provider_unavailable", "Provider unavailable"
     ALL_PROVIDERS_FAILED = "all_providers_failed", "All providers failed"
     NO_PROVIDER_AVAILABLE = "no_provider_available", "No provider available"
+    PROVIDER_BUDGET_EXHAUSTED = "provider_budget_exhausted", "Provider budget exhausted"
     VALIDATION_FAILED = "validation_failed", "Output validation failed"
     RESULT_VALIDATION_FAILED = "result_validation_failed", "Result validation failed"
     OUTPUT_VALIDATION_FAILED = "output_validation_failed", "Output validation failed"
@@ -109,6 +110,7 @@ _PUBLIC_ERROR_MESSAGES: dict[str, str] = {
     ErrorCode.PROVIDER_UNAVAILABLE: "The AI provider is temporarily unavailable.",
     ErrorCode.ALL_PROVIDERS_FAILED: "The AI provider is temporarily unavailable.",
     ErrorCode.NO_PROVIDER_AVAILABLE: "No AI provider is currently available for this request.",
+    ErrorCode.PROVIDER_BUDGET_EXHAUSTED: "The AI service has reached its usage limit for now.",
     ErrorCode.VALIDATION_FAILED: "The generated result did not pass validation.",
     ErrorCode.RESULT_VALIDATION_FAILED: "The generated result did not pass validation.",
     ErrorCode.OUTPUT_VALIDATION_FAILED: "The generated result did not pass validation.",
