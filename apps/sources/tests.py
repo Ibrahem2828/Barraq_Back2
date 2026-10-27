@@ -804,7 +804,7 @@ class SourceProcessingRetryTests(APITestCase):
         from apps.users.tasks import send_email_otp
 
         with (
-            mock.patch('apps.users.tasks.send_mail', side_effect=OSError('smtp down')),
+            mock.patch('django.core.mail.EmailMultiAlternatives.send', side_effect=OSError('smtp down')),
             mock.patch.object(send_email_otp, 'retry', side_effect=Retry()) as retry,
             self.assertRaises(Retry),
         ):

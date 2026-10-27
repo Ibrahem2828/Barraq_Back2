@@ -475,7 +475,7 @@ class OtpDeliveryHandoffTests(TestCase):
         from apps.users.tasks import send_email_otp
 
         with (
-            mock.patch('apps.users.tasks.send_mail', return_value=0),
+            mock.patch('django.core.mail.EmailMultiAlternatives.send', return_value=0),
             mock.patch.object(send_email_otp, 'retry', side_effect=Retry()) as retry,
             self.assertRaises(Retry),
         ):
@@ -486,7 +486,7 @@ class OtpDeliveryHandoffTests(TestCase):
     def test_an_accepted_message_reports_success(self):
         from apps.users.tasks import send_email_otp
 
-        with mock.patch('apps.users.tasks.send_mail', return_value=1) as send:
+        with mock.patch('django.core.mail.EmailMultiAlternatives.send', return_value=1) as send:
             result = send_email_otp('student@example.com', '123456')
 
         self.assertEqual(result, 1)
@@ -497,7 +497,7 @@ class OtpDeliveryHandoffTests(TestCase):
         from apps.users.tasks import send_email_otp
 
         with (
-            mock.patch('apps.users.tasks.send_mail', return_value=1),
+            mock.patch('django.core.mail.EmailMultiAlternatives.send', return_value=1),
             self.assertLogs('apps.users.tasks', level='DEBUG') as captured,
         ):
             send_email_otp('student@example.com', '987654')
@@ -511,9 +511,16 @@ class OtpDeliveryHandoffTests(TestCase):
         so a passing 'no code in logs' test cannot mean 'no code anywhere'."""
         from apps.users.tasks import send_email_otp
 
-        with mock.patch('apps.users.tasks.send_mail', return_value=1) as send:
+        sent = []
+
+        def capture(message, fail_silently=False):
+            sent.append(message)
+            return 1
+
+        with mock.patch('django.core.mail.EmailMultiAlternatives.send', autospec=True, side_effect=capture):
             send_email_otp('student@example.com', '987654')
 
-        _subject, body, _from_email, recipients = send.call_args.args
-        self.assertIn('987654', body)
-        self.assertEqual(recipients, ['student@example.com'])
+        (message,) = sent
+        self.assertIn('987654', message.body)
+        self.assertIn('987654', message.alternatives[0][0])
+        self.assertEqual(message.to, ['student@example.com'])

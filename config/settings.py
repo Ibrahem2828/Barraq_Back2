@@ -552,6 +552,10 @@ if EMAIL_TIMEOUT <= 0:
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Baraq <no-reply@baraqapp.com>")
+# Optional monitored address for replies to automatic mail; empty = no Reply-To header.
+EMAIL_REPLY_TO = env("EMAIL_REPLY_TO", default="")
+# Domain used in Message-ID headers (a domain Baraq owns, not the container hostname).
+EMAIL_MESSAGE_ID_DOMAIN = env("EMAIL_MESSAGE_ID_DOMAIN", default="baraqapp.com")
 FRONTEND_PASSWORD_RESET_URL = env("FRONTEND_PASSWORD_RESET_URL", default="baraq://reset-password")
 PASSWORD_RESET_TIMEOUT = env.int("PASSWORD_RESET_TIMEOUT", default=3600)
 
