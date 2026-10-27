@@ -29,14 +29,21 @@ from apps.sources.models import (
     StudentSourceInteraction,
 )
 from apps.study_plans.models import StudyPlan
+from apps.subscriptions.activation import (
+    activate_paid_subscription,
+    ensure_paid_entitlement_has_activation,
+)
 from apps.subscriptions.models import UserSubscription
 from apps.subscriptions.serializers import (
+    AdminActivateSubscriptionSerializer,
     AdminChangeSubscriptionSerializer,
+    SubscriptionActivationSerializer,
     UserSubscriptionSerializer,
 )
 from apps.subscriptions.services import (
     cancel_user_subscription,
     change_user_plan,
+    get_or_create_user_subscription,
 )
 from apps.support.models import SupportTicket
 
@@ -540,6 +547,7 @@ class ManagedUserViewSet(  # type: ignore[misc]
         'activate': 'users.activate',
         'partial_update': 'users.update',
         'change_subscription': 'subscriptions.update',
+        'activate_subscription': 'subscriptions.activate',
         'cancel_subscription': 'subscriptions.cancel',
     }
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -649,6 +657,14 @@ class ManagedUserViewSet(  # type: ignore[misc]
         target = self.get_object()
         serializer = AdminChangeSubscriptionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        ensure_paid_entitlement_has_activation(
+            get_or_create_user_subscription(target),
+            new_plan=serializer.validated_data['plan'],
+            new_status=serializer.validated_data.get('status'),
+            new_period_end=serializer.validated_data.get('current_period_end'),
+            period_end_given='current_period_end' in serializer.validated_data,
+            status_defaults_to_active=True,
+        )
         subscription = change_user_plan(
             target,
             serializer.validated_data['plan'],
@@ -665,6 +681,32 @@ class ManagedUserViewSet(  # type: ignore[misc]
             request,
         )
         return Response(UserSubscriptionSerializer(subscription, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='activate-subscription')
+    def activate_subscription(self, request, pk=None):
+        target = self.get_object()
+        serializer = AdminActivateSubscriptionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        activation, created = activate_paid_subscription(
+            target,
+            data['plan'],
+            payment_method=data['payment_method'],
+            payment_reference=data['payment_reference'],
+            actor=request.user,
+            current_period_end=data.get('current_period_end'),
+            note=data.get('note', ''),
+            request=request,
+        )
+        subscription = get_or_create_user_subscription(target)
+        return Response(
+            {
+                'created': created,
+                'activation': SubscriptionActivationSerializer(activation, context={'request': request}).data,
+                'subscription': UserSubscriptionSerializer(subscription, context={'request': request}).data,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['post'], url_path='cancel-subscription')
     def cancel_subscription(self, request, pk=None):

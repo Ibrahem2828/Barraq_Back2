@@ -13,8 +13,8 @@
     "api_base_url_env": "PUBLIC_API_BASE_URL",
     "audience": "dashboard",
     "compatible_backend_contract_version": "2.0",
-    "generated_at": "2026-10-02T10:38:20+00:00",
-    "generated_from_backend_commit": "325c34ccaca3e9966eaac0bc07d561185a1e07c1",
+    "generated_at": "2026-10-27T09:13:51+00:00",
+    "generated_from_backend_commit": "d87bced7cb8ab675a1a4b10c82611f2c6803669f",
     "name": "Baraq Dashboard API Contract",
     "notes": [
       "Generated deterministically from the current Django URLConf, DRF Spectacular schema and source-reviewed dynamic view behavior.",
@@ -20307,6 +20307,286 @@
         "permissions": [
           "IsAdminDashboardUser",
           "HasAdminPermission",
+          "subscriptions.view"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "list",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.subscriptions.serializers.SubscriptionActivationSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/subscriptions/urls.py",
+        "view": "apps.subscriptions.views.AdminSubscriptionActivationViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "Read-only ledger of manual activations, for reconciliation and audit.",
+      "domain": "admin_subscriptions",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_subscription_activations_list",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_admin_subscription_activations_list",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": {
+        "default_page_size": 20,
+        "maximum_page_size": 100,
+        "meta": [
+          "count",
+          "next",
+          "previous"
+        ],
+        "page_query_parameter": "page",
+        "page_size_query_parameter": "page_size",
+        "type": "page_number",
+        "wrapped_data_location": "data"
+      },
+      "path": "/api/v1/admin/subscription-activations/",
+      "path_parameters": [],
+      "query_parameters": [
+        {
+          "description": "أي حقل يجب استخدامه عند ترتيب النتائج.",
+          "name": "ordering",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "رقم الصفحة ضمن النتائج المقسمة.",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "عدد النتائج التي يجب إرجاعها في كل صفحة.",
+          "name": "page_size",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "description": "مصطلح البحث.",
+          "name": "search",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/PaginatedSubscriptionActivationList/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
+          "subscriptions.view"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "retrieve",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.subscriptions.serializers.SubscriptionActivationSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/subscriptions/urls.py",
+        "view": "apps.subscriptions.views.AdminSubscriptionActivationViewSet"
+      },
+      "content_type": null,
+      "content_types": [],
+      "description": "Read-only ledger of manual activations, for reconciliation and audit.",
+      "domain": "admin_subscriptions",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_subscription_activations_retrieve",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "GET",
+      "name": "v1_admin_subscription_activations_retrieve",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": null,
+      "path": "/api/v1/admin/subscription-activations/{id}/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": false,
+        "schema": null
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/SubscriptionActivation/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
           "subscription_plans.view"
         ],
         "required": true,
@@ -23066,6 +23346,151 @@
         "permissions": [
           "IsAdminDashboardUser",
           "HasAdminPermission",
+          "subscriptions.activate"
+        ],
+        "required": true,
+        "roles": [
+          "admin",
+          "support",
+          "super_admin"
+        ],
+        "type": "Bearer JWT"
+      },
+      "backend_source": {
+        "action": "activate_subscription",
+        "permission": [
+          "apps.admin_dashboard.permissions.IsAdminDashboardUser",
+          "apps.admin_dashboard.permissions.HasAdminPermission"
+        ],
+        "serializer": "apps.admin_dashboard.serializers.ManagedUserSerializer",
+        "url_file": "config/urls.py; config/api_urls.py; apps/admin_dashboard/urls.py",
+        "view": "apps.admin_dashboard.views.ManagedUserViewSet"
+      },
+      "content_type": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "content_types": [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data"
+      ],
+      "description": "Applies the tenant boundary to a DRF viewset at one point.\n\n`filter_queryset` rather than `get_queryset`, because DRF routes both\nlist and `get_object` through it -- scoping only the list is how a\ndetail route keeps answering for ids it should never have seen.\n\n`tenant_user_field` is mandatory. A new admin viewset that forgets it\nfails loudly at request time instead of quietly serving every tenant,\nwhich is the failure mode this whole module exists to prevent.",
+      "domain": "admin_managed_users",
+      "headers": [
+        {
+          "description": "Access token from the shared JWT authentication API.",
+          "name": "Authorization",
+          "required": true,
+          "schema": {
+            "format": "Bearer JWT",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Optional correlation ID; an invalid or omitted value is replaced by the server.",
+          "name": "X-Request-ID",
+          "required": false,
+          "schema": {
+            "pattern": "^[A-Za-z0-9._-]{8,128}$",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Use one of the parser-supported request representations.",
+          "name": "Content-Type",
+          "required": true,
+          "schema": {
+            "enum": [
+              "application/json",
+              "application/x-www-form-urlencoded",
+              "multipart/form-data"
+            ],
+            "type": "string"
+          }
+        }
+      ],
+      "id": "v1_admin_users_activate_subscription_create",
+      "idempotency": {
+        "key": null,
+        "supported": false
+      },
+      "method": "POST",
+      "name": "v1_admin_users_activate_subscription_create",
+      "notes": [],
+      "ownership": {
+        "required": false,
+        "rule": "No per-resource ownership check; access is governed by dashboard RBAC."
+      },
+      "pagination": null,
+      "path": "/api/v1/admin/users/{id}/activate-subscription/",
+      "path_parameters": [
+        {
+          "description": null,
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "query_parameters": [],
+      "related_endpoints": [],
+      "request": {
+        "example": null,
+        "required": true,
+        "schema": {
+          "$ref": "#/resources/ManagedUserRequest/schema"
+        }
+      },
+      "response_envelope": {
+        "applied": true,
+        "data_schema_location": "data for successful JSON responses; explicit payloads with success are preserved",
+        "note": "The response schemas in this contract describe the inner data value before EnvelopeJSONRenderer wraps it.",
+        "request_id_field": "request_id when a request exists"
+      },
+      "responses": {
+        "200": {
+          "content_types": [
+            "application/json"
+          ],
+          "description": "",
+          "schema": {
+            "$ref": "#/resources/ManagedUser/schema"
+          }
+        }
+      },
+      "side_effects": [],
+      "throttling": {
+        "configured_default_rates": {
+          "ai_requests": "100/day",
+          "anon": "60/hour",
+          "email_otp_resend": "5/hour",
+          "email_otp_verify": "20/hour",
+          "login": "10/minute",
+          "password_reset": "5/hour",
+          "register": "10/hour",
+          "uploads": "30/hour",
+          "user": "2000/day"
+        },
+        "global_scopes": [
+          "anon",
+          "user",
+          "scoped"
+        ],
+        "known": true,
+        "note": "Rates are environment-configurable Django settings; the values above are source defaults.",
+        "scope": null
+      }
+    },
+    {
+      "audience": "dashboard",
+      "authentication": {
+        "mechanism": "Authorization: Bearer <access_token>",
+        "permissions": [
+          "IsAdminDashboardUser",
+          "HasAdminPermission",
           "users.activate"
         ],
         "required": true,
@@ -24819,6 +25244,17 @@
       "values": [
         "school",
         "institute"
+      ]
+    },
+    "PaymentMethodEnum": {
+      "nullable": false,
+      "type": "string",
+      "values": [
+        "bank_transfer",
+        "cash",
+        "mobile_wallet",
+        "external_gateway",
+        "other"
       ]
     },
     "ProviderEnum": {
@@ -43313,6 +43749,105 @@
         "type": "object"
       }
     },
+    "PaginatedSubscriptionActivationList": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "count",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uri",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "next",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "uri",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "previous",
+          "nullable": true,
+          "read_only": false,
+          "required": false,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "results",
+          "nullable": false,
+          "read_only": false,
+          "required": true,
+          "type": "array",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/resources/SubscriptionActivation/schema"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      }
+    },
     "PaginatedSubscriptionPlanList": {
       "fields": [
         {
@@ -47097,6 +47632,20 @@
         "type": "object"
       }
     },
+    "PaymentMethodEnum": {
+      "fields": [],
+      "schema": {
+        "description": "* `bank_transfer` - Bank transfer\n* `cash` - Cash\n* `mobile_wallet` - Mobile wallet\n* `external_gateway` - External gateway\n* `other` - Other",
+        "enum": [
+          "bank_transfer",
+          "cash",
+          "mobile_wallet",
+          "external_gateway",
+          "other"
+        ],
+        "type": "string"
+      }
+    },
     "ProviderEnum": {
       "fields": [],
       "schema": {
@@ -49321,6 +49870,366 @@
           "education_stage",
           "grade_level",
           "name"
+        ],
+        "type": "object"
+      }
+    },
+    "SubscriptionActivation": {
+      "fields": [
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "id",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "user",
+          "nullable": true,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "user_email",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "subscription",
+          "nullable": true,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "plan",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "plan_code",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "activated_by",
+          "nullable": true,
+          "read_only": true,
+          "required": true,
+          "type": "integer",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "email",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "activated_by_email",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "payment_method",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": null,
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "payment_reference",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "period_start",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "period_end",
+          "nullable": true,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "previous_plan_code",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "previous_status",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": null,
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "note",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        },
+        {
+          "default": null,
+          "description": null,
+          "enum": null,
+          "format": "date-time",
+          "max_length": null,
+          "maximum": null,
+          "min_length": null,
+          "minimum": null,
+          "name": "created_at",
+          "nullable": false,
+          "read_only": true,
+          "required": true,
+          "type": "string",
+          "write_only": false
+        }
+      ],
+      "schema": {
+        "properties": {
+          "activated_by": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "activated_by_email": {
+            "format": "email",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "note": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/resources/PaymentMethodEnum/schema"
+              }
+            ],
+            "readOnly": true
+          },
+          "payment_reference": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "period_end": {
+            "format": "date-time",
+            "nullable": true,
+            "readOnly": true,
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "plan": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "plan_code": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "previous_plan_code": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "previous_status": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "subscription": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "user": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "user_email": {
+            "format": "email",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "activated_by",
+          "activated_by_email",
+          "created_at",
+          "id",
+          "note",
+          "payment_method",
+          "payment_reference",
+          "period_end",
+          "period_start",
+          "plan",
+          "plan_code",
+          "previous_plan_code",
+          "previous_status",
+          "subscription",
+          "user",
+          "user_email"
         ],
         "type": "object"
       }

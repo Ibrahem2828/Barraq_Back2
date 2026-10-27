@@ -42,6 +42,8 @@ Both require normal JWT authentication and only expose the current user context.
 - `GET|PATCH|DELETE /api/admin/subscription-plans/{id}/`
 - `GET /api/admin/user-subscriptions/`
 - `GET|PATCH /api/admin/user-subscriptions/{id}/`
+- `POST /api/admin/users/{id}/activate-subscription/` (the only way to grant a paid plan)
+- `GET /api/admin/subscription-activations/` and `/{id}/` (read-only ledger)
 - `POST /api/admin/users/{id}/change-subscription/`
 - `POST /api/admin/users/{id}/cancel-subscription/`
 - `GET /api/admin/subscription-usage/`
@@ -55,8 +57,44 @@ These endpoints require the existing Admin RBAC permissions:
 - `subscriptions.view`
 - `subscriptions.update`
 - `subscriptions.cancel`
+- `subscriptions.activate` (super_admin and finance only; seeded by `admin_dashboard.0009`)
 
 Admin subscription changes write `AuditLog` rows.
+
+## Manual activation of a paid plan
+
+Baraq takes no payments itself. The student pays through an outside channel
+(bank transfer, cash, wallet, external gateway); staff verify the payment and
+record it with `POST /api/admin/users/{id}/activate-subscription/`:
+
+```json
+{"plan_code": "premium", "payment_method": "bank_transfer",
+ "payment_reference": "TRX-2026/10/00123", "current_period_end": null, "note": ""}
+```
+
+Rules, all enforced in `apps/subscriptions/activation.py`:
+
+- **One receipt, one activation.** The reference is globally unique after
+  normalisation (case- and whitespace-insensitive). Repeating the same request
+  (same reference, student, plan) is answered with `200` and the original
+  activation and changes nothing; the same reference for a different student or
+  plan is `409 payment_reference_already_used`.
+- **Atomic with its audit trail.** The activation row, the subscription change
+  and the `subscription.manually_activated` audit entry commit together; if the
+  audit write fails, nothing is granted.
+- **Period.** Monthly = +1 month, yearly = +12, lifetime = no end, custom needs
+  an explicit `current_period_end`. An early renewal of a running plan continues
+  from its end. An explicit end must be in the future, within 5 years, and may
+  not shorten what the student already has.
+- **No card data.** A valid card number is refused as a reference; no amount or
+  bank detail is stored (see `test_finance_boundary`).
+- **No other door.** `change-subscription` and `PATCH user-subscriptions/{id}/`
+  can still downgrade, cancel, pause and edit metadata, but refuse
+  (`400 payment_activation_required`) to grant a paid plan, make a paid plan
+  active/trialing again, or extend its end.
+- **Immutable ledger.** `SubscriptionActivation` rows cannot be edited or
+  deleted; deleting an account keeps them (anonymised user, or a null link on a
+  hard delete).
 
 ## Limit Errors
 

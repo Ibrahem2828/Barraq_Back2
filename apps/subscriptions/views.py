@@ -12,10 +12,12 @@ from apps.admin_dashboard.permissions import HasAdminPermission, IsAdminDashboar
 from apps.admin_dashboard.services import log_admin_action
 from apps.organizations import scope as scope_policy
 
-from .models import SubscriptionPlan, SubscriptionUsage, UserSubscription
+from .activation import ensure_paid_entitlement_has_activation
+from .models import SubscriptionActivation, SubscriptionPlan, SubscriptionUsage, UserSubscription
 from .serializers import (
     MySubscriptionSerializer,
     PublicSubscriptionPlanSerializer,
+    SubscriptionActivationSerializer,
     SubscriptionPlanSerializer,
     SubscriptionUsageSerializer,
     UserSubscriptionSerializer,
@@ -155,6 +157,17 @@ class AdminUserSubscriptionViewSet(AdminSubscriptionPermissionMixin, viewsets.Mo
         subscription = self.get_object()
         serializer = self.get_serializer(subscription, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        ensure_paid_entitlement_has_activation(
+            subscription,
+            new_plan=validated.get('plan'),
+            new_status=validated.get('status'),
+            new_period_end=validated.get('current_period_end'),
+            period_end_given='current_period_end' in validated,
+            new_trial_ends_at=validated.get('trial_ends_at'),
+            trial_end_given='trial_ends_at' in validated,
+            status_defaults_to_active=True,
+        )
         plan = serializer.validated_data.pop('plan', None)
         if plan is not None:
             subscription = change_user_plan(
@@ -171,6 +184,26 @@ class AdminUserSubscriptionViewSet(AdminSubscriptionPermissionMixin, viewsets.Mo
             subscription.save()
         log_admin_action(request.user, 'subscription.updated', subscription, request=request)
         return Response(UserSubscriptionSerializer(subscription, context={'request': request}).data)
+
+
+@extend_schema(tags=['Admin Subscriptions'])
+class AdminSubscriptionActivationViewSet(AdminSubscriptionPermissionMixin, viewsets.ReadOnlyModelViewSet):  # type: ignore[misc]
+    """Read-only ledger of manual activations, for reconciliation and audit."""
+
+    tenant_user_field = 'user_id'
+    serializer_class = SubscriptionActivationSerializer
+    required_permission = 'subscriptions.view'
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['payment_reference', 'user__email', 'plan__code']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at', '-id']
+
+    def get_queryset(self):
+        queryset = SubscriptionActivation.objects.select_related('user', 'plan', 'activated_by')
+        user = self.request.query_params.get('user')
+        if user:
+            queryset = queryset.filter(user_id=user)
+        return queryset
 
 
 @extend_schema(tags=['Admin Subscriptions'])

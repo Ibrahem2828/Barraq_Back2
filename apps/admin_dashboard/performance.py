@@ -311,9 +311,9 @@ def build_detail(actor, users, user_id, days, since):
         _attempts(since)
         .filter(user_id=user.id)
         .select_related('quiz', 'quiz__subject')
-        .order_by('-submitted_at')[:20]
+        .order_by('-submitted_at', '-id')[:20]
     )
-    jobs = _jobs(since).filter(user_id=user.id).order_by('-created_at')[:20]
+    jobs = _jobs(since).filter(user_id=user.id).order_by('-created_at', '-id')[:20]
     row.update(
         {
             'period_days': days,

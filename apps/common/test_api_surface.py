@@ -86,4 +86,4 @@ class OpenAPISurfaceTests(TestCase):
         # six student-engagement apps (desk, mistakes notebook, class work,
         # study buddies, journey, knowledge square).
         # Pinned so a new endpoint cannot quietly skip this sweep.
-        self.assertEqual(exercised, 408)
+        self.assertEqual(exercised, 411)

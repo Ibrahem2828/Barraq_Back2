@@ -88,6 +88,7 @@ DEFAULT_PERMISSIONS = [
     ('subscriptions.create', 'Subscriptions', 'Create subscriptions'),
     ('subscriptions.update', 'Subscriptions', 'Update subscriptions'),
     ('subscriptions.cancel', 'Subscriptions', 'Cancel subscriptions'),
+    ('subscriptions.activate', 'Subscriptions', 'Activate a paid subscription after verifying an external payment'),
     ('subscription_plans.view', 'Subscriptions', 'View subscription plans'),
     ('subscription_plans.create', 'Subscriptions', 'Create subscription plans'),
     ('subscription_plans.update', 'Subscriptions', 'Update subscription plans'),
@@ -230,6 +231,7 @@ DEFAULT_ROLES = {
             'users.view',
             'subscriptions.view',
             'subscriptions.update',
+            'subscriptions.activate',
             'subscription_plans.view',
         ],
     },
@@ -493,7 +495,9 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
-def log_admin_action(actor, action, target=None, metadata=None, request=None):
+def log_admin_action(actor, action, target=None, metadata=None, request=None, *, strict=False):
+    """Write an audit entry. ``strict=True`` propagates a failure instead of
+    swallowing it, for actions that must not happen without their audit trail."""
     try:
         target_type = ''
         target_id = None
@@ -510,5 +514,7 @@ def log_admin_action(actor, action, target=None, metadata=None, request=None):
             user_agent=request.META.get('HTTP_USER_AGENT', '') if request else '',
         )
     except Exception:
+        if strict:
+            raise
         logger.exception('Failed to write admin audit log.')
         return None

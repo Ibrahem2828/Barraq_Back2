@@ -200,6 +200,78 @@ class UsageLedgerEntry(BaseModel):
         raise ValueError('UsageLedgerEntry is immutable; create an adjustment entry instead.')
 
 
+class SubscriptionActivation(BaseModel):
+    """Immutable record of one manual activation backed by an external payment.
+
+    Baraq takes no payments itself: the money moves through an outside channel
+    and staff verify it. This row is the proof of that verification. The
+    reference is globally unique (after normalisation) so the same receipt can
+    never buy two activations, and the row is never updated or deleted.
+
+    Deliberately holds no amount and no card or bank data -- see
+    test_finance_boundary: the system records subscriptions, not payments.
+    """
+
+    class PaymentMethod(models.TextChoices):
+        BANK_TRANSFER = 'bank_transfer', 'Bank transfer'
+        CASH = 'cash', 'Cash'
+        MOBILE_WALLET = 'mobile_wallet', 'Mobile wallet'
+        EXTERNAL_GATEWAY = 'external_gateway', 'External gateway'
+        OTHER = 'other', 'Other'
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='subscription_activations',
+        null=True,
+        blank=True,
+    )
+    subscription = models.ForeignKey(
+        UserSubscription,
+        on_delete=models.SET_NULL,
+        related_name='activations',
+        null=True,
+        blank=True,
+    )
+    plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.PROTECT,
+        related_name='activations',
+    )
+    activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='subscription_activations_made',
+        null=True,
+        blank=True,
+    )
+    payment_method = models.CharField(max_length=30, choices=PaymentMethod.choices)
+    payment_reference = models.CharField(max_length=120)
+    reference_key = models.CharField(max_length=120, unique=True)
+    period_start = models.DateTimeField()
+    period_end = models.DateTimeField(null=True, blank=True)
+    previous_plan_code = models.CharField(max_length=50, blank=True)
+    previous_status = models.CharField(max_length=20, blank=True)
+    note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ('-created_at', '-id')
+        verbose_name = 'Subscription Activation'
+        verbose_name_plural = 'Subscription Activations'
+        indexes = [models.Index(fields=['user', '-created_at'], name='sub_activation_user_idx')]
+
+    def __str__(self):
+        return f'{self.plan.code} activated ({self.payment_reference})'
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValueError('SubscriptionActivation is immutable.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError('SubscriptionActivation is immutable.')
+
+
 class SubscriptionEvent(models.Model):
     class EventType(models.TextChoices):
         CREATED = 'created', 'Created'

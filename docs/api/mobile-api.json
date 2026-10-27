@@ -7500,6 +7500,37 @@
         ],
         "type": "object"
       },
+      "PaginatedSubscriptionActivationList": {
+        "properties": {
+          "count": {
+            "example": 123,
+            "type": "integer"
+          },
+          "next": {
+            "example": "http://api.example.org/accounts/?page=4",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "previous": {
+            "example": "http://api.example.org/accounts/?page=2",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionActivation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "results"
+        ],
+        "type": "object"
+      },
       "PaginatedSubscriptionPlanList": {
         "properties": {
           "count": {
@@ -8957,6 +8988,17 @@
           "title"
         ],
         "type": "object"
+      },
+      "PaymentMethodEnum": {
+        "description": "* `bank_transfer` - Bank transfer\n* `cash` - Cash\n* `mobile_wallet` - Mobile wallet\n* `external_gateway` - External gateway\n* `other` - Other",
+        "enum": [
+          "bank_transfer",
+          "cash",
+          "mobile_wallet",
+          "external_gateway",
+          "other"
+        ],
+        "type": "string"
       },
       "Project": {
         "properties": {
@@ -12683,6 +12725,106 @@
             "type": "array"
           }
         },
+        "type": "object"
+      },
+      "SubscriptionActivation": {
+        "properties": {
+          "activated_by": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "activated_by_email": {
+            "format": "email",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "note": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodEnum"
+              }
+            ],
+            "readOnly": true
+          },
+          "payment_reference": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "period_end": {
+            "format": "date-time",
+            "nullable": true,
+            "readOnly": true,
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date-time",
+            "readOnly": true,
+            "type": "string"
+          },
+          "plan": {
+            "readOnly": true,
+            "type": "integer"
+          },
+          "plan_code": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "previous_plan_code": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "previous_status": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "subscription": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "user": {
+            "nullable": true,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "user_email": {
+            "format": "email",
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "activated_by",
+          "activated_by_email",
+          "created_at",
+          "id",
+          "note",
+          "payment_method",
+          "payment_reference",
+          "period_end",
+          "period_start",
+          "plan",
+          "plan_code",
+          "previous_plan_code",
+          "previous_status",
+          "subscription",
+          "user",
+          "user_email"
+        ],
         "type": "object"
       },
       "SubscriptionPlan": {

@@ -5,6 +5,7 @@ from apps.ai_integration.admin_api import AdminAIFeedbackViewSet, AdminAIJobView
 from apps.ai_integration.admin_results import AdminRecommendationViewSet, AdminSummaryViewSet, AdminTranscriptionViewSet
 from apps.subjects.admin_api import AdminEducationStageViewSet, AdminSubjectViewSet
 from apps.subscriptions.views import (
+    AdminSubscriptionActivationViewSet,
     AdminSubscriptionPlanViewSet,
     AdminSubscriptionUsageViewSet,
     AdminUserSubscriptionViewSet,
@@ -70,6 +71,11 @@ router.register(
     r'user-subscriptions',
     AdminUserSubscriptionViewSet,
     basename='admin-user-subscription',
+)
+router.register(
+    r'subscription-activations',
+    AdminSubscriptionActivationViewSet,
+    basename='admin-subscription-activation',
 )
 router.register(
     r'subscription-usage',

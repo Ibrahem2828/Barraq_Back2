@@ -361,7 +361,10 @@ class SubscriptionsTestCase(APITestCase):
         self.authenticate(self.finance_admin)
         response = self.client.post(
             reverse('admin-managed-user-change-subscription', args=[self.student.id]),
-            {'plan_code': 'premium'},
+            # A paid plan that grants access now needs a recorded payment
+            # (see test_activation); changing the record without granting
+            # access is still ordinary support work.
+            {'plan_code': 'premium', 'status': 'paused'},
             format='json',
         )
 
